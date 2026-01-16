@@ -1,0 +1,125 @@
+import { useState } from "react";
+import { signIn } from "./api";
+
+interface LoginPageProps {
+  /**
+   * Called when a user successfully authenticates.  The caller
+   * should update application state (e.g. store role) and navigate
+   * away from the login screen.
+   */
+  onLoginSuccess: (role: string | undefined) => void;
+}
+
+/**
+ * Login screen for the LMS application.  This component is largely
+ * based off of a design provided in another project.  The colours
+ * and typography have been adapted to match the existing LMS
+ * styling by leaning on our CSS variables.  Tailwind classes are
+ * used for layout and spacing.
+ */
+export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!login || !password) {
+      setError("Enter login and password");
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await signIn(login, password);
+      // Attempt to derive the role from the response.  Some
+      // implementations return it explicitly as `roleName`.  If it
+      // isn't present we fall back to undefined and allow the app
+      // component to probe the appropriate profile endpoints.
+      const role = (res as any).roleName as string | undefined;
+      onLoginSuccess(role);
+    } catch (err: any) {
+      setError(err.message || "Ошибка входа. Попробуйте ещё раз.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border border-border">
+            <div className="mb-6 text-center">
+              <h2 className="text-2xl font-semibold">Вход в LMS</h2>
+              <p className="text-sm text-muted-foreground mt-1">Используйте корпоративную учётную запись</p>
+            </div>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="text" className="block text-sm font-medium mb-1">
+                  Login
+                </label>
+                <input
+                  id="pin"
+                  type="text"
+                  autoComplete="username"
+                  value={login}
+                  onChange={(e) => setLogin(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-input-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="name@bsu.az"
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium mb-1">
+                  Пароль
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-input-background px-3 py-2 pr-12 outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-2 my-auto h-10 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                  >
+                    {showPassword ? "Скрыть" : "Показать"}
+                  </button>
+                </div>
+              </div>
+              {error && (
+                <div className="text-sm text-destructive" role="alert">
+                  {error}
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <label className="inline-flex items-center gap-2 select-none">
+                  <input type="checkbox" className="h-4 w-4 rounded border-border" />
+                  Запомнить меня
+                </label>
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-xl bg-primary text-primary-foreground py-2 font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+              >
+                {loading ? "Входим…" : "Войти"}
+              </button>
+            </form>
+          </div>
+          <div className="text-center text-xs text-muted-foreground mt-4">
+            © {new Date().getFullYear()} Бакинский Государственный Университет
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
