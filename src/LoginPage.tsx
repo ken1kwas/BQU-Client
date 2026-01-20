@@ -53,13 +53,18 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         <div className="w-full max-w-md">
           <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border border-border">
             <div className="mb-6 text-center">
-              <h2 className="text-2xl font-semibold">Вход в LMS</h2>
-              <p className="text-sm text-muted-foreground mt-1">Используйте корпоративную учётную запись</p>
+              <h2 className="text-2xl font-semibold">LMS-ə daxil olun</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Korporativ hesabdan istifadə edin
+              </p>
             </div>
             <form onSubmit={onSubmit} className="space-y-4">
               <div>
-                <label htmlFor="text" className="block text-sm font-medium mb-1">
-                  Login
+                <label
+                  htmlFor="text"
+                  className="block text-sm font-medium mb-1"
+                >
+                  Daxil ol
                 </label>
                 <input
                   id="pin"
@@ -68,12 +73,15 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   value={login}
                   onChange={(e) => setLogin(e.target.value)}
                   className="w-full rounded-xl border border-border bg-input-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="name@bsu.az"
+                  placeholder="FIN kodunuzu daxil edin"
                 />
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-1">
-                  Пароль
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium mb-1"
+                >
+                  Şifrə
                 </label>
                 <div className="relative">
                   <input
@@ -89,7 +97,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute inset-y-0 right-2 my-auto h-10 px-2 text-xs text-muted-foreground hover:text-foreground"
-                    aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                    aria-label={
+                      showPassword ? "Скрыть пароль" : "Показать пароль"
+                    }
                   >
                     {showPassword ? "Скрыть" : "Показать"}
                   </button>
@@ -102,8 +112,11 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               )}
               <div className="flex items-center justify-between text-sm">
                 <label className="inline-flex items-center gap-2 select-none">
-                  <input type="checkbox" className="h-4 w-4 rounded border-border" />
-                  Запомнить меня
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  Yadda Saxla
                 </label>
               </div>
               <button
@@ -111,12 +124,12 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 disabled={loading}
                 className="w-full rounded-xl bg-primary text-primary-foreground py-2 font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
               >
-                {loading ? "Входим…" : "Войти"}
+                {loading ? "Daxil oluruq…" : "Daxil ol"}
               </button>
             </form>
           </div>
           <div className="text-center text-xs text-muted-foreground mt-4">
-            © {new Date().getFullYear()} Бакинский Государственный Университет
+            © {new Date().getFullYear()} Bakı Qızlar Universiteti
           </div>
         </div>
       </div>

@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+// import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Calendar, Clock, MapPin, Bell } from "lucide-react";
+// import { Calendar, Clock, MapPin, Bell } from "lucide-react";
 import { CourseCard } from "./CourseCard";
-import { getStudentSchedule, getTeacherSchedule } from "../api";
+import { getStudentSchedule, getTeacherSchedule, toArray } from "../api";
 
 // The weekly schedule will be populated from the backend.  Each day
 // contains a name, a date string and an array of class entries.
@@ -27,35 +33,222 @@ interface ScheduleEntry {
   group?: string;
 }
 
-const upcomingEvents = [
-  {
-    id: 1,
-    title: "Guest Speaker: Dr. Jane Smith",
-    date: "Oct 22, 2025",
-    time: "3:00 PM - 4:30 PM",
-    location: "Main Auditorium",
-    description: "Join us for an insightful talk on AI Ethics and the Future of Technology. Dr. Smith is a leading researcher in artificial intelligence and will discuss ethical considerations in modern AI development.",
-    type: "speaker"
-  },
-  {
-    id: 2,
-    title: "Career Fair 2025",
-    date: "Oct 25, 2025",
-    time: "10:00 AM - 4:00 PM",
-    location: "Student Center",
-    description: "Meet with top employers from tech, finance, and consulting industries. Bring your resume and be ready to network with recruiters from over 50 companies.",
-    type: "career"
-  },
-  {
-    id: 3,
-    title: "Hackathon: Build for Good",
-    date: "Nov 5-6, 2025",
-    time: "All Day",
-    location: "Engineering Building",
-    description: "24-hour hackathon focused on creating solutions for social impact. Form teams, collaborate with peers, and compete for prizes while making a difference.",
-    type: "workshop"
+const toTimeRange = (start: any, end: any): string => {
+  const format = (value: any) => {
+    if (!value) return "";
+    const parts = String(value).split(":");
+    if (parts.length >= 2) {
+      return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+    }
+    return String(value);
+  };
+
+  const from = format(start);
+  const to = format(end);
+  if (from && to) return `${from} - ${to}`;
+  return from || to || "";
+};
+
+const pickString = (...values: any[]): string => {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
   }
-];
+  return "";
+};
+
+const titleCase = (value: string): string => {
+  if (!value) return "";
+  return value
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
+  const start =
+    raw?.startTime ?? raw?.start ?? raw?.beginTime ?? raw?.timeStart;
+  const end = raw?.endTime ?? raw?.end ?? raw?.finishTime ?? raw?.timeEnd;
+
+  const location = pickString(
+    raw?.location,
+    raw?.room,
+    raw?.roomName,
+    raw?.roomCode,
+    raw?.roomNumber,
+    raw?.classroom,
+    raw?.roomDto?.roomName,
+    raw?.roomDto?.name,
+    raw?.roomDto?.room,
+    raw?.roomDto?.roomNumber,
+    raw?.roomInfo?.name,
+    raw?.roomInfo?.roomName,
+    raw?.room?.roomName,
+    raw?.room?.name,
+  );
+
+  const typeRaw = pickString(
+    raw?.type,
+    raw?.classType,
+    raw?.lessonType,
+    raw?.sessionType,
+    raw?.format,
+  ).toLowerCase();
+
+  const id =
+    pickString(
+      raw?.id,
+      raw?.classId,
+      raw?.scheduleId,
+      raw?.sessionId,
+      raw?.entryId,
+    ) || `entry-${index}`;
+
+  return {
+    id,
+    title: pickString(
+      raw?.title,
+      raw?.course,
+      raw?.courseName,
+      raw?.subject,
+      raw?.name,
+      raw?.taughtSubjectTitle,
+    ),
+    code: pickString(
+      raw?.code,
+      raw?.courseCode,
+      raw?.subjectCode,
+      raw?.classCode,
+    ),
+    time: pickString(raw?.time, toTimeRange(start, end)) || "",
+    location: location || "—",
+    type: typeRaw || "lecture",
+    instructor: pickString(
+      raw?.instructor,
+      raw?.teacher,
+      raw?.teacherName,
+      raw?.lecturer,
+      raw?.mentor,
+    ),
+    topic: pickString(
+      raw?.topic,
+      raw?.sessionTopic,
+      raw?.lessonTopic,
+      raw?.subject,
+    ),
+    group: pickString(
+      raw?.group,
+      raw?.groupCode,
+      raw?.groupName,
+      raw?.groupDto?.groupCode,
+      raw?.groupDto?.name,
+      raw?.groupInfo?.name,
+    ),
+  };
+};
+
+const toScheduleEntries = (raw: any): ScheduleEntry[] =>
+  toArray(raw)
+    .map((item, index) => toScheduleEntry(item, index))
+    .filter(
+      (entry) =>
+        entry.title || entry.code || entry.time || entry.location !== "—",
+    );
+
+const toScheduleDay = (raw: any, index: number): ScheduleDay => {
+  const classesRaw =
+    raw?.classes ?? raw?.items ?? raw?.schedule ?? raw?.entries ?? raw?.lessons;
+
+  const classes = toScheduleEntries(classesRaw?.length ? classesRaw : raw);
+
+  return {
+    day: titleCase(
+      pickString(raw?.day, raw?.dayOfWeek, raw?.name, raw?.title) ||
+        `Day ${index + 1}`,
+    ),
+    date: pickString(
+      raw?.date,
+      raw?.dayDate,
+      raw?.displayDate,
+      raw?.calendarDate,
+    ),
+    classes,
+  };
+};
+
+const toWeekSchedule = (raw: any): ScheduleDay[] => {
+  const candidates = [raw?.week, raw?.days, raw?.schedule, raw?.items, raw];
+
+  for (const candidate of candidates) {
+    const list = toArray(candidate);
+    if (list.length > 0) {
+      const mapped = list.map((item, index) => toScheduleDay(item, index));
+      if (mapped.some((day) => day.classes.length > 0)) return mapped;
+    }
+  }
+
+  if (raw && typeof raw === "object") {
+    const mapped: ScheduleDay[] = [];
+    for (const [key, value] of Object.entries(raw)) {
+      const classes = toScheduleEntries((value as any)?.classes ?? value);
+      if (classes.length === 0) continue;
+      mapped.push({
+        day: titleCase(key),
+        date: pickString((value as any)?.date, (value as any)?.dayDate),
+        classes,
+      });
+    }
+    if (mapped.length > 0) return mapped;
+  }
+
+  return [];
+};
+
+const toTodaySchedule = (raw: any): ScheduleEntry[] => {
+  const candidates = [raw, raw?.today, raw?.classes, raw?.items, raw?.schedule];
+  for (const candidate of candidates) {
+    const entries = toScheduleEntries(candidate);
+    if (entries.length > 0) return entries;
+  }
+  return [];
+};
+
+// const upcomingEvents = [
+//   {
+//     id: 1,
+//     title: "Guest Speaker: Dr. Jane Smith",
+//     date: "Oct 22, 2025",
+//     time: "3:00 PM - 4:30 PM",
+//     location: "Main Auditorium",
+//     description: "Join us for an insightful talk on AI Ethics and the Future of Technology. Dr. Smith is a leading researcher in artificial intelligence and will discuss ethical considerations in modern AI development.",
+//     type: "speaker"
+//   },
+//   {
+//     id: 2,
+//     title: "Career Fair 2025",
+//     date: "Oct 25, 2025",
+//     time: "10:00 AM - 4:00 PM",
+//     location: "Student Center",
+//     description: "Meet with top employers from tech, finance, and consulting industries. Bring your resume and be ready to network with recruiters from over 50 companies.",
+//     type: "career"
+//   },
+//   {
+//     id: 3,
+//     title: "Hackathon: Build for Good",
+//     date: "Nov 5-6, 2025",
+//     time: "All Day",
+//     location: "Engineering Building",
+//     description: "24-hour hackathon focused on creating solutions for social impact. Form teams, collaborate with peers, and compete for prizes while making a difference.",
+//     type: "workshop"
+//   }
+// ];
 
 interface ScheduleProps {
   userRole?: "student" | "teacher";
@@ -72,21 +265,29 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
     (async () => {
       try {
         setLoading(true);
-        if (userRole === "teacher") {
-          const today = await getTeacherSchedule("today");
-          const week = await getTeacherSchedule("week");
-          if (mounted) {
-            setTodaySchedule(Array.isArray(today) ? today : today.today || []);
-            setWeekSchedule(Array.isArray(week) ? week : week.week || []);
-          }
-        } else {
-          const today = await getStudentSchedule("today");
-          const week = await getStudentSchedule("week");
-          if (mounted) {
-            setTodaySchedule(Array.isArray(today) ? today : today.today || []);
-            setWeekSchedule(Array.isArray(week) ? week : week.week || []);
-          }
-        }
+        const [todayRaw, weekRaw] =
+          userRole === "teacher"
+            ? await Promise.all([
+                getTeacherSchedule("today"),
+                getTeacherSchedule("week"),
+              ])
+            : await Promise.all([
+                getStudentSchedule("today"),
+                getStudentSchedule("week"),
+              ]);
+
+        if (!mounted) return;
+
+        setTodaySchedule(
+          Array.isArray(todayRaw)
+            ? toScheduleEntries(todayRaw)
+            : toTodaySchedule(todayRaw),
+        );
+        setWeekSchedule(
+          Array.isArray(weekRaw)
+            ? weekRaw.map((item, index) => toScheduleDay(item, index))
+            : toWeekSchedule(weekRaw),
+        );
       } catch (err: any) {
         if (mounted) setError(err.message || "Не удалось загрузить расписание");
       } finally {
@@ -98,66 +299,74 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
     };
   }, [userRole]);
 
-  const getEventTypeColor = (type: string) => {
-    switch (type) {
-      case 'speaker': return 'default';
-      case 'career': return 'secondary';
-      case 'workshop': return 'outline';
-      default: return 'outline';
-    }
-  };
+  // const getEventTypeColor = (type: string) => {
+  //   switch (type) {
+  //     case 'speaker': return 'default';
+  //     case 'career': return 'secondary';
+  //     case 'workshop': return 'outline';
+  //     default: return 'outline';
+  //   }
+  // };
 
   return (
     <div className="space-y-6">
       <div>
         <h1>Schedule</h1>
-        <p className="text-muted-foreground">Your classes, events, and upcoming deadlines</p>
+        <p className="text-muted-foreground">
+          Your classes, events, and upcoming deadlines
+        </p>
       </div>
+
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
       <Tabs defaultValue="today" className="w-full">
         <TabsList>
           <TabsTrigger value="today">Today</TabsTrigger>
           <TabsTrigger value="week">This Week</TabsTrigger>
-          <TabsTrigger value="events">Upcoming Events</TabsTrigger>
+          {/* <TabsTrigger value="events">Upcoming Events</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="today" className="space-y-4">
           <Card>
-          <CardHeader>
-            <CardTitle>Расписание на сегодня</CardTitle>
-            <CardDescription>Ваши занятия на текущий день</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loading ? (
-              <p>Загрузка…</p>
-            ) : todaySchedule.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Нет занятий.</p>
-            ) : (
-              todaySchedule.map((item) => (
-                <CourseCard
-                  key={item.id}
-                  title={item.title}
-                  code={item.code}
-                  time={item.time}
-                  location={item.location}
-                  instructor={item.instructor}
-                  type={item.type}
-                  variant="today"
-                  topic={item.topic}
-                  group={item.group}
-                  userRole={userRole}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
+            <CardHeader>
+              <CardTitle>Schedule for today</CardTitle>
+              <CardDescription>
+                Your classes for the current day
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loading ? (
+                <p>Loading…</p>
+              ) : todaySchedule.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No classes.</p>
+              ) : (
+                todaySchedule.map((item) => (
+                  <CourseCard
+                    key={item.id}
+                    title={item.title}
+                    code={item.code}
+                    time={item.time}
+                    location={item.location}
+                    instructor={item.instructor || "Not specified"}
+                    type={item.type}
+                    variant="today"
+                    topic={item.topic}
+                    group={item.group}
+                    userRole={userRole}
+                  />
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="week" className="space-y-4">
           {loading ? (
-            <p>Загрузка…</p>
+            <p>Loading…</p>
           ) : weekSchedule.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Нет занятий на неделю.</p>
+            <p className="text-muted-foreground text-sm">
+              No classes for the week.
+            </p>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
               {weekSchedule.map((day) => (
@@ -170,7 +379,9 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {day.classes.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Нет занятий</p>
+                      <p className="text-sm text-muted-foreground">
+                        No classes
+                      </p>
                     ) : (
                       day.classes.map((classItem) => (
                         <CourseCard
@@ -179,7 +390,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                           code={classItem.code}
                           time={classItem.time}
                           location={classItem.location}
-                          instructor={classItem.instructor}
+                          instructor={classItem.instructor || "Not specified"}
                           type={classItem.type}
                           variant="week"
                           topic={classItem.topic}
@@ -195,6 +406,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
           )}
         </TabsContent>
 
+        {/*
         <TabsContent value="events" className="space-y-4">
           <div className="space-y-4">
             {upcomingEvents.map((event) => (
@@ -230,6 +442,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
             ))}
           </div>
         </TabsContent>
+        */}
       </Tabs>
     </div>
   );

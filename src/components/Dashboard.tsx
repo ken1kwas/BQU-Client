@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { AlertCircle, CheckCircle, XCircle, FileText, CalendarDays } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
+// import { Badge } from "./ui/badge";
+// import { AlertCircle, CheckCircle, XCircle, FileText, CalendarDays } from "lucide-react";
 import { CourseCard } from "./CourseCard";
 import { getStudentDashboard } from "../api";
 
@@ -15,18 +21,18 @@ interface DashboardCourse {
   instructor?: string;
 }
 
-interface DashboardNotification {
-  id: string | number;
-  type: string;
-  course: string;
-  code?: string;
-  message: string;
-  timestamp: string;
-}
+// interface DashboardNotification {
+//   id: string | number;
+//   type: string;
+//   course: string;
+//   code?: string;
+//   message: string;
+//   timestamp: string;
+// }
 
 export function Dashboard() {
   const [courses, setCourses] = useState<DashboardCourse[]>([]);
-  const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
+  // const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +51,7 @@ export function Dashboard() {
           setCourses(data);
         } else {
           if (Array.isArray(data.todayClasses)) setCourses(data.todayClasses);
-          if (Array.isArray(data.notifications)) setNotifications(data.notifications);
+          // if (Array.isArray(data.notifications)) setNotifications(data.notifications);
         }
       } catch (err: any) {
         if (!mounted) return;
@@ -62,23 +68,23 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1>Добро пожаловать!</h1>
-        <p className="text-muted-foreground">Актуальная информация по вашим курсам.</p>
+        <h1>Welcome!</h1>
+        <p className="text-muted-foreground">
+          Current information about your courses.
+        </p>
       </div>
-      {error && (
-        <p className="text-destructive">{error}</p>
-      )}
+      {error && <p className="text-destructive">{error}</p>}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Ваши занятия</CardTitle>
-            <CardDescription>Ближайшие пары</CardDescription>
+            <CardTitle>Your Courses</CardTitle>
+            <CardDescription>Upcoming Classes</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
-              <p>Загрузка…</p>
+              <p>Loading…</p>
             ) : courses.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Нет занятий.</p>
+              <p className="text-muted-foreground text-sm">No classes.</p>
             ) : (
               courses.map((classItem) => (
                 <CourseCard
@@ -94,6 +100,7 @@ export function Dashboard() {
             )}
           </CardContent>
         </Card>
+        {/*
         <Card>
           <CardHeader>
             <CardTitle>Уведомления</CardTitle>
@@ -150,6 +157,7 @@ export function Dashboard() {
             )}
           </CardContent>
         </Card>
+        */}
       </div>
     </div>
   );

@@ -37,6 +37,8 @@ import { Toaster } from "./components/ui/sonner";
 import LoginPage from "./LoginPage";
 import { getStudentProfile, getTeacherProfile, getDeanProfile } from "./api";
 
+const DEV_BYPASS_LOGIN = false;
+
 const studentNavigation = [
   {
     title: "Main",
@@ -76,14 +78,20 @@ export default function App() {
   const [activeView, setActiveView] = useState("dashboard");
   // Retrieve the JWT from localStorage on initial render.  When the
   // token is null the application will render the LoginPage.
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
+  const [token, setToken] = useState<string | null>(() =>
+    localStorage.getItem("token"),
+  );
   // The authenticated user's role, resolved via the backend profile
   // endpoints.  When undefined the role has not yet been determined.
-  const [userRole, setUserRole] = useState<"student" | "teacher" | "dean" | undefined>();
+  const [userRole, setUserRole] = useState<
+    "student" | "teacher" | "dean" | undefined
+  >(undefined);
   // Track whether role resolution is in progress to avoid repeated
   // calls to the API.
   const [loadingRole, setLoadingRole] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<
+    string | number | null
+  >(null);
 
   // For production use we remove the manual role switch.  If you
   // require role switching for development or testing you may
@@ -91,7 +99,7 @@ export default function App() {
   // `handleRoleSwitch`.  Leaving it undefined hides the control.
   const handleRoleSwitch: undefined | (() => void) = undefined;
 
-  const handleCourseSelect = (courseId: number) => {
+  const handleCourseSelect = (courseId: string | number) => {
     setSelectedCourseId(courseId);
   };
 
@@ -169,12 +177,17 @@ export default function App() {
           return <DeanManagement />;
       }
     }
-    
+
     if (userRole === "teacher") {
       if (selectedCourseId !== null) {
-        return <TeacherCourseDetail courseId={selectedCourseId} onBack={handleBackToCourses} />;
+        return (
+          <TeacherCourseDetail
+            courseId={selectedCourseId}
+            onBack={handleBackToCourses}
+          />
+        );
       }
-      
+
       switch (activeView) {
         case "courses":
           return <TeacherCourses onCourseSelect={handleCourseSelect} />;
@@ -186,7 +199,7 @@ export default function App() {
           return <TeacherCourses onCourseSelect={handleCourseSelect} />;
       }
     }
-    
+
     // Student views
     switch (activeView) {
       case "dashboard":
@@ -202,14 +215,19 @@ export default function App() {
     }
   };
 
-  const navigation = userRole === "student" ? studentNavigation : userRole === "teacher" ? teacherNavigation : deanNavigation;
+  const navigation =
+    userRole === "student"
+      ? studentNavigation
+      : userRole === "teacher"
+        ? teacherNavigation
+        : deanNavigation;
 
   // If there is no authentication token present then render the
   // LoginPage.  Upon successful login the token will be stored in
   // localStorage and set in state.  We attempt to derive the role
   // from the login response if provided, otherwise the useEffect
   // above will probe the profile endpoints.
-  if (!token) {
+  if (!token && !DEV_BYPASS_LOGIN) {
     return (
       <LoginPage
         onLoginSuccess={(role) => {
@@ -254,9 +272,7 @@ export default function App() {
                 <GraduationCap className="h-6 w-6" />
               </div>
               <div className="flex flex-col">
-                <span className="text-base font-semibold">
-                  EduLMS
-                </span>
+                <span className="text-base font-semibold">EduLMS</span>
                 <span className="text-sm text-muted-foreground">
                   Learning Management
                 </span>
@@ -272,7 +288,11 @@ export default function App() {
                 >
                   Switch Role
                   <Badge variant="secondary" className="ml-auto">
-                    {userRole === "student" ? "Student" : userRole === "teacher" ? "Teacher" : "Dean"}
+                    {userRole === "student"
+                      ? "Student"
+                      : userRole === "teacher"
+                        ? "Teacher"
+                        : "Dean"}
                   </Badge>
                 </Button>
               </div>
@@ -282,9 +302,7 @@ export default function App() {
           <SidebarContent>
             {navigation.map((group) => (
               <SidebarGroup key={group.title}>
-                <SidebarGroupLabel>
-                  {group.title}
-                </SidebarGroupLabel>
+                <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {group.items.map((item) => (
@@ -294,7 +312,9 @@ export default function App() {
                             setActiveView(item.id);
                             setSelectedCourseId(null);
                           }}
-                          isActive={activeView === item.id && selectedCourseId === null}
+                          isActive={
+                            activeView === item.id && selectedCourseId === null
+                          }
                           className="py-3"
                         >
                           <item.icon className="h-5 w-5" />
@@ -311,9 +331,7 @@ export default function App() {
 
         <SidebarInset className="flex flex-1 flex-col">
           {/* Main Content */}
-          <main className="flex-1 overflow-auto p-6">
-            {renderContent()}
-          </main>
+          <main className="flex-1 overflow-auto p-6">{renderContent()}</main>
         </SidebarInset>
       </div>
       <Toaster />
