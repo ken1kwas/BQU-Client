@@ -11,10 +11,8 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Building2,
   Users,
   BookOpen,
-  Calendar,
   DoorOpen,
   Upload,
   FileSpreadsheet,
@@ -50,14 +48,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Textarea } from "./ui/textarea";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { Badge } from "./ui/badge";
-
-// API helpers for interacting with the backend.  These functions
-// provide list, CRUD and import operations for rooms, teachers,
-// groups, students and courses.  See src/api.ts for details.
 import {
   listRooms,
   listTeachers,
@@ -69,13 +61,11 @@ import {
   createRoom,
   updateRoom,
   deleteRoom,
-  updateTeacher,
   deleteTeacher,
   importTeachersExcel,
   createGroup,
   updateGroup,
   deleteGroup,
-  importStudentsExcel,
   searchStudents,
   filterStudents,
   toArray,
@@ -145,20 +135,13 @@ interface Student {
   language: string;
 }
 
-// Helpers to map backend DTOs into the UI-friendly shapes defined
-// above.  The backend responses contain more fields or different
-// property names; these functions normalise the data.  Unknown
-// values are defaulted to reasonable fallbacks.
 const mapRoomFromApi = (r: any): Room => {
   const typeCode = r.roomType ?? r.type;
   let type: string;
   if (typeof typeCode === "number") {
-    // Common mapping: 0 = Lecture Hall, 1 = Classroom, anything else
-    // becomes Other.
     type =
       typeCode === 0 ? "Lecture Hall" : typeCode === 1 ? "Classroom" : "Other";
   } else if (typeof typeCode === "string") {
-    // Use the provided string directly when available
     type = typeCode;
   } else {
     type = "";
@@ -254,19 +237,12 @@ const mapCourseFromApi = (c: any): Course => {
       c.teacherName ?? `${teacher.name ?? ""} ${teacher.surname ?? ""}`.trim(),
     groupId: c.groupId ?? group.id,
     groupCode: c.groupCode ?? group.groupCode ?? "",
-    // studentCount may not be provided by the backend; default to 0
     studentCount: c.studentCount ?? 0,
     hasSyllabus: Boolean(c.syllabusId),
   };
 };
 
-// The mock data used in the original design has been removed.  Data
-// will now be fetched from the backend via the API helpers.  See
-// useEffect below for the loading logic.
-
 export function DeanManagement() {
-  // Lists are initially empty and populated from the backend.  If
-  // requests fail they remain empty arrays.
   const [rooms, setRooms] = useState<Room[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -275,12 +251,10 @@ export function DeanManagement() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [specializations, setSpecializations] = useState<any[]>([]);
 
-  // Room form state
   const [roomForm, setRoomForm] = useState<Partial<Room>>({});
   const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState<number | null>(null);
 
-  // Teacher form state
   const [teacherForm, setTeacherForm] = useState<Partial<Teacher>>({});
   const [isTeacherDialogOpen, setIsTeacherDialogOpen] = useState(false);
   const [editingTeacherId, setEditingTeacherId] = useState<number | null>(null);
@@ -288,7 +262,6 @@ export function DeanManagement() {
     useState(false);
   const [isTeacherFormatInfoOpen, setIsTeacherFormatInfoOpen] = useState(false);
 
-  // Course form state
   const [courseForm, setCourseForm] = useState<
     Partial<
       Course & {
@@ -303,34 +276,22 @@ export function DeanManagement() {
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState<number | null>(null);
 
-  // Group form state
   const [groupForm, setGroupForm] = useState<Partial<Group>>({});
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
 
-  // Student form state
   const [studentForm, setStudentForm] = useState<Partial<Student>>({});
   const [isStudentDialogOpen, setIsStudentDialogOpen] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isFormatInfoOpen, setIsFormatInfoOpen] = useState(false);
 
-  // Pagination state for students
   const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 10;
 
-  // Filter and search state for students
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [studentGroupFilter, setStudentGroupFilter] = useState<string>("all");
   const [studentYearFilter, setStudentYearFilter] = useState<string>("all");
-
-  // ---------------------------------------------------------------------------
-  // Data loading and filtering
-  //
-  // On mount we request all necessary data from the backend.  The API
-  // returns paginated results; for simplicity we request up to 100
-  // items per list.  If any request fails the corresponding list
-  // remains empty.
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -365,8 +326,6 @@ export function DeanManagement() {
     fetchAll();
   }, []);
 
-  // When the student search or filter options change re-fetch the
-  // students list accordingly.  Search takes precedence over filtering.
   useEffect(() => {
     const fetchFilteredStudents = async () => {
       try {
@@ -395,11 +354,8 @@ export function DeanManagement() {
       }
     };
     fetchFilteredStudents();
-    // groups is included as a dependency so that filtering by group
-    // updates correctly when the groups list changes.
   }, [studentSearchQuery, studentGroupFilter, studentYearFilter, groups]);
 
-  // Room handlers
   const handleAddRoom = () => {
     setRoomForm({});
     setEditingRoomId(null);
@@ -414,30 +370,19 @@ export function DeanManagement() {
 
   const handleSaveRoom = async () => {
     try {
-      // Map the UI type back to the numeric code expected by the API.
-      const getRoomTypeCode = (type: string | undefined) => {
-        if (!type) return 0;
-        const t = type.toLowerCase();
-        if (t.includes("lecture")) return 0;
-        if (t.includes("class")) return 1;
-        return 2;
-      };
       if (editingRoomId) {
-        // Updating an existing room
         await updateRoom(editingRoomId.toString(), {
           name: roomForm.name ?? "",
           capacity: Number(roomForm.capacity ?? 0),
         });
         toast.success("Room updated successfully");
       } else {
-        // Creating a new room
         await createRoom({
           roomName: roomForm.name ?? "",
           capacity: Number(roomForm.capacity ?? 0),
         });
         toast.success("Room added successfully");
       }
-      // Refresh the list from the backend
       const resp = await listRooms(1, 100);
       setRooms(toArray(resp).map(mapRoomFromApi));
     } catch (error: any) {
@@ -459,7 +404,6 @@ export function DeanManagement() {
     }
   };
 
-  // Teacher handlers
   const handleAddTeacher = () => {
     setTeacherForm({});
     setEditingTeacherId(null);
@@ -482,7 +426,6 @@ export function DeanManagement() {
     }
   };
 
-  // Course handlers
   const handleAddCourse = () => {
     setCourseForm({});
     setEditingCourseId(null);
@@ -525,7 +468,6 @@ export function DeanManagement() {
         });
         toast.success("Course updated successfully");
       } else {
-        // CreateTaughtSubjectRequest требует hours/classTimes/year/semester
         await createTaughtSubject({
           code: courseForm.code,
           title: courseForm.title,
@@ -569,7 +511,6 @@ export function DeanManagement() {
     }
   };
 
-  // Group handlers
   const handleAddGroup = () => {
     setGroupForm({});
     setEditingGroupId(null);
@@ -584,9 +525,6 @@ export function DeanManagement() {
 
   const handleSaveGroup = async () => {
     try {
-      // When editing an existing group call the API to update it.
-      // The backend expects a groupCode, specializationId and year.
-      // We need to handle specializationId properly
       if (
         !groupForm.code ||
         !groupForm.specializationId ||
@@ -620,11 +558,9 @@ export function DeanManagement() {
         });
         toast.success("Group added successfully");
       }
-      // refresh groups from backend
       const resp = await listGroups(1, 100);
       setGroups(toArray(resp).map(mapGroupFromApi));
     } catch (error: any) {
-      // If the API fails we still update local state so the UI remains responsive
       if (editingGroupId) {
         setGroups(
           groups.map((g) =>
@@ -652,13 +588,11 @@ export function DeanManagement() {
       toast.success("Group deleted successfully");
       setGroups((prev) => prev.filter((g) => g.id !== id));
     } catch (error: any) {
-      // If API deletion fails we remove locally but show error
       setGroups((prev) => prev.filter((g) => g.id !== id));
       toast.error(error?.message ?? "Failed to delete group");
     }
   };
 
-  // Student handlers
   const handleAddStudent = () => {
     setStudentForm({});
     setEditingStudentId(null);
@@ -672,7 +606,6 @@ export function DeanManagement() {
   };
 
   const handleSaveStudent = () => {
-    // Get group name if ID is provided
     const group = studentForm.groupId
       ? groups.find((g) => g.id === studentForm.groupId)
       : undefined;
@@ -708,7 +641,6 @@ export function DeanManagement() {
     toast.success("Student deleted successfully");
   };
 
-  // Excel upload handler
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -731,7 +663,6 @@ export function DeanManagement() {
         toast.success("File uploaded successfully");
       }
 
-      // refresh students
       const resp = await listStudents(1, 100);
       setStudents(toArray(resp).map(mapStudentFromApi));
       setIsUploadDialogOpen(false);
@@ -789,8 +720,6 @@ export function DeanManagement() {
       toast.error(error?.message ?? "Error downloading template");
     }
   };
-
-  // Download template
   const downloadTemplate = async () => {
     try {
       const resp = await fetch("/students-template.xlsx");
@@ -811,13 +740,7 @@ export function DeanManagement() {
       toast.error(error?.message ?? "Error downloading template");
     }
   };
-
-  // Students are already filtered by the backend based on the search
-  // query and selected filters.  We simply return the list as is for
-  // pagination below.
   const filteredStudents = students;
-
-  // Calculate pagination values
   const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
   const startIndex = (currentPage - 1) * studentsPerPage;
   const endIndex = Math.min(
@@ -858,7 +781,6 @@ export function DeanManagement() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Rooms Tab */}
         <TabsContent value="rooms" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1014,7 +936,6 @@ export function DeanManagement() {
           </Card>
         </TabsContent>
 
-        {/* Teachers Tab */}
         <TabsContent value="teachers" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1218,7 +1139,6 @@ export function DeanManagement() {
           </Card>
         </TabsContent>
 
-        {/* Courses Tab */}
         <TabsContent value="courses" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1460,7 +1380,6 @@ export function DeanManagement() {
           </Card>
         </TabsContent>
 
-        {/* Groups Tab */}
         <TabsContent value="groups" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1767,7 +1686,6 @@ export function DeanManagement() {
           </Card>
         </TabsContent>
 
-        {/* Students Tab */}
         <TabsContent value="students" className="space-y-4">
           <Card>
             <CardHeader>
