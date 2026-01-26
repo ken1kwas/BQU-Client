@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,9 +7,7 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Badge } from "./ui/badge";
-// import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-// import { Calendar, Clock, MapPin, Bell } from "lucide-react";
 import { CourseCard } from "./CourseCard";
 import { getStudentSchedule, getTeacherSchedule, toArray } from "../api";
 
@@ -33,18 +31,49 @@ interface ScheduleEntry {
   group?: string;
 }
 
-const toTimeRange = (start: any, end: any): string => {
-  const format = (value: any) => {
-    if (!value) return "";
-    const parts = String(value).split(":");
-    if (parts.length >= 2) {
-      return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+const formatTimeValue = (value: any): string => {
+  if (!value) return "";
+  
+  const str = String(value).trim();
+  
+  // If already formatted with AM/PM, return as is
+  if (str.includes("AM") || str.includes("PM")) return str;
+  
+  // Try to parse as ISO datetime string (e.g., "2025-01-25T14:30:00")
+  if (str.includes("T")) {
+    try {
+      const date = new Date(str);
+      if (!isNaN(date.getTime())) {
+        const hours = date.getHours();
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        const ampm = hours >= 12 ? "PM" : "AM";
+        const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+        return `${displayHour}:${minutes} ${ampm}`;
+      }
+    } catch (e) {
+      // Fall through to time parsing
     }
-    return String(value);
-  };
+  }
+  
+  // Parse as time string (HH:MM or HH:MM:SS)
+  const parts = str.split(":");
+  if (parts.length >= 2) {
+    const hour = parseInt(parts[0]);
+    if (isNaN(hour)) return str;
+    const minutes = parts[1].split(" ")[0].padStart(2, "0"); // Remove AM/PM if present
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    return `${displayHour}:${minutes} ${ampm}`;
+  }
+  
+  return str;
+};
 
-  const from = format(start);
-  const to = format(end);
+const toTimeRange = (start: any, end: any): string => {
+  if (!start && !end) return "";
+  
+  const from = formatTimeValue(start);
+  const to = formatTimeValue(end);
   if (from && to) return `${from} - ${to}`;
   return from || to || "";
 };
@@ -74,8 +103,23 @@ const titleCase = (value: string): string => {
 
 const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
   const start =
-    raw?.startTime ?? raw?.start ?? raw?.beginTime ?? raw?.timeStart;
-  const end = raw?.endTime ?? raw?.end ?? raw?.finishTime ?? raw?.timeEnd;
+    raw?.startTime ?? 
+    raw?.start ?? 
+    raw?.beginTime ?? 
+    raw?.timeStart ??
+    raw?.classStartTime ??
+    raw?.sessionStartTime ??
+    raw?.periodStart ??
+    raw?.startDateTime;
+  const end = 
+    raw?.endTime ?? 
+    raw?.end ?? 
+    raw?.finishTime ?? 
+    raw?.timeEnd ??
+    raw?.classEndTime ??
+    raw?.sessionEndTime ??
+    raw?.periodEnd ??
+    raw?.endDateTime;
 
   const location = pickString(
     raw?.location,
@@ -254,6 +298,16 @@ interface ScheduleProps {
   userRole?: "student" | "teacher";
 }
 
+const formatTodayDate = (): string => {
+  const today = new Date();
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dayName = days[today.getDay()];
+  const month = months[today.getMonth()];
+  const day = today.getDate();
+  return `${dayName}, ${month} ${day}`;
+};
+
 export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
   const [todaySchedule, setTodaySchedule] = useState<ScheduleEntry[]>([]);
   const [weekSchedule, setWeekSchedule] = useState<ScheduleDay[]>([]);
@@ -329,9 +383,9 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
         <TabsContent value="today" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Schedule for today</CardTitle>
+              <CardTitle>Today's Schedule - {formatTodayDate()}</CardTitle>
               <CardDescription>
-                Your classes for the current day
+                Your classes and activities for today
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -380,7 +434,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                   <CardContent className="space-y-3">
                     {day.classes.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        No classes
+                        No classes scheduled
                       </p>
                     ) : (
                       day.classes.map((classItem) => (

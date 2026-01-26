@@ -6,36 +6,13 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
-  Plus,
-  Pencil,
-  Trash2,
-  Calendar,
   Clock,
   MapPin,
-  Search,
   Users2,
   User,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "./ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table";
-import { Input } from "./ui/input";
+import React, { useState, useEffect } from "react";
 import { Label } from "./ui/label";
 import {
   Select,
@@ -44,11 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 
 // Import API helpers to retrieve rooms, groups and taught subjects
-import { listRooms, listGroups, listTaughtSubjects, toArray } from "../api";
+import { listRooms, listGroups, listTaughtSubjects, getGroupSchedule, toArray } from "../api";
 
 interface ScheduleEntry {
   id: number;
@@ -75,24 +51,6 @@ const daysOfWeek = [
   "Saturday",
 ];
 
-const extractArray = (resp: any, preferredKeys?: string[]): any[] => {
-  if (Array.isArray(resp)) return resp;
-  if (!resp || typeof resp !== "object") return [];
-
-  if (preferredKeys) {
-    for (const key of preferredKeys) {
-      const value = (resp as any)[key];
-      if (Array.isArray(value)) return value;
-    }
-  }
-
-  if (Array.isArray((resp as any).items)) return (resp as any).items;
-  if (Array.isArray((resp as any).data)) return (resp as any).data;
-  if (Array.isArray((resp as any).result)) return (resp as any).result;
-  if (Array.isArray((resp as any).value)) return (resp as any).value;
-
-  return [];
-};
 
 export function DeanSchedule() {
   // Schedule entries remain local until backend endpoints exist.
@@ -102,15 +60,7 @@ export function DeanSchedule() {
   const [courses, setCourses] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
-  const [scheduleForm, setScheduleForm] = useState<Partial<ScheduleEntry>>({});
-  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
-  const [editingScheduleId, setEditingScheduleId] = useState<number | null>(
-    null,
-  );
-  const [selectedYear, setSelectedYear] = useState<number>(1);
   const [selectedGroup, setSelectedGroup] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
 
   // Get today's day of week
   const today = new Date().getDay();
@@ -126,25 +76,25 @@ export function DeanSchedule() {
           listTaughtSubjects(1, 100),
         ]);
 
-        const roomItems = extractArray(roomsResp, ["items", "rooms"]).map(
+        const roomItems = toArray(roomsResp).map(
           (r: any) => ({
             id: r.id,
             name: r.roomName ?? r.name ?? "",
           }),
         );
-        const groupItems = extractArray(groupsResp, ["items", "groups"]).map(
-          (g: any) => ({
-            id: g.id,
-            code: g.groupCode ?? g.code ?? "",
-            year: g.year ?? g.yearOfAdmission ?? 0,
-          }),
-        );
-        const courseItems = extractArray(coursesResp, [
-          "items",
-          "courses",
-          "subjects",
-          "taughtSubjects",
-        ]).map((c: any) => {
+        const groupItems = toArray(groupsResp)
+          .map((g: any) => {
+            // Используем ту же логику, что и в DeanManagement
+            const groupCode = g.groupCode ?? g.code ?? "";
+            return {
+              id: g.id ?? g.groupId ?? g.groupID ?? g.Id ?? `group-${groupCode}`,
+              code: groupCode,
+              groupCode: groupCode, // Дублируем для совместимости
+              year: g.year ?? g.yearOfAdmission ?? 0,
+            };
+          })
+          .filter((g: any) => g.code && g.code.trim() !== ""); // Фильтруем только группы с кодом
+        const courseItems = toArray(coursesResp).map((c: any) => {
           const teacher = c.teacher ?? {};
           const group = c.group ?? {};
           return {
@@ -161,150 +111,21 @@ export function DeanSchedule() {
         setRooms(roomItems);
         setGroups(groupItems);
         setCourses(courseItems);
-        // Set initial selected group to first group for the selected year
-        const initialGroup = groupItems.find((g) => g.year === selectedYear);
-        if (initialGroup && initialGroup.code) {
-          setSelectedGroup(initialGroup.code);
+        console.log("Loaded groups:", groupItems);
+        // Set initial selected group to first group
+        if (groupItems.length > 0 && groupItems[0].code) {
+          setSelectedGroup(groupItems[0].code);
+          console.log("Set initial group to:", groupItems[0].code);
+        } else {
+          console.warn("No groups loaded or first group has no code");
         }
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching lists:", err);
       }
     };
     fetchLists();
   }, []);
 
-  const handleAddSchedule = () => {
-    setScheduleForm({});
-    setEditingScheduleId(null);
-    setIsScheduleDialogOpen(true);
-  };
-
-  const handleEditSchedule = (entry: ScheduleEntry) => {
-    setScheduleForm(entry);
-    setEditingScheduleId(entry.id);
-    setIsScheduleDialogOpen(true);
-  };
-
-  const handleSaveSchedule = () => {
-    // Validate form
-    if (
-      !scheduleForm.courseId ||
-      !scheduleForm.roomId ||
-      !scheduleForm.dayOfWeek ||
-      !scheduleForm.startTime ||
-      !scheduleForm.endTime
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    // Get course and room details
-    const course = courses.find((c) => c.id === scheduleForm.courseId);
-    const room = rooms.find((r) => r.id === scheduleForm.roomId);
-
-    if (!course || !room) {
-      toast.error("Invalid selection");
-      return;
-    }
-
-    // Check for time conflicts
-    const conflicts = checkForConflicts(scheduleForm);
-    if (conflicts.length > 0) {
-      const conflictMessages = conflicts.map((c) => c.type).join(", ");
-      toast.error(`Scheduling conflict detected: ${conflictMessages}`);
-      return;
-    }
-
-    const completeEntry: ScheduleEntry = {
-      id:
-        editingScheduleId ||
-        Math.max(...scheduleEntries.map((s) => s.id), 0) + 1,
-      courseId: scheduleForm.courseId as number,
-      courseName: course.title || "",
-      courseCode: course.code || "",
-      teacherName: course.teacherName || "",
-      roomId: scheduleForm.roomId as number,
-      roomName: room.name || "",
-      groupCode: course.groupCode || "",
-      dayOfWeek: scheduleForm.dayOfWeek!,
-      startTime: scheduleForm.startTime!,
-      endTime: scheduleForm.endTime!,
-      type: course.type || "lecture",
-    };
-
-    if (editingScheduleId) {
-      setScheduleEntries(
-        scheduleEntries.map((s) =>
-          s.id === editingScheduleId ? completeEntry : s,
-        ),
-      );
-      toast.success("Schedule updated successfully");
-    } else {
-      setScheduleEntries([...scheduleEntries, completeEntry]);
-      toast.success("Schedule entry added successfully");
-    }
-    setIsScheduleDialogOpen(false);
-    setScheduleForm({});
-  };
-
-  const checkForConflicts = (newEntry: Partial<ScheduleEntry>) => {
-    const conflicts: { type: string; entry: ScheduleEntry }[] = [];
-
-    // Get existing entries for the same day (excluding the current entry if editing)
-    const sameDayEntries = scheduleEntries.filter(
-      (entry) =>
-        entry.dayOfWeek === newEntry.dayOfWeek &&
-        entry.id !== editingScheduleId,
-    );
-
-    sameDayEntries.forEach((entry) => {
-      // Check if times overlap
-      if (
-        newEntry.startTime &&
-        newEntry.endTime &&
-        entry.startTime &&
-        entry.endTime
-      ) {
-        if (
-          timesOverlap(
-            newEntry.startTime,
-            newEntry.endTime,
-            entry.startTime,
-            entry.endTime,
-          )
-        ) {
-          // Check for room conflict
-          if (entry.roomId === newEntry.roomId) {
-            conflicts.push({ type: "Room already booked", entry });
-          }
-          // Check for teacher and group conflicts using the dynamic course list
-          const newCourse = courses.find((c) => c.id === newEntry.courseId);
-          if (newCourse && entry.teacherName === newCourse.teacherName) {
-            conflicts.push({ type: "Teacher has another class", entry });
-          }
-          if (newCourse && entry.groupCode === newCourse.groupCode) {
-            conflicts.push({ type: "Group has another class", entry });
-          }
-        }
-      }
-    });
-
-    return conflicts;
-  };
-
-  const timesOverlap = (
-    start1: string,
-    end1: string,
-    start2: string,
-    end2: string,
-  ) => {
-    return start1 < end2 && end1 > start2;
-  };
-
-  const handleDeleteSchedule = (id: number) => {
-    setScheduleEntries(scheduleEntries.filter((s) => s.id !== id));
-    toast.success("Schedule entry deleted successfully");
-  };
 
   const getEntriesForDay = (day: string) => {
     return scheduleEntries
@@ -322,29 +143,138 @@ export function DeanSchedule() {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  const filteredEntries = scheduleEntries.filter((entry) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      entry.courseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.courseCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.teacherName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.roomName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.groupCode.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
-
-  // Filter groups for the selected year
-  const groupsForYear = groups.filter((g) => g.year === selectedYear);
 
   // Function to safely get initial group
   useEffect(() => {
     if (groups.length > 0 && selectedGroup === "") {
-      const initialGroup = groups.find((g) => g.year === selectedYear);
-      if (initialGroup && initialGroup.code) {
-        setSelectedGroup(initialGroup.code);
+      const firstGroup = groups.find((g) => g.code);
+      if (firstGroup && firstGroup.code) {
+        setSelectedGroup(firstGroup.code);
       }
     }
-  }, [groups, selectedYear, selectedGroup]);
+  }, [groups, selectedGroup]);
+
+  // Load schedule when group is selected
+  useEffect(() => {
+    if (!selectedGroup) {
+      setScheduleEntries([]);
+      return;
+    }
+
+    const fetchSchedule = async () => {
+      try {
+        // Находим группу по коду, чтобы получить её ID
+        const group = groups.find((g) => (g.code || g.groupCode) === selectedGroup);
+        if (!group || !group.id) {
+          console.warn("Group not found or has no ID:", selectedGroup);
+          setScheduleEntries([]);
+          return;
+        }
+
+        console.log("Fetching schedule for group:", group.id, selectedGroup);
+        const scheduleResp = await getGroupSchedule(group.id.toString());
+        console.log("Schedule response:", scheduleResp);
+
+        let scheduleArray: any[] = [];
+        if (scheduleResp?.groupSchedule?.classes) {
+          scheduleArray = Array.isArray(scheduleResp.groupSchedule.classes) 
+            ? scheduleResp.groupSchedule.classes 
+            : [];
+        } else if (scheduleResp?.classes) {
+          scheduleArray = Array.isArray(scheduleResp.classes) ? scheduleResp.classes : [];
+        } else {
+          scheduleArray = toArray(scheduleResp);
+        }
+
+        console.log("Extracted schedule array:", scheduleArray);
+
+        const entries: ScheduleEntry[] = scheduleArray.map((item: any, index: number) => {
+          const courseName = item.name ?? item.courseName ?? item.title ?? item.course?.title ?? item.course?.name ?? "";
+          const courseCode = item.code ?? item.courseCode ?? item.course?.code ?? "";
+
+          let teacherName = item.professor ?? item.teacherName ?? "";
+          if (!teacherName && item.teacher) {
+            const teacherFullName = `${item.teacher.name ?? ""} ${item.teacher.surname ?? ""}`.trim();
+            teacherName = teacherFullName || "";
+          }
+
+          const room = item.room ?? {};
+          const roomName = item.roomName ?? item.room?.name ?? item.room?.roomName ?? "";
+          const roomId = item.roomId ?? item.room?.id ?? 0;
+
+          let startTime = "";
+          let endTime = "";
+          let dayOfWeek = "Monday";
+          
+          if (item.period) {
+            try {
+              const periodDate = new Date(item.period);
+              if (!isNaN(periodDate.getTime())) {
+                const dayNum = periodDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                dayOfWeek = dayNames[dayNum] ?? "Monday";
+
+                const hours = periodDate.getHours().toString().padStart(2, "0");
+                const minutes = periodDate.getMinutes().toString().padStart(2, "0");
+                const seconds = periodDate.getSeconds().toString().padStart(2, "0");
+                startTime = `${hours}:${minutes}:${seconds}`;
+
+                const endDate = new Date(periodDate);
+                endDate.setMinutes(endDate.getMinutes() + 90);
+                const endHours = endDate.getHours().toString().padStart(2, "0");
+                const endMinutes = endDate.getMinutes().toString().padStart(2, "0");
+                const endSeconds = endDate.getSeconds().toString().padStart(2, "0");
+                endTime = `${endHours}:${endMinutes}:${endSeconds}`;
+              }
+            } catch (e) {
+              console.warn("Error parsing period:", item.period, e);
+            }
+          }
+
+          if (!startTime) {
+            startTime = item.start ?? item.startTime ?? item.classStartTime ?? item.sessionStartTime ?? "";
+          }
+          if (!endTime) {
+            endTime = item.end ?? item.endTime ?? item.classEndTime ?? item.sessionEndTime ?? "";
+          }
+          if (dayOfWeek === "Monday" && !item.period) {
+            const dayNum = item.day ?? item.dayOfWeek ?? item.dayNumber ?? 0;
+            const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            dayOfWeek = typeof dayNum === "number" && dayNum >= 0 && dayNum <= 6 
+              ? dayNames[dayNum] 
+              : item.dayOfWeek ?? item.dayName ?? "Monday";
+          }
+
+          // Тип занятия
+          const type = item.classType ?? item.type ?? item.course?.type ?? "lecture";
+
+          return {
+            id: item.id ?? item.classId ?? item.scheduleId ?? index,
+            courseId: item.courseId ?? item.taughtSubjectId ?? item.course?.id ?? 0,
+            courseName,
+            courseCode,
+            teacherName,
+            roomId,
+            roomName,
+            groupCode: selectedGroup,
+            dayOfWeek,
+            startTime: typeof startTime === "string" ? startTime : "",
+            endTime: typeof endTime === "string" ? endTime : "",
+            type: type.toLowerCase(),
+            topic: item.topic ?? item.title ?? undefined,
+          };
+        });
+
+        console.log("Mapped schedule entries:", entries);
+        setScheduleEntries(entries);
+      } catch (err) {
+        console.error("Error fetching schedule:", err);
+        setScheduleEntries([]);
+      }
+    };
+
+    fetchSchedule();
+  }, [selectedGroup, groups]);
 
   return (
     <div className="space-y-6">
@@ -355,214 +285,55 @@ export function DeanSchedule() {
         </p>
       </div>
 
-      <Tabs
-        value={viewMode}
-        onValueChange={(v: string) => setViewMode(v as "list" | "grid")}
-        className="w-full"
-      >
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="grid">Weekly Grid View</TabsTrigger>
-            <TabsTrigger value="list">List View</TabsTrigger>
-          </TabsList>
-          <Dialog
-            open={isScheduleDialogOpen}
-            onOpenChange={setIsScheduleDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button onClick={handleAddSchedule}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Schedule Entry
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingScheduleId
-                    ? "Edit Schedule Entry"
-                    : "Add New Schedule Entry"}
-                </DialogTitle>
-                <DialogDescription>
-                  {editingScheduleId
-                    ? "Update schedule entry information"
-                    : "Enter details for the new schedule entry"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="schedule-course">Course *</Label>
-                    <Select
-                      value={scheduleForm.courseId?.toString() || ""}
-                      onValueChange={(value: string) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          courseId: parseInt(value),
-                        })
-                      }
-                    >
-                      <SelectTrigger id="schedule-course">
-                        <SelectValue placeholder="Select course" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {courses.map((course) => (
-                          <SelectItem
-                            key={course.id}
-                            value={course.id?.toString() || ""}
-                          >
-                            {course.code} - {course.title} ({course.groupCode},{" "}
-                            {course.teacherName})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-room">Room *</Label>
-                    <Select
-                      value={scheduleForm.roomId?.toString() || ""}
-                      onValueChange={(value: string) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          roomId: parseInt(value),
-                        })
-                      }
-                    >
-                      <SelectTrigger id="schedule-room">
-                        <SelectValue placeholder="Select room" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {rooms.map((room) => (
-                          <SelectItem
-                            key={room.id}
-                            value={room.id?.toString() || ""}
-                          >
-                            {room.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-day">Day of Week *</Label>
-                    <Select
-                      value={scheduleForm.dayOfWeek || ""}
-                      onValueChange={(value: string) =>
-                        setScheduleForm({ ...scheduleForm, dayOfWeek: value })
-                      }
-                    >
-                      <SelectTrigger id="schedule-day">
-                        <SelectValue placeholder="Select day" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {daysOfWeek.map((day) => (
-                          <SelectItem key={day} value={day}>
-                            {day}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-start">Start Time *</Label>
-                    <Input
-                      id="schedule-start"
-                      type="time"
-                      value={scheduleForm.startTime || ""}
-                      onChange={(e) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          startTime: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="schedule-end">End Time *</Label>
-                    <Input
-                      id="schedule-end"
-                      type="time"
-                      value={scheduleForm.endTime || ""}
-                      onChange={(e) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          endTime: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsScheduleDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveSchedule}>Save</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <TabsContent value="grid" className="space-y-4">
+      <div className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Weekly Schedule for {selectedGroup}</CardTitle>
+                  <CardTitle>Weekly Schedule for {selectedGroup || "..."}</CardTitle>
                   <CardDescription>
-                    Year {selectedYear} - View schedule organized by day of week
+                    View schedule organized by day of week
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="year-select" className="text-sm">
-                    Year:
-                  </Label>
-                  <Select
-                    value={selectedYear.toString()}
-                    onValueChange={(value: string) => {
-                      const year = parseInt(value);
-                      setSelectedYear(year);
-                      const firstGroupForYear = groups.filter(
-                        (g) => g.year === year,
-                      )[0];
-                      if (firstGroupForYear && firstGroupForYear.code) {
-                        setSelectedGroup(firstGroupForYear.code);
-                      }
-                    }}
-                  >
-                    <SelectTrigger id="year-select" className="w-[100px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Year 1</SelectItem>
-                      <SelectItem value="2">Year 2</SelectItem>
-                      <SelectItem value="3">Year 3</SelectItem>
-                      <SelectItem value="4">Year 4</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Label htmlFor="group-select" className="text-sm ml-2">
+                  <Label htmlFor="group-select" className="text-sm">
                     Group:
                   </Label>
                   <Select
                     value={selectedGroup}
-                    onValueChange={(value: string) => setSelectedGroup(value)} // Исправлено: добавлен тип
+                    onValueChange={(value: string) => {
+                      console.log("Group selected:", value);
+                      setSelectedGroup(value);
+                    }}
+                    disabled={groups.length === 0}
                   >
-                    <SelectTrigger id="group-select" className="w-[120px]">
-                      <SelectValue />
+                    <SelectTrigger id="group-select" className="w-[180px]">
+                      <SelectValue placeholder={groups.length === 0 ? "Loading groups..." : "Select group"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {groupsForYear.map((group) => (
-                        <SelectItem key={group.id} value={group.code || ""}>
-                          {group.code}
-                        </SelectItem>
-                      ))}
+                      {groups.length === 0 ? (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No groups available
+                        </div>
+                      ) : (
+                        groups
+                          .filter((group) => group.code && group.code.trim() !== "")
+                          .map((group, index) => {
+                            const groupCode = group.code || group.groupCode || "";
+                            const groupId = group.id ?? `group-${index}`;
+                            // Убеждаемся, что value не пустое
+                            if (!groupCode || groupCode.trim() === "") {
+                              return null;
+                            }
+                            return (
+                              <SelectItem key={groupId} value={groupCode}>
+                                {groupCode}
+                              </SelectItem>
+                            );
+                          })
+                          .filter(Boolean) // Убираем null значения
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -658,24 +429,6 @@ export function DeanSchedule() {
                               >
                                 {entry.courseCode}
                               </Badge>
-                              <div className="absolute bottom-3 right-3 flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditSchedule(entry)}
-                                  className="h-7 w-7 p-0"
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteSchedule(entry.id)}
-                                  className="h-7 w-7 p-0"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
                             </div>
                           </div>
                         ))
@@ -686,96 +439,7 @@ export function DeanSchedule() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* List View */}
-        <TabsContent value="list" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>All Schedule Entries</CardTitle>
-                  <CardDescription>
-                    Complete list of all schedule entries
-                  </CardDescription>
-                </div>
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search schedules..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Teacher</TableHead>
-                    <TableHead>Room</TableHead>
-                    <TableHead>Group</TableHead>
-                    <TableHead>Day</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEntries
-                    .sort((a, b) => {
-                      const dayCompare =
-                        daysOfWeek.indexOf(a.dayOfWeek) -
-                        daysOfWeek.indexOf(b.dayOfWeek);
-                      if (dayCompare !== 0) return dayCompare;
-                      return a.startTime.localeCompare(b.startTime);
-                    })
-                    .map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{entry.courseCode}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {entry.courseName}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{entry.teacherName}</TableCell>
-                        <TableCell>{entry.roomName}</TableCell>
-                        <TableCell>{entry.groupCode}</TableCell>
-                        <TableCell>{entry.dayOfWeek}</TableCell>
-                        <TableCell>
-                          {formatTime(entry.startTime)} -{" "}
-                          {formatTime(entry.endTime)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditSchedule(entry)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteSchedule(entry.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }

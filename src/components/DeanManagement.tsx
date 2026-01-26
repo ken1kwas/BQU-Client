@@ -11,10 +11,8 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Building2,
   Users,
   BookOpen,
-  Calendar,
   DoorOpen,
   Upload,
   FileSpreadsheet,
@@ -24,7 +22,7 @@ import {
   UserCircle,
   Eye,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -50,14 +48,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Textarea } from "./ui/textarea";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Badge } from "./ui/badge";
-
-// API helpers for interacting with the backend.  These functions
-// provide list, CRUD and import operations for rooms, teachers,
-// groups, students and courses.  See src/api.ts for details.
 import {
   listRooms,
   listTeachers,
@@ -69,13 +62,11 @@ import {
   createRoom,
   updateRoom,
   deleteRoom,
-  updateTeacher,
   deleteTeacher,
   importTeachersExcel,
   createGroup,
   updateGroup,
   deleteGroup,
-  importStudentsExcel,
   searchStudents,
   filterStudents,
   toArray,
@@ -97,9 +88,13 @@ interface Room {
 interface Teacher {
   id: number;
   name: string;
+  surname?: string;
+  middleName?: string;
+  userName?: string;
   email: string;
   department: string;
   phone: string;
+  position?: number;
 }
 
 interface Course {
@@ -109,18 +104,23 @@ interface Course {
   credits: number;
   type: string;
   department: string;
+  departmentName?: string;
   teacherId?: number;
   teacherName?: string;
   groupId?: number;
   groupCode?: string;
   studentCount?: number;
   hasSyllabus?: boolean;
+  year?: number;
+  semester?: number;
 }
 
 interface Group {
   id: number;
-  code: string;
+  code?: string;
+  groupCode?: string;
   department: string;
+  departmentName?: string;
   departmentId?: string;
   year: number;
   studentCount: number;
@@ -134,40 +134,51 @@ interface Student {
   id: number;
   studentId: string;
   name: string;
-  email: string;
-  groupId: number;
+  email?: string;
+  groupId?: number;
   groupCode: string;
   year: number;
   specialization: string;
-  dateOfBirth: string;
-  phoneNumber: string;
-  address: string;
-  language: string;
+  dateOfBirth?: string;
+  phoneNumber?: string;
+  address?: string;
+  language?: string;
+  yearOfAdmission?: string;
+  admissionScore?: number;
 }
 
-// Helpers to map backend DTOs into the UI-friendly shapes defined
-// above.  The backend responses contain more fields or different
-// property names; these functions normalise the data.  Unknown
-// values are defaulted to reasonable fallbacks.
 const mapRoomFromApi = (r: any): Room => {
   const typeCode = r.roomType ?? r.type;
   let type: string;
   if (typeof typeCode === "number") {
-    // Common mapping: 0 = Lecture Hall, 1 = Classroom, anything else
-    // becomes Other.
     type =
       typeCode === 0 ? "Lecture Hall" : typeCode === 1 ? "Classroom" : "Other";
   } else if (typeof typeCode === "string") {
-    // Use the provided string directly when available
     type = typeCode;
   } else {
     type = "";
   }
+  const roomName =
+    r.roomName ??
+    r.name ??
+    r.Name ??
+    r.RoomName ??
+    r.room ??
+    r.Room ??
+    "";
+
+  const roomId =
+    r.id ??
+    r.Id ??
+    r.roomId ??
+    r.RoomId ??
+    "";
+  
   return {
-    id: r.id,
-    name: r.roomName ?? r.name ?? "",
-    building: r.building ?? "",
-    capacity: r.capacity ?? 0,
+    id: roomId,
+    name: roomName,
+    building: r.building ?? r.Building ?? "",
+    capacity: r.capacity ?? r.Capacity ?? 0,
     type,
   };
 };
@@ -175,34 +186,75 @@ const mapRoomFromApi = (r: any): Room => {
 const mapTeacherFromApi = (t: any): Teacher => {
   const firstName = t.name ?? t.firstName ?? "";
   const surname = t.surname ?? t.lastName ?? "";
+  const middleName = t.middleName ?? "";
+  const userName = t.userName ?? t.username ?? "";
   const fullName =
-    `${firstName} ${surname}`.trim() || t.fullName || t.userName || "";
+    `${firstName} ${surname} ${middleName}`.trim() || t.fullName || userName || "";
   return {
-    id: t.id,
-    name: fullName,
+    id: t.id ?? t.Id ?? t.teacherId,
+    name: firstName,
+    surname: surname,
+    middleName: middleName,
+    userName: userName,
     email: t.email ?? "",
     department: t.department?.name ?? t.departmentName ?? "",
     phone: t.phone ?? t.phoneNumber ?? "",
+    position: t.position,
   };
 };
 
-const mapGroupFromApi = (g: any): Group => {
+const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: any[]): Group => {
   const specialization = g.specialization ?? {};
   const specializationId =
     g.specializationId ?? specialization.id ?? specialization.Id;
+  const specializationName =
+    g.specializationName ??
+    specialization.name ??
+    specialization.Name ??
+    specialization.title ??
+    specialization.Title ??
+    "";
   const department = g.department ?? {};
   const departmentId = g.departmentId ?? department.id ?? department.Id;
+  const groupCode = g.groupCode ?? g.code ?? "";
+
+  let departmentName =
+    department.name ??
+    g.department?.name ??
+    g.departmentName ??
+    department.Name ??
+    department.title ??
+    department.Title ??
+    "";
+
+  if (!departmentName && specializationName) {
+    departmentName = specializationName;
+  }
+
+  if (!departmentName && specializationId && specializationsList) {
+    const foundSpec = specializationsList.find((s: any) => {
+      const sId = s?.id ?? s?.Id ?? s?.ID ?? s?.specializationId;
+      return String(sId) === String(specializationId);
+    });
+    if (foundSpec) {
+      const specName = foundSpec.name ?? foundSpec.Name ?? foundSpec.title ?? foundSpec.Title ?? "";
+      if (specName) {
+        departmentName = specName;
+      }
+    }
+  }
+  
   return {
     id:
       g.id ??
       g.groupId ??
       g.groupID ??
       g.Id ??
-      g.code ??
-      g.groupCode ??
       `${String(departmentId ?? "dept")}-${String(g.year ?? "year")}`,
-    code: g.groupCode ?? g.code ?? "",
-    department: department.name ?? g.department?.name ?? g.departmentName ?? "",
+    code: groupCode,
+    groupCode: groupCode,
+    department: departmentName,
+    departmentName: departmentName,
     departmentId:
       departmentId !== undefined && departmentId !== null
         ? String(departmentId)
@@ -213,7 +265,7 @@ const mapGroupFromApi = (g: any): Group => {
       specializationId !== undefined && specializationId !== null
         ? String(specializationId)
         : undefined,
-    specializationName: specialization.name ?? specialization.Name ?? "",
+    specializationName: specializationName,
     educationLanguage:
       typeof g.educationLanguage === "number" ? g.educationLanguage : undefined,
     educationLevel:
@@ -222,26 +274,62 @@ const mapGroupFromApi = (g: any): Group => {
 };
 
 const mapStudentFromApi = (s: any): Student => {
+  // Извлекаем имя из разных возможных полей
+  const firstName = s.name ?? s.firstName ?? s.givenName ?? "";
+  const surname = s.surname ?? s.lastName ?? s.familyName ?? "";
+  const middleName = s.middleName ?? "";
+  const constructedName = firstName && surname 
+    ? `${firstName} ${middleName ? middleName + " " : ""}${surname}`.trim() 
+    : "";
+  const fullName = s.fullName ?? constructedName ?? s.name ?? "";
+  
   return {
-    id: s.id,
-    studentId: s.studentId ?? "",
-    name: s.fullName ?? "",
-    email: s.email ?? "",
-    groupId: s.groupId ?? 0,
-    groupCode: s.groupName ?? "",
-    year: s.year ?? 0,
-    specialization: s.speciality ?? "",
-    dateOfBirth: s.dateOfBirth ?? "",
-    phoneNumber: s.phoneNumber ?? "",
+    id: s.id ?? s.Id ?? s.studentId ?? s.userId ?? 0,
+    studentId: s.userName ?? s.username ?? s.studentId ?? s.userId ?? "",
+    name: fullName,
+    email: s.email ?? s.emailAddress ?? "",
+    groupId: s.groupId ?? s.group?.id ?? s.groupId,
+    groupCode: s.groupName ?? s.groupCode ?? s.group?.groupCode ?? s.group?.code ?? s.group?.name ?? "",
+    year: s.year ?? s.currentYear ?? s.academicYear ?? 0,
+    specialization: s.speciality ?? s.specialization ?? s.specializationName ?? "",
+    dateOfBirth: s.dateOfBirth ?? s.birthDate ?? s.dob,
+    phoneNumber: s.phoneNumber ?? s.phone ?? s.mobile ?? "",
     address: s.address ?? "",
     language: s.language ?? "",
+    yearOfAdmission: s.yearOfAdmission ?? s.admissionYear ?? s.yearOfAdmission,
+    admissionScore: s.admissionScore ?? s.score ?? undefined,
   };
+};
+
+const FREQUENCY_LABELS: Record<number, string> = {
+  1: "Lower",
+  2: "Upper",
+  3: "Both"
+};
+
+const DAY_LABELS: Record<number, string> = {
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+  7: "Sunday"
 };
 
 const mapCourseFromApi = (c: any): Course => {
   const teacher = c.teacher ?? {};
   const group = c.group ?? {};
   const dept = c.department ?? {};
+  let teacherName = "";
+  if (typeof c.teacher === "string") {
+    teacherName = c.teacher;
+  } else if (c.teacherName) {
+    teacherName = c.teacherName;
+  } else if (teacher && typeof teacher === "object") {
+    teacherName = `${teacher.name ?? ""} ${teacher.surname ?? ""}`.trim();
+  }
+  
   return {
     id: c.id,
     code: c.code ?? c.title ?? "",
@@ -249,24 +337,19 @@ const mapCourseFromApi = (c: any): Course => {
     credits: c.credits ?? 0,
     type: c.type ?? "Lecture",
     department: dept.name ?? dept.departmentName ?? "",
-    teacherId: c.teacherId ?? teacher.id,
-    teacherName:
-      c.teacherName ?? `${teacher.name ?? ""} ${teacher.surname ?? ""}`.trim(),
+    teacherId: c.teacherId ?? (typeof teacher === "object" ? teacher.id : undefined),
+    teacherName: teacherName,
     groupId: c.groupId ?? group.id,
     groupCode: c.groupCode ?? group.groupCode ?? "",
-    // studentCount may not be provided by the backend; default to 0
     studentCount: c.studentCount ?? 0,
     hasSyllabus: Boolean(c.syllabusId),
+    departmentName: dept.name ?? dept.departmentName ?? "",
+    year: c.year,
+    semester: c.semester ?? c.semster,
   };
 };
 
-// The mock data used in the original design has been removed.  Data
-// will now be fetched from the backend via the API helpers.  See
-// useEffect below for the loading logic.
-
 export function DeanManagement() {
-  // Lists are initially empty and populated from the backend.  If
-  // requests fail they remain empty arrays.
   const [rooms, setRooms] = useState<Room[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -275,12 +358,10 @@ export function DeanManagement() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [specializations, setSpecializations] = useState<any[]>([]);
 
-  // Room form state
   const [roomForm, setRoomForm] = useState<Partial<Room>>({});
   const [isRoomDialogOpen, setIsRoomDialogOpen] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState<number | null>(null);
 
-  // Teacher form state
   const [teacherForm, setTeacherForm] = useState<Partial<Teacher>>({});
   const [isTeacherDialogOpen, setIsTeacherDialogOpen] = useState(false);
   const [editingTeacherId, setEditingTeacherId] = useState<number | null>(null);
@@ -288,7 +369,6 @@ export function DeanManagement() {
     useState(false);
   const [isTeacherFormatInfoOpen, setIsTeacherFormatInfoOpen] = useState(false);
 
-  // Course form state
   const [courseForm, setCourseForm] = useState<
     Partial<
       Course & {
@@ -303,34 +383,35 @@ export function DeanManagement() {
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState<number | null>(null);
 
-  // Group form state
   const [groupForm, setGroupForm] = useState<Partial<Group>>({});
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
 
-  // Student form state
   const [studentForm, setStudentForm] = useState<Partial<Student>>({});
   const [isStudentDialogOpen, setIsStudentDialogOpen] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isFormatInfoOpen, setIsFormatInfoOpen] = useState(false);
 
-  // Pagination state for students
   const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 10;
 
-  // Filter and search state for students
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [studentGroupFilter, setStudentGroupFilter] = useState<string>("all");
   const [studentYearFilter, setStudentYearFilter] = useState<string>("all");
 
-  // ---------------------------------------------------------------------------
-  // Data loading and filtering
-  //
-  // On mount we request all necessary data from the backend.  The API
-  // returns paginated results; for simplicity we request up to 100
-  // items per list.  If any request fails the corresponding list
-  // remains empty.
+  const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
+  const teachersPerPage = 10;
+
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState("");
+  const [teacherPositionFilter, setTeacherPositionFilter] = useState<string>("all");
+
+  const POSITION_LABELS: Record<number, string> = {
+    1: "Teacher",
+    2: "Docent",
+    3: "Professor",
+    4: "Head Of Department"
+  };
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -338,7 +419,6 @@ export function DeanManagement() {
           roomsResp,
           teachersResp,
           groupsResp,
-          studentsResp,
           coursesResp,
           deptsResp,
           specsResp,
@@ -346,60 +426,108 @@ export function DeanManagement() {
           listRooms(1, 100),
           listTeachers(1, 100),
           listGroups(1, 100),
-          listStudents(1, 100),
           listTaughtSubjects(1, 100),
           listDepartments(1, 100),
           listSpecializations(1, 100),
         ]);
+        const departmentsList = toArray(deptsResp);
+        const specializationsList = toArray(specsResp);
+        
+        
         setRooms(toArray(roomsResp).map(mapRoomFromApi));
         setTeachers(toArray(teachersResp).map(mapTeacherFromApi));
-        setGroups(toArray(groupsResp).map(mapGroupFromApi));
-        setStudents(toArray(studentsResp).map(mapStudentFromApi));
+        setGroups(toArray(groupsResp).map((g: any) => mapGroupFromApi(g, departmentsList, specializationsList)));
         setCourses(toArray(coursesResp).map(mapCourseFromApi));
-        setDepartments(toArray(deptsResp));
-        setSpecializations(toArray(specsResp));
+        setDepartments(departmentsList);
+        setSpecializations(specializationsList);
+        
       } catch (err) {
-        console.error(err);
+        // Ignore
       }
     };
     fetchAll();
   }, []);
 
-  // When the student search or filter options change re-fetch the
-  // students list accordingly.  Search takes precedence over filtering.
   useEffect(() => {
     const fetchFilteredStudents = async () => {
       try {
         if (studentSearchQuery) {
           const resp = await searchStudents(studentSearchQuery);
-          setStudents(toArray(resp).map(mapStudentFromApi));
+          const studentsArray = toArray(resp);
+          if (studentsArray.length > 0) {
+            setStudents(studentsArray.map(mapStudentFromApi));
+          }
         } else if (
           studentGroupFilter !== "all" ||
           studentYearFilter !== "all"
         ) {
-          const groupObj = groups.find((g) => g.code === studentGroupFilter);
+          // Ждем загрузки groups перед фильтрацией
+          if (groups.length === 0) {
+            return;
+          }
+          const groupObj = groups.find((g) => (g.code || g.groupCode) === studentGroupFilter);
           const groupId =
-            studentGroupFilter !== "all" ? groupObj?.id.toString() : undefined;
+            studentGroupFilter !== "all" ? groupObj?.id?.toString() : undefined;
           const year =
             studentYearFilter !== "all"
               ? parseInt(studentYearFilter, 10)
               : undefined;
           const resp = await filterStudents(groupId, year);
-          setStudents(toArray(resp).map(mapStudentFromApi));
+          const studentsArray = toArray(resp);
+          if (studentsArray.length > 0) {
+            setStudents(studentsArray.map(mapStudentFromApi));
+          }
         } else {
-          const resp = await listStudents(1, 100);
-          setStudents(toArray(resp).map(mapStudentFromApi));
+          // Загружаем всех студентов
+          let studentsLoaded = false;
+          try {
+            const resp = await listStudents(1, 100);
+            const studentsArray = toArray(resp);
+            if (studentsArray.length > 0) {
+              const mapped = studentsArray.map(mapStudentFromApi);
+              setStudents(mapped);
+              studentsLoaded = true;
+            } else {
+              // Пробуем альтернативный метод
+              try {
+                const resp2 = await filterStudents(undefined, undefined);
+                const studentsArray2 = toArray(resp2);
+                if (studentsArray2.length > 0) {
+                  setStudents(studentsArray2.map(mapStudentFromApi));
+                  studentsLoaded = true;
+                }
+              } catch (filterErr) {
+                // Ignore
+              }
+            }
+          } catch (listErr: any) {
+            // Если listStudents не работает, пробуем filterStudents без параметров
+            try {
+              const resp = await filterStudents(undefined, undefined);
+              const studentsArray = toArray(resp);
+              if (studentsArray.length > 0) {
+                setStudents(studentsArray.map(mapStudentFromApi));
+                studentsLoaded = true;
+              }
+            } catch (filterErr) {
+              // Показываем предупреждение пользователю только если список пустой
+              if (students.length === 0 && !studentsLoaded) {
+                toast.error("Unable to load students. The server returned an error (500). Please check the backend logs.", {
+                  duration: 5000,
+                });
+                // Устанавливаем пустой массив, чтобы показать, что данных нет
+                setStudents([]);
+              }
+            }
+          }
         }
       } catch (err) {
-        console.error(err);
+        // Не устанавливаем пустой массив при ошибке, оставляем текущий список
       }
     };
     fetchFilteredStudents();
-    // groups is included as a dependency so that filtering by group
-    // updates correctly when the groups list changes.
   }, [studentSearchQuery, studentGroupFilter, studentYearFilter, groups]);
 
-  // Room handlers
   const handleAddRoom = () => {
     setRoomForm({});
     setEditingRoomId(null);
@@ -414,30 +542,19 @@ export function DeanManagement() {
 
   const handleSaveRoom = async () => {
     try {
-      // Map the UI type back to the numeric code expected by the API.
-      const getRoomTypeCode = (type: string | undefined) => {
-        if (!type) return 0;
-        const t = type.toLowerCase();
-        if (t.includes("lecture")) return 0;
-        if (t.includes("class")) return 1;
-        return 2;
-      };
       if (editingRoomId) {
-        // Updating an existing room
         await updateRoom(editingRoomId.toString(), {
           name: roomForm.name ?? "",
           capacity: Number(roomForm.capacity ?? 0),
         });
         toast.success("Room updated successfully");
       } else {
-        // Creating a new room
         await createRoom({
           roomName: roomForm.name ?? "",
           capacity: Number(roomForm.capacity ?? 0),
         });
         toast.success("Room added successfully");
       }
-      // Refresh the list from the backend
       const resp = await listRooms(1, 100);
       setRooms(toArray(resp).map(mapRoomFromApi));
     } catch (error: any) {
@@ -459,7 +576,6 @@ export function DeanManagement() {
     }
   };
 
-  // Teacher handlers
   const handleAddTeacher = () => {
     setTeacherForm({});
     setEditingTeacherId(null);
@@ -482,11 +598,35 @@ export function DeanManagement() {
     }
   };
 
-  // Course handlers
   const handleAddCourse = () => {
-    setCourseForm({});
+    setCourseForm({ 
+      classTimes: [{ start: "", end: "", day: 1, room: "", frequency: 3 }],
+      credits: 0,
+      hours: 0,
+      year: 1,
+      semester: 1,
+    });
     setEditingCourseId(null);
     setIsCourseDialogOpen(true);
+  };
+
+  const addClassTime = () => {
+    setCourseForm({
+      ...courseForm,
+      classTimes: [...(courseForm.classTimes || []), { start: "", end: "", day: 1, room: "", frequency: 3 }]
+    });
+  };
+
+  const removeClassTime = (index: number) => {
+    const newClassTimes = [...(courseForm.classTimes || [])];
+    newClassTimes.splice(index, 1);
+    setCourseForm({ ...courseForm, classTimes: newClassTimes });
+  };
+
+  const updateClassTime = (index: number, field: keyof any, value: string | number) => {
+    const newClassTimes = [...(courseForm.classTimes || [])];
+    newClassTimes[index] = { ...newClassTimes[index], [field]: value };
+    setCourseForm({ ...courseForm, classTimes: newClassTimes });
   };
 
   const handleEditCourse = (course: Course) => {
@@ -525,26 +665,70 @@ export function DeanManagement() {
         });
         toast.success("Course updated successfully");
       } else {
-        // CreateTaughtSubjectRequest требует hours/classTimes/year/semester
-        await createTaughtSubject({
-          code: courseForm.code,
-          title: courseForm.title,
+        if (courseForm.credits === undefined || courseForm.credits === null || courseForm.credits === 0) {
+          toast.error("Credits is required");
+          return;
+        }
+        if (courseForm.hours === undefined || courseForm.hours === null || courseForm.hours === 0) {
+          toast.error("Hours is required");
+          return;
+        }
+        if (courseForm.year === undefined || courseForm.year === null) {
+          toast.error("Year is required");
+          return;
+        }
+        if (courseForm.semester === undefined || courseForm.semester === null) {
+          toast.error("Semester is required");
+          return;
+        }
+
+        const validClassTimes = (courseForm.classTimes || [])
+          .filter((ct: any) => {
+            return ct.start && ct.end && ct.room && ct.room.trim() && ct.day && ct.frequency !== undefined;
+          })
+          .map((ct: any) => {
+            const startTime = ensureHHMMSS(ct.start);
+            const endTime = ensureHHMMSS(ct.end);
+            const day = Number(ct.day);
+            const room = String(ct.room).trim();
+            const frequency = Number(ct.frequency);
+
+            if (!startTime || startTime === "00:00:00" || !endTime || endTime === "00:00:00") {
+              throw new Error("Start and end times are required for class times");
+            }
+            if (!room) {
+              throw new Error("Room is required for class times");
+            }
+            if (!day || day < 1 || day > 7) {
+              throw new Error("Valid day (1-7) is required for class times");
+            }
+            if (!frequency || frequency < 1 || frequency > 3) {
+              throw new Error("Valid frequency (1-3) is required for class times");
+            }
+
+            return {
+              start: startTime,
+              end: endTime,
+              day: day,
+              room: room,
+              frequency: frequency,
+            };
+          });
+
+        const requestPayload = {
+          code: String(courseForm.code).trim(),
+          title: String(courseForm.title).trim(),
           departmentId: String(courseForm.departmentId),
           teacherId: String(courseForm.teacherId),
           groupId: String(courseForm.groupId),
-          credits: Number(courseForm.credits ?? 0),
-          hours: Number(courseForm.hours ?? 0),
-          year: Number(courseForm.year ?? 1),
-          semester: Number(courseForm.semester ?? 1),
-          classTimes:
-            courseForm.classTimes?.map((ct: any) => ({
-              start: ensureHHMMSS(ct.start),
-              end: ensureHHMMSS(ct.end),
-              day: Number(ct.day),
-              room: String(ct.room),
-              frequency: Number(ct.frequency),
-            })) ?? [],
-        });
+          credits: Number(courseForm.credits),
+          hours: Number(courseForm.hours),
+          year: Number(courseForm.year),
+          semester: Number(courseForm.semester),
+          classTimes: validClassTimes,
+        };
+
+        await createTaughtSubject(requestPayload);
         toast.success("Course added successfully");
       }
 
@@ -569,7 +753,6 @@ export function DeanManagement() {
     }
   };
 
-  // Group handlers
   const handleAddGroup = () => {
     setGroupForm({});
     setEditingGroupId(null);
@@ -577,18 +760,20 @@ export function DeanManagement() {
   };
 
   const handleEditGroup = (group: Group) => {
-    setGroupForm(group);
+    setGroupForm({
+      ...group,
+      code: group.code || group.groupCode,
+      groupCode: group.groupCode || group.code,
+    });
     setEditingGroupId(group.id);
     setIsGroupDialogOpen(true);
   };
 
   const handleSaveGroup = async () => {
     try {
-      // When editing an existing group call the API to update it.
-      // The backend expects a groupCode, specializationId and year.
-      // We need to handle specializationId properly
+      const groupCode = groupForm.code || groupForm.groupCode;
       if (
-        !groupForm.code ||
+        !groupCode ||
         !groupForm.specializationId ||
         groupForm.year === undefined
       ) {
@@ -597,7 +782,7 @@ export function DeanManagement() {
       }
 
       const basePayload = {
-        groupCode: groupForm.code,
+        groupCode: groupCode,
         specializationId: groupForm.specializationId,
         year: Number(groupForm.year),
       };
@@ -620,11 +805,9 @@ export function DeanManagement() {
         });
         toast.success("Group added successfully");
       }
-      // refresh groups from backend
       const resp = await listGroups(1, 100);
-      setGroups(toArray(resp).map(mapGroupFromApi));
+      setGroups(toArray(resp).map((g: any) => mapGroupFromApi(g, departments, specializations)));
     } catch (error: any) {
-      // If the API fails we still update local state so the UI remains responsive
       if (editingGroupId) {
         setGroups(
           groups.map((g) =>
@@ -652,13 +835,11 @@ export function DeanManagement() {
       toast.success("Group deleted successfully");
       setGroups((prev) => prev.filter((g) => g.id !== id));
     } catch (error: any) {
-      // If API deletion fails we remove locally but show error
       setGroups((prev) => prev.filter((g) => g.id !== id));
       toast.error(error?.message ?? "Failed to delete group");
     }
   };
 
-  // Student handlers
   const handleAddStudent = () => {
     setStudentForm({});
     setEditingStudentId(null);
@@ -672,7 +853,6 @@ export function DeanManagement() {
   };
 
   const handleSaveStudent = () => {
-    // Get group name if ID is provided
     const group = studentForm.groupId
       ? groups.find((g) => g.id === studentForm.groupId)
       : undefined;
@@ -708,7 +888,6 @@ export function DeanManagement() {
     toast.success("Student deleted successfully");
   };
 
-  // Excel upload handler
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -726,17 +905,70 @@ export function DeanManagement() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        toast.success("Import report downloaded");
-      } else {
+        toast.success("Import completed. Report downloaded.");
+      } 
+      else if (
+        typeof result === "object" &&
+        result !== null &&
+        !(result instanceof Blob)
+      ) {
+        if ((result as any).message || (result as any).error) {
+          toast.error((result as any).message || (result as any).error || "Error importing file");
+        } else {
+          toast.success("File uploaded successfully");
+        }
+      } 
+      else {
         toast.success("File uploaded successfully");
       }
 
-      // refresh students
-      const resp = await listStudents(1, 100);
-      setStudents(toArray(resp).map(mapStudentFromApi));
+      // Обновляем список студентов после импорта
+      // Если GET /api/students не работает (500 ошибка), это проблема бэкенда
+      // Импорт прошел успешно, но список студентов получить не можем
+      // Пытаемся обновить список студентов, но не критично, если не получится
+      let studentsLoaded = false;
+      try {
+        const resp = await listStudents(1, 100);
+        const studentsArray = toArray(resp);
+        if (studentsArray.length > 0) {
+          const mapped = studentsArray.map(mapStudentFromApi);
+          setStudents(mapped);
+          studentsLoaded = true;
+          toast.success(`Import completed! Loaded ${mapped.length} students`);
+        } else {
+          // Список пустой, но импорт прошел успешно
+          toast.success("Import completed successfully! The student list is currently empty or the GET endpoint is not working properly.", {
+            duration: 5000,
+          });
+        }
+      } catch (listErr: any) {
+        // GET /api/students возвращает 500 ошибку - это проблема бэкенда
+        // Импорт прошел успешно, но получить список студентов не можем
+        // Пробуем альтернативный метод
+        try {
+          const resp = await filterStudents(undefined, undefined);
+          const studentsArray = toArray(resp);
+          if (studentsArray.length > 0) {
+            setStudents(studentsArray.map(mapStudentFromApi));
+            studentsLoaded = true;
+            toast.success(`Import completed! Loaded ${studentsArray.length} students via filter endpoint`);
+          } else {
+            toast.success("Import completed successfully! However, the GET /api/students endpoint is returning 500 error. Please check backend logs or refresh the page.", {
+              duration: 7000,
+            });
+          }
+        } catch (filterErr) {
+          // Оба эндпоинта не работают - это проблема бэкенда
+          toast.success("Import completed successfully! However, both GET endpoints (/api/students and /api/students/filter-by) are returning 500 errors. Please check backend logs or refresh the page.", {
+            duration: 7000,
+          });
+        }
+      }
       setIsUploadDialogOpen(false);
+      event.target.value = "";
     } catch (error: any) {
       toast.error(error?.message ?? "Error importing file");
+      event.target.value = "";
     }
   };
 
@@ -748,6 +980,7 @@ export function DeanManagement() {
 
     try {
       const result = await importTeachersExcel(file);
+
       if (result instanceof Blob) {
         const url = URL.createObjectURL(result);
         const link = document.createElement("a");
@@ -757,21 +990,38 @@ export function DeanManagement() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        toast.success("Import report downloaded");
-      } else {
+        toast.success("Import completed. Report downloaded.");
+      } 
+      // Если это JSON объект с сообщением (обычно это ошибка или успешный ответ без файла)
+      else if (
+        typeof result === "object" &&
+        result !== null &&
+        !(result instanceof Blob)
+      ) {
+        if ((result as any).message || (result as any).error) {
+          toast.error((result as any).message || (result as any).error || "Error importing file");
+        } else {
+          toast.success("File uploaded successfully");
+        }
+      } 
+      else {
         toast.success("File uploaded successfully");
       }
+
       const resp = await listTeachers(1, 100);
       setTeachers(toArray(resp).map(mapTeacherFromApi));
       setIsTeacherUploadDialogOpen(false);
+      event.target.value = "";
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to import teachers");
+      event.target.value = "";
     }
   };
 
   const downloadTeacherTemplate = async () => {
     try {
-      const resp = await fetch("/teacher-template.xlsx");
+      const fileName = "TeacherTemplate(2).xlsx";
+      const resp = await fetch(`/${encodeURIComponent(fileName)}`);
       if (!resp.ok) {
         throw new Error("Template file not found");
       }
@@ -789,11 +1039,10 @@ export function DeanManagement() {
       toast.error(error?.message ?? "Error downloading template");
     }
   };
-
-  // Download template
   const downloadTemplate = async () => {
     try {
-      const resp = await fetch("/students-template.xlsx");
+      const fileName = "students-template (2).xlsx";
+      const resp = await fetch(`/${encodeURIComponent(fileName)}`);
       if (!resp.ok) {
         throw new Error("Template file not found");
       }
@@ -811,19 +1060,27 @@ export function DeanManagement() {
       toast.error(error?.message ?? "Error downloading template");
     }
   };
-
-  // Students are already filtered by the backend based on the search
-  // query and selected filters.  We simply return the list as is for
-  // pagination below.
   const filteredStudents = students;
-
-  // Calculate pagination values
   const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
   const startIndex = (currentPage - 1) * studentsPerPage;
   const endIndex = Math.min(
     currentPage * studentsPerPage,
     filteredStudents.length,
   );
+
+  const filteredTeachers = teachers.filter(teacher => {
+    const searchLower = teacherSearchQuery.toLowerCase();
+    const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""} ${teacher.userName || ""}`.toLowerCase();
+    const matchesSearch = !teacherSearchQuery || fullName.includes(searchLower);
+    const matchesPosition = teacherPositionFilter === "all" || 
+      (teacher.position && String(teacher.position) === teacherPositionFilter);
+    
+    return matchesSearch && matchesPosition;
+  });
+
+  const teacherTotalPages = Math.ceil(filteredTeachers.length / teachersPerPage);
+  const teacherStartIndex = (teacherCurrentPage - 1) * teachersPerPage + 1;
+  const teacherEndIndex = Math.min(teacherCurrentPage * teachersPerPage, filteredTeachers.length);
 
   return (
     <div className="space-y-6">
@@ -834,16 +1091,8 @@ export function DeanManagement() {
         </p>
       </div>
 
-      <Tabs defaultValue="rooms" className="w-full">
+      <Tabs defaultValue="courses" className="w-full">
         <TabsList>
-          <TabsTrigger value="rooms">
-            <DoorOpen className="h-4 w-4 mr-2" />
-            Rooms
-          </TabsTrigger>
-          <TabsTrigger value="teachers">
-            <Users className="h-4 w-4 mr-2" />
-            Teachers
-          </TabsTrigger>
           <TabsTrigger value="courses">
             <BookOpen className="h-4 w-4 mr-2" />
             Courses
@@ -856,554 +1105,285 @@ export function DeanManagement() {
             <UserCircle className="h-4 w-4 mr-2" />
             Students
           </TabsTrigger>
+          <TabsTrigger value="teachers">
+            <Users className="h-4 w-4 mr-2" />
+            Teachers
+          </TabsTrigger>
         </TabsList>
 
-        {/* Rooms Tab */}
-        <TabsContent value="rooms" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Room Management</CardTitle>
-                  <CardDescription>
-                    Add, edit, or remove classroom and lecture hall information
-                  </CardDescription>
-                </div>
-                <Dialog
-                  open={isRoomDialogOpen}
-                  onOpenChange={setIsRoomDialogOpen}
-                >
-                  <DialogTrigger asChild>
-                    <Button onClick={handleAddRoom}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Room
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>
-                        {editingRoomId ? "Edit Room" : "Add New Room"}
-                      </DialogTitle>
-                      <DialogDescription>
-                        {editingRoomId
-                          ? "Update room information"
-                          : "Enter details for the new room"}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="room-name">Room Name</Label>
-                        <Input
-                          id="room-name"
-                          placeholder="e.g., A-101"
-                          value={roomForm.name || ""}
-                          onChange={(e) =>
-                            setRoomForm({ ...roomForm, name: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="room-building">Building</Label>
-                        <Input
-                          id="room-building"
-                          placeholder="e.g., Building A"
-                          value={roomForm.building || ""}
-                          onChange={(e) =>
-                            setRoomForm({
-                              ...roomForm,
-                              building: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="room-capacity">Capacity</Label>
-                        <Input
-                          id="room-capacity"
-                          type="number"
-                          placeholder="e.g., 30"
-                          value={roomForm.capacity || ""}
-                          onChange={(e) =>
-                            setRoomForm({
-                              ...roomForm,
-                              capacity: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="room-type">Room Type</Label>
-                        <Select
-                          value={roomForm.type || ""}
-                          onValueChange={(value: string) =>
-                            setRoomForm({ ...roomForm, type: value })
-                          }
-                        >
-                          <SelectTrigger id="room-type">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Lecture Hall">
-                              Lecture Hall
-                            </SelectItem>
-                            <SelectItem value="Classroom">Classroom</SelectItem>
-                            <SelectItem value="Laboratory">
-                              Laboratory
-                            </SelectItem>
-                            <SelectItem value="Seminar Room">
-                              Seminar Room
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsRoomDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSaveRoom}>Save</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Room Name</TableHead>
-                    <TableHead>Building</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rooms.map((room) => (
-                    <TableRow key={room.id}>
-                      <TableCell className="font-medium">{room.name}</TableCell>
-                      <TableCell>{room.building}</TableCell>
-                      <TableCell>{room.capacity}</TableCell>
-                      <TableCell>{room.type}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditRoom(room)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteRoom(room.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Teachers Tab */}
-        <TabsContent value="teachers" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Teacher Management</CardTitle>
-                  <CardDescription>
-                    Add, edit, or remove teacher information
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Dialog
-                    open={isTeacherFormatInfoOpen}
-                    onOpenChange={setIsTeacherFormatInfoOpen}
-                  >
-                    <DialogTrigger asChild>
-                      <Button variant="outline">
-                        <Info className="h-4 w-4 mr-2" />
-                        Excel Format
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Teacher Excel Format</DialogTitle>
-                        <DialogDescription>
-                          Required columns for bulk teacher import
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <Alert>
-                          <FileSpreadsheet className="h-4 w-4" />
-                          <AlertTitle>Required Columns</AlertTitle>
-                          <AlertDescription>
-                            Provide the columns below in this exact order.
-                          </AlertDescription>
-                        </Alert>
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Name</span>
-                            <span className="text-sm text-muted-foreground">
-                              Abbas
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Surname</span>
-                            <span className="text-sm text-muted-foreground">
-                              Mehdiyev
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">MiddleName</span>
-                            <span className="text-sm text-muted-foreground">
-                              Ali
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">UserName</span>
-                            <span className="text-sm text-muted-foreground">
-                              K2L3MRW
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">DepartmentName</span>
-                            <span className="text-sm text-muted-foreground">
-                              Department of Science
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Position</span>
-                            <span className="text-sm text-muted-foreground">
-                              1
-                            </span>
-                          </div>
-                        </div>
-                        <Alert>
-                          <Info className="h-4 w-4" />
-                          <AlertTitle>Important Notes</AlertTitle>
-                          <AlertDescription>
-                            <ul className="list-disc list-inside space-y-1 text-sm">
-                              <li>The first row must contain column headers</li>
-                              <li>
-                                DepartmentName must reference an existing
-                                department
-                              </li>
-                              <li>
-                                Position should match the backend enum value
-                              </li>
-                              <li>Accepted formats: .xlsx or .xls</li>
-                            </ul>
-                          </AlertDescription>
-                        </Alert>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsTeacherFormatInfoOpen(false)}
-                        >
-                          Close
-                        </Button>
-                        <Button onClick={downloadTeacherTemplate}>
-                          <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          Download Template
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  <Dialog
-                    open={isTeacherUploadDialogOpen}
-                    onOpenChange={setIsTeacherUploadDialogOpen}
-                  >
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload Excel
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Upload Teachers from Excel</DialogTitle>
-                        <DialogDescription>
-                          Import multiple teachers via an Excel spreadsheet
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <Alert>
-                          <Info className="h-4 w-4" />
-                          <AlertTitle>Before uploading</AlertTitle>
-                          <AlertDescription>
-                            Ensure your file follows the required column order
-                            or download the template first.
-                          </AlertDescription>
-                        </Alert>
-                        <div className="space-y-2">
-                          <Label htmlFor="teacher-file">
-                            Select Excel File
-                          </Label>
-                          <Input
-                            id="teacher-file"
-                            type="file"
-                            accept=".xlsx,.xls"
-                            onChange={handleTeacherFileUpload}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsTeacherUploadDialogOpen(false)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {teachers.map((teacher) => (
-                    <TableRow key={teacher.id}>
-                      <TableCell className="font-medium">
-                        {teacher.name}
-                      </TableCell>
-                      <TableCell>{teacher.email}</TableCell>
-                      <TableCell>{teacher.department}</TableCell>
-                      <TableCell>{teacher.phone}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditTeacher(teacher)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteTeacher(teacher.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Courses Tab */}
         <TabsContent value="courses" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Course Management</CardTitle>
-                  <CardDescription>
-                    Add, edit, or remove course information
-                  </CardDescription>
+                  <CardDescription>Add, edit, or remove course information</CardDescription>
                 </div>
-                <Dialog
-                  open={isCourseDialogOpen}
-                  onOpenChange={setIsCourseDialogOpen}
-                >
+                <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
                   <DialogTrigger asChild>
                     <Button onClick={handleAddCourse}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Course
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>
-                        {editingCourseId ? "Edit Course" : "Add New Course"}
-                      </DialogTitle>
+                      <DialogTitle>{editingCourseId ? "Edit Course" : "Add New Course"}</DialogTitle>
                       <DialogDescription>
-                        {editingCourseId
-                          ? "Update course information"
-                          : "Enter details for the new course"}
+                        {editingCourseId ? "Update course information" : "Enter details for the new course"}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="course-code">Course Code</Label>
-                        <Input
-                          id="course-code"
-                          placeholder="e.g., CS-101"
-                          value={courseForm.code || ""}
-                          onChange={(e) =>
-                            setCourseForm({
-                              ...courseForm,
-                              code: e.target.value,
-                            })
-                          }
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="course-code">Course Code</Label>
+                          <Input
+                            id="course-code"
+                            placeholder="e.g., MAT-AN"
+                            value={courseForm.code || ""}
+                            onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-title">Course Title</Label>
+                          <Input
+                            id="course-title"
+                            placeholder="e.g., Mat. Analiz"
+                            value={courseForm.title || ""}
+                            onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="course-title">Course Title</Label>
-                        <Input
-                          id="course-title"
-                          placeholder="e.g., Introduction to Programming"
-                          value={courseForm.title || ""}
-                          onChange={(e) =>
-                            setCourseForm({
-                              ...courseForm,
-                              title: e.target.value,
-                            })
-                          }
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="course-department">Department</Label>
+                          <Select
+                            value={courseForm.departmentId?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, departmentId: value })}
+                          >
+                            <SelectTrigger id="course-department">
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments.map(dept => {
+                                const deptId = dept?.id ?? dept?.Id ?? dept?.departmentId;
+                                const deptName = dept?.name ?? dept?.Name ?? dept?.title ?? dept?.Title ?? "";
+                                if (!deptId || !deptName) return null;
+                                return (
+                                  <SelectItem key={String(deptId)} value={String(deptId)}>{deptName}</SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-teacher">Teacher</Label>
+                          <Select
+                            value={courseForm.teacherId?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, teacherId: value })}
+                          >
+                            <SelectTrigger id="course-teacher">
+                              <SelectValue placeholder="Select teacher" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teachers.map(teacher => {
+                                const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() || teacher.userName || `Teacher ${teacher.id}`;
+                                return (
+                                  <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                    {fullName}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="course-credits">Credits</Label>
-                        <Input
-                          id="course-credits"
-                          type="number"
-                          placeholder="e.g., 3"
-                          value={courseForm.credits || ""}
-                          onChange={(e) =>
-                            setCourseForm({
-                              ...courseForm,
-                              credits: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="course-group">Group</Label>
+                          <Select
+                            value={courseForm.groupId?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, groupId: value })}
+                          >
+                            <SelectTrigger id="course-group">
+                              <SelectValue placeholder="Select group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {groups.map(group => (
+                                <SelectItem key={group.id} value={group.id.toString()}>{group.code || group.groupCode}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-credits">Credits</Label>
+                          <Input
+                            id="course-credits"
+                            type="number"
+                            placeholder="e.g., 5"
+                            value={courseForm.credits || ""}
+                            onChange={(e) => setCourseForm({ ...courseForm, credits: parseInt(e.target.value) })}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="course-type">Course Type</Label>
-                        <Select
-                          value={courseForm.type || ""}
-                          onValueChange={(value: string) =>
-                            setCourseForm({ ...courseForm, type: value })
-                          }
-                        >
-                          <SelectTrigger id="course-type">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Lecture">Lecture</SelectItem>
-                            <SelectItem value="Seminar">Seminar</SelectItem>
-                            <SelectItem value="Laboratory">
-                              Laboratory
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="course-hours">Hours</Label>
+                          <Input
+                            id="course-hours"
+                            type="number"
+                            placeholder="e.g., 60"
+                            value={courseForm.hours || ""}
+                            onChange={(e) => setCourseForm({ ...courseForm, hours: parseInt(e.target.value) })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-year">Year</Label>
+                          <Select
+                            value={courseForm.year?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, year: parseInt(value) })}
+                          >
+                            <SelectTrigger id="course-year">
+                              <SelectValue placeholder="Select year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">Year 1</SelectItem>
+                              <SelectItem value="2">Year 2</SelectItem>
+                              <SelectItem value="3">Year 3</SelectItem>
+                              <SelectItem value="4">Year 4</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-semester">Semester</Label>
+                          <Select
+                            value={courseForm.semester?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, semester: parseInt(value) })}
+                          >
+                            <SelectTrigger id="course-semester">
+                              <SelectValue placeholder="Select semester" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">Semester 1</SelectItem>
+                              <SelectItem value="2">Semester 2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
+
                       <div className="space-y-2">
-                        <Label htmlFor="course-department">Department</Label>
-                        <Select
-                          value={courseForm.departmentId || ""}
-                          onValueChange={(value: string) => {
-                            const dept = departments.find(
-                              (d) => d.id.toString() === value,
-                            );
-                            setCourseForm({
-                              ...courseForm,
-                              departmentId: value,
-                              department: dept?.name,
-                            });
-                          }}
-                        >
-                          <SelectTrigger id="course-department">
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departments.map((dept) => (
-                              <SelectItem
-                                key={dept.id}
-                                value={dept.id.toString()}
-                              >
-                                {dept.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="course-teacher">Teacher</Label>
-                        <Select
-                          value={courseForm.teacherId?.toString() || ""}
-                          onValueChange={(value: string) =>
-                            setCourseForm({
-                              ...courseForm,
-                              teacherId: parseInt(value),
-                            })
-                          }
-                        >
-                          <SelectTrigger id="course-teacher">
-                            <SelectValue placeholder="Select teacher" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {teachers.map((teacher) => (
-                              <SelectItem
-                                key={teacher.id}
-                                value={teacher.id.toString()}
-                              >
-                                {teacher.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="course-group">Group</Label>
-                        <Select
-                          value={courseForm.groupId?.toString() || ""}
-                          onValueChange={(value: string) =>
-                            setCourseForm({
-                              ...courseForm,
-                              groupId: parseInt(value),
-                            })
-                          }
-                        >
-                          <SelectTrigger id="course-group">
-                            <SelectValue placeholder="Select group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {groups.map((group) => (
-                              <SelectItem
-                                key={group.id}
-                                value={group.id.toString()}
-                              >
-                                {group.code}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center justify-between">
+                          <Label>Class Times</Label>
+                          <Button type="button" variant="outline" size="sm" onClick={addClassTime}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Time Slot
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {(courseForm.classTimes || []).map((classTime, index) => (
+                            <Card key={index} className="p-4">
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-2">
+                                    <Label>Start Time</Label>
+                                    <Input
+                                      type="time"
+                                      value={classTime.start}
+                                      onChange={(e) => updateClassTime(index, "start", e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>End Time</Label>
+                                    <Input
+                                      type="time"
+                                      value={classTime.end}
+                                      onChange={(e) => updateClassTime(index, "end", e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div className="space-y-2">
+                                    <Label>Day</Label>
+                                    <Select
+                                      value={classTime.day.toString()}
+                                      onValueChange={(value) => updateClassTime(index, "day", parseInt(value))}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {Object.entries(DAY_LABELS).map(([value, label]) => (
+                                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Room</Label>
+                                    <Select
+                                      value={classTime.room}
+                                      onValueChange={(value) => updateClassTime(index, "room", value)}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select room" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {rooms.length === 0 ? (
+                                          <SelectItem value="" disabled>No rooms available</SelectItem>
+                                        ) : (
+                                          rooms.map(room => {
+                                            const roomId = room.id;
+                                            const roomName = room.name || "";
+                                            const roomCapacity = room.capacity || 0;
+                                            
+                                            if (!roomId || !roomName) return null;
+                                            
+                                            return (
+                                              <SelectItem key={String(roomId)} value={String(roomId)}>
+                                                {roomName} {roomCapacity > 0 ? `(${roomCapacity})` : ""}
+                                              </SelectItem>
+                                            );
+                                          })
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Frequency</Label>
+                                    <Select
+                                      value={classTime.frequency.toString()}
+                                      onValueChange={(value) => updateClassTime(index, "frequency", parseInt(value))}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
+                                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                {(courseForm.classTimes || []).length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => removeClassTime(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Remove
+                                  </Button>
+                                )}
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsCourseDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
+                      <Button variant="outline" onClick={() => setIsCourseDialogOpen(false)}>Cancel</Button>
                       <Button onClick={handleSaveCourse}>Save</Button>
                     </div>
                   </DialogContent>
@@ -1416,10 +1396,11 @@ export function DeanManagement() {
                   <TableRow>
                     <TableHead>Code</TableHead>
                     <TableHead>Title</TableHead>
+                    <TableHead>Department</TableHead>
                     <TableHead>Teacher</TableHead>
                     <TableHead>Group</TableHead>
                     <TableHead>Credits</TableHead>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Year/Sem</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1430,10 +1411,15 @@ export function DeanManagement() {
                         {course.code}
                       </TableCell>
                       <TableCell>{course.title}</TableCell>
+                      <TableCell>{course.departmentName || "-"}</TableCell>
                       <TableCell>{course.teacherName || "-"}</TableCell>
                       <TableCell>{course.groupCode || "-"}</TableCell>
                       <TableCell>{course.credits}</TableCell>
-                      <TableCell>{course.type}</TableCell>
+                      <TableCell>
+                        {course.year && course.semester
+                          ? `Y${course.year}/S${course.semester}`
+                          : "-"}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -1460,7 +1446,6 @@ export function DeanManagement() {
           </Card>
         </TabsContent>
 
-        {/* Groups Tab */}
         <TabsContent value="groups" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1497,171 +1482,43 @@ export function DeanManagement() {
                         <Label htmlFor="group-code">Group Code</Label>
                         <Input
                           id="group-code"
-                          placeholder="e.g., CS-101"
-                          value={groupForm.code || ""}
+                          placeholder="e.g., CS-50"
+                          value={groupForm.code || groupForm.groupCode || ""}
                           onChange={(e) =>
-                            setGroupForm({ ...groupForm, code: e.target.value })
+                            setGroupForm({ ...groupForm, code: e.target.value, groupCode: e.target.value })
                           }
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-department">Department</Label>
-                        <Select
-                          value={groupForm.departmentId || ""}
-                          onValueChange={(value: string) => {
-                            const dept = departments.find((d) => {
-                              const deptId = d?.id ?? d?.Id ?? d?.departmentId;
-                              return String(deptId) === value;
-                            });
-                            setGroupForm({
-                              ...groupForm,
-                              departmentId: value,
-                              department:
-                                dept?.name ??
-                                dept?.Name ??
-                                dept?.title ??
-                                dept?.Title ??
-                                "",
-                            });
-                          }}
-                          disabled={departments.length === 0}
-                        >
-                          <SelectTrigger id="group-department">
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departments.map((dept) => {
-                              const deptId =
-                                dept?.id ?? dept?.Id ?? dept?.departmentId;
-                              if (deptId === undefined || deptId === null) {
-                                return null;
-                              }
-                              const deptIdStr = String(deptId);
-                              const deptName =
-                                dept?.name ??
-                                dept?.Name ??
-                                dept?.title ??
-                                dept?.Title ??
-                                `Department ${deptIdStr}`;
-                              return (
-                                <SelectItem key={deptIdStr} value={deptIdStr}>
-                                  {deptName}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="group-specialization">
-                          Specialization
-                        </Label>
+                        <Label htmlFor="group-specialization">Specialization</Label>
                         <Select
                           value={groupForm.specializationId || ""}
-                          onValueChange={(value: string) => {
-                            const spec = specializations.find((s) => {
-                              const specId =
-                                s?.id ?? s?.Id ?? s?.ID ?? s?.specializationId;
-                              return String(specId) === value;
-                            });
-                            setGroupForm({
-                              ...groupForm,
-                              specializationId: value,
-                              specializationName:
-                                spec?.name ??
-                                spec?.Name ??
-                                spec?.title ??
-                                spec?.Title,
-                            });
-                          }}
+                          onValueChange={(value) => setGroupForm({ ...groupForm, specializationId: value })}
                         >
                           <SelectTrigger id="group-specialization">
                             <SelectValue placeholder="Select specialization" />
                           </SelectTrigger>
                           <SelectContent>
-                            {specializations.map((spec) => {
-                              const specId =
-                                spec?.id ??
-                                spec?.Id ??
-                                spec?.ID ??
-                                spec?.specializationId;
-                              if (specId === undefined || specId === null) {
-                                return null;
-                              }
-                              const specIdStr = String(specId);
-                              const specName =
-                                spec?.name ??
-                                spec?.Name ??
-                                spec?.title ??
-                                spec?.Title ??
-                                `Specialization ${specIdStr}`;
-                              return (
-                                <SelectItem key={specIdStr} value={specIdStr}>
-                                  {specName}
-                                </SelectItem>
-                              );
-                            })}
+                            {specializations.length === 0 ? (
+                              <SelectItem value="" disabled>No specializations available</SelectItem>
+                            ) : (
+                              specializations.map(spec => {
+                                const specId = spec?.id ?? spec?.Id ?? spec?.ID ?? spec?.specializationId;
+                                const specName = spec?.name ?? spec?.Name ?? spec?.title ?? spec?.Title ?? "";
+                                if (!specId || !specName) return null;
+                                return (
+                                  <SelectItem key={String(specId)} value={String(specId)}>{specName}</SelectItem>
+                                );
+                              })
+                            )}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="group-language">
-                          Education Language (enum)
-                        </Label>
-                        <Input
-                          id="group-language"
-                          type="number"
-                          placeholder="Match backend enum"
-                          value={
-                            groupForm.educationLanguage !== undefined
-                              ? groupForm.educationLanguage.toString()
-                              : ""
-                          }
-                          onChange={(e) =>
-                            setGroupForm({
-                              ...groupForm,
-                              educationLanguage:
-                                e.target.value === ""
-                                  ? undefined
-                                  : Number(e.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="group-level">
-                          Education Level (enum)
-                        </Label>
-                        <Input
-                          id="group-level"
-                          type="number"
-                          placeholder="Match backend enum"
-                          value={
-                            groupForm.educationLevel !== undefined
-                              ? groupForm.educationLevel.toString()
-                              : ""
-                          }
-                          onChange={(e) =>
-                            setGroupForm({
-                              ...groupForm,
-                              educationLevel:
-                                e.target.value === ""
-                                  ? undefined
-                                  : Number(e.target.value),
-                            })
-                          }
-                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="group-year">Year</Label>
                         <Select
                           value={groupForm.year?.toString() || ""}
-                          onValueChange={(value: string) =>
-                            setGroupForm({
-                              ...groupForm,
-                              year: parseInt(value),
-                            })
-                          }
+                          onValueChange={(value) => setGroupForm({ ...groupForm, year: parseInt(value) })}
                         >
                           <SelectTrigger id="group-year">
                             <SelectValue placeholder="Select year" />
@@ -1675,19 +1532,37 @@ export function DeanManagement() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-students">Student Count</Label>
-                        <Input
-                          id="group-students"
-                          type="number"
-                          placeholder="e.g., 25"
-                          value={groupForm.studentCount || ""}
-                          onChange={(e) =>
-                            setGroupForm({
-                              ...groupForm,
-                              studentCount: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
+                        <Label htmlFor="group-language">Education Language</Label>
+                        <Select
+                          value={groupForm.educationLanguage?.toString() || ""}
+                          onValueChange={(value) => setGroupForm({ ...groupForm, educationLanguage: parseInt(value) })}
+                        >
+                          <SelectTrigger id="group-language">
+                            <SelectValue placeholder="Select language" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Azerbaijani</SelectItem>
+                            <SelectItem value="2">English</SelectItem>
+                            <SelectItem value="3">Russian</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="group-level">Education Level</Label>
+                        <Select
+                          value={groupForm.educationLevel?.toString() || ""}
+                          onValueChange={(value) => setGroupForm({ ...groupForm, educationLevel: parseInt(value) })}
+                        >
+                          <SelectTrigger id="group-level">
+                            <SelectValue placeholder="Select level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Associate</SelectItem>
+                            <SelectItem value="2">Bachelor</SelectItem>
+                            <SelectItem value="3">Master</SelectItem>
+                            <SelectItem value="4">Doctorate</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
@@ -1705,42 +1580,24 @@ export function DeanManagement() {
             </CardHeader>
             <CardContent>
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Group Code</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Specialization</TableHead>
-                    <TableHead>Language</TableHead>
-                    <TableHead>Level</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Student Count</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {groups.map((group, index) => (
-                    <TableRow key={group.id ?? `${group.code}-${index}`}>
-                      <TableCell className="font-medium">
-                        {group.code}
-                      </TableCell>
-                      <TableCell>{group.department}</TableCell>
-                      <TableCell>
-                        {group.specializationName ||
-                          group.specializationId ||
-                          "-"}
-                      </TableCell>
-                      <TableCell>
-                        {group.educationLanguage !== undefined
-                          ? group.educationLanguage
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {group.educationLevel !== undefined
-                          ? group.educationLevel
-                          : "-"}
-                      </TableCell>
-                      <TableCell>Year {group.year}</TableCell>
-                      <TableCell>{group.studentCount}</TableCell>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Group Code</TableHead>
+                        <TableHead>Department</TableHead>
+                        <TableHead>Year</TableHead>
+                        <TableHead>Student Count</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {groups.map((group, index) => (
+                        <TableRow key={group.id ?? `${group.code || group.groupCode}-${index}`}>
+                          <TableCell className="font-medium">
+                            {group.code || group.groupCode || "-"}
+                          </TableCell>
+                          <TableCell>{group.department || group.departmentName || "-"}</TableCell>
+                          <TableCell>Year {group.year}</TableCell>
+                          <TableCell>{group.studentCount}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -1767,7 +1624,6 @@ export function DeanManagement() {
           </Card>
         </TabsContent>
 
-        {/* Students Tab */}
         <TabsContent value="students" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1828,33 +1684,15 @@ export function DeanManagement() {
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Gender (M/F)</span>
-                            <span className="text-sm text-muted-foreground">
-                              M
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
                             <span className="font-medium">GroupName</span>
                             <span className="text-sm text-muted-foreground">
-                              TK-105
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">DecreeNumber</span>
-                            <span className="text-sm text-muted-foreground">
-                              1
+                              TK-109
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
                             <span className="font-medium">AdmissionScore</span>
                             <span className="text-sm text-muted-foreground">
-                              650.5
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">FormOfEducation</span>
-                            <span className="text-sm text-muted-foreground">
-                              InPerson
+                              650,5
                             </span>
                           </div>
                         </div>
@@ -1972,14 +1810,19 @@ export function DeanManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Groups</SelectItem>
-                    {groups.map((group, index) => (
-                      <SelectItem
-                        key={group.id ?? `${group.code}-${index}`}
-                        value={group.code}
-                      >
-                        {group.code}
-                      </SelectItem>
-                    ))}
+                    {groups
+                      .filter((group) => group.code || group.groupCode)
+                      .map((group, index) => {
+                        const groupCode = group.code || group.groupCode || "";
+                        return (
+                          <SelectItem
+                            key={group.id ?? `${groupCode}-${index}`}
+                            value={groupCode}
+                          >
+                            {groupCode}
+                          </SelectItem>
+                        );
+                      })}
                   </SelectContent>
                 </Select>
                 <Select
@@ -2004,10 +1847,12 @@ export function DeanManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Student ID</TableHead>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Full Name</TableHead>
                     <TableHead>Group</TableHead>
                     <TableHead>Year</TableHead>
+                    <TableHead>Year of Admission</TableHead>
+                    <TableHead>Admission Score</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -2017,11 +1862,13 @@ export function DeanManagement() {
                     .map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">
-                          {student.studentId}
+                          {student.studentId || "-"}
                         </TableCell>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.groupCode}</TableCell>
-                        <TableCell>Year {student.year}</TableCell>
+                        <TableCell>{student.name || "-"}</TableCell>
+                        <TableCell>{student.groupCode || "-"}</TableCell>
+                        <TableCell>{student.year ? `Year ${student.year}` : "-"}</TableCell>
+                        <TableCell>{student.yearOfAdmission || "-"}</TableCell>
+                        <TableCell>{student.admissionScore ?? "-"}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
@@ -2080,57 +1927,39 @@ export function DeanManagement() {
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Student ID</Label>
-                    <p className="font-medium">{studentForm.studentId}</p>
+                    <Label className="text-muted-foreground">Username</Label>
+                    <p className="font-medium">{studentForm.studentId || "-"}</p>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Full Name</Label>
-                    <p className="font-medium">{studentForm.name}</p>
+                    <p className="font-medium">{studentForm.name || "-"}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Email</Label>
-                    <p className="font-medium">{studentForm.email}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">
-                      Phone Number
-                    </Label>
-                    <p className="font-medium">{studentForm.phoneNumber}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">
-                      Date of Birth
-                    </Label>
-                    <p className="font-medium">{studentForm.dateOfBirth}</p>
-                  </div>
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Group</Label>
-                    <p className="font-medium">{studentForm.groupCode}</p>
+                    <p className="font-medium">{studentForm.groupCode || "-"}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Year</Label>
+                    <p className="font-medium">{studentForm.year ? `Year ${studentForm.year}` : "-"}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Year</Label>
-                    <p className="font-medium">Year {studentForm.year}</p>
+                    <Label className="text-muted-foreground">Specialization</Label>
+                    <p className="font-medium">{studentForm.specialization || "-"}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">
-                      Specialization
-                    </Label>
-                    <p className="font-medium">{studentForm.specialization}</p>
+                    <Label className="text-muted-foreground">Year of Admission</Label>
+                    <p className="font-medium">{studentForm.yearOfAdmission || "-"}</p>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Address</Label>
-                  <p className="font-medium">{studentForm.address}</p>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Language</Label>
-                  <p className="font-medium">{studentForm.language}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Admission Score</Label>
+                    <p className="font-medium">{studentForm.admissionScore ?? "-"}</p>
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -2140,6 +1969,236 @@ export function DeanManagement() {
               </div>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+        <TabsContent value="teachers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Teacher Management</CardTitle>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Dialog open={isTeacherFormatInfoOpen} onOpenChange={setIsTeacherFormatInfoOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <Info className="h-4 w-4 mr-2" />
+                        Excel Format
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Excel File Format Information</DialogTitle>
+                        <DialogDescription>
+                          Required format for Excel teacher import
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Alert>
+                          <FileSpreadsheet className="h-4 w-4" />
+                          <AlertTitle>Required Columns</AlertTitle>
+                          <AlertDescription>
+                            Your Excel file must contain the following columns in this exact order:
+                          </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Name</span>
+                            <span className="text-sm text-muted-foreground">
+                              Abbas
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Surname</span>
+                            <span className="text-sm text-muted-foreground">
+                              Mehdiyev
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">MiddleName</span>
+                            <span className="text-sm text-muted-foreground">
+                              Ali
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">UserName</span>
+                            <span className="text-sm text-muted-foreground">
+                              K2L3MRW
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">DepartmentName</span>
+                            <span className="text-sm text-muted-foreground">
+                              Riyazi Kiberneti
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Position</span>
+                            <span className="text-sm text-muted-foreground">
+                              Docent
+                            </span>
+                          </div>
+                        </div>
+                        <Alert>
+                          <Info className="h-4 w-4" />
+                          <AlertTitle>Important Notes</AlertTitle>
+                          <AlertDescription>
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                              <li>The first row must contain column headers</li>
+                              <li>All fields are required</li>
+                              <li>File format: .xlsx or .xls</li>
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsTeacherFormatInfoOpen(false)}>Close</Button>
+                        <Button onClick={downloadTeacherTemplate}>
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Download Template
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Dialog open={isTeacherUploadDialogOpen} onOpenChange={setIsTeacherUploadDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Excel
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Upload Teachers from Excel</DialogTitle>
+                        <DialogDescription>
+                          Upload an Excel file (.xlsx or .xls) to import multiple teachers at once
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Alert>
+                          <Info className="h-4 w-4" />
+                          <AlertTitle>Before uploading</AlertTitle>
+                          <AlertDescription>
+                            Make sure your Excel file follows the required format. Click "Excel Format" to view requirements or download a template.
+                          </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-file">Select Excel File</Label>
+                          <Input
+                            id="teacher-file"
+                            type="file"
+                            accept=".xlsx,.xls"
+                            onChange={handleTeacherFileUpload}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsTeacherUploadDialogOpen(false)}>Cancel</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Alert className="mb-4">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Teacher Import</AlertTitle>
+                <AlertDescription>
+                  Teachers can only be added in bulk via Excel file upload.
+                </AlertDescription>
+              </Alert>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search by name..."
+                    value={teacherSearchQuery}
+                    onChange={(e) => {
+                      setTeacherSearchQuery(e.target.value);
+                      setTeacherCurrentPage(1);
+                    }}
+                  />
+                </div>
+                <Select
+                  value={teacherPositionFilter}
+                  onValueChange={(value) => {
+                    setTeacherPositionFilter(value);
+                    setTeacherCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter by position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Positions</SelectItem>
+                    <SelectItem value="1">Teacher</SelectItem>
+                    <SelectItem value="2">Docent</SelectItem>
+                    <SelectItem value="3">Professor</SelectItem>
+                    <SelectItem value="4">Head Of Department</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Surname</TableHead>
+                    <TableHead>Middle Name</TableHead>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Position</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTeachers.slice((teacherCurrentPage - 1) * teachersPerPage, teacherCurrentPage * teachersPerPage).map((teacher, index) => {
+                    const positionLabels: Record<number, string> = {
+                      1: "Teacher",
+                      2: "Docent",
+                      3: "Professor",
+                      4: "Head Of Department",
+                    };
+                    const positionLabel = teacher.position ? positionLabels[teacher.position] || "Teacher" : "Teacher";
+                    
+                    return (
+                      <TableRow key={`${teacher.id}-${index}`}>
+                        <TableCell className="font-medium">{teacher.name || ""}</TableCell>
+                        <TableCell>{teacher.surname || ""}</TableCell>
+                        <TableCell>{teacher.middleName || ""}</TableCell>
+                        <TableCell>{teacher.userName || ""}</TableCell>
+                        <TableCell>
+                          <Badge>{positionLabel}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {teacherStartIndex} to {teacherEndIndex} of {filteredTeachers.length} teachers
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Page {teacherCurrentPage} of {teacherTotalPages}</span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTeacherCurrentPage(teacherCurrentPage - 1)}
+                      disabled={teacherCurrentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTeacherCurrentPage(teacherCurrentPage + 1)}
+                      disabled={teacherCurrentPage >= teacherTotalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
