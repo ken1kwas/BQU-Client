@@ -173,7 +173,7 @@ const mapRoomFromApi = (r: any): Room => {
     r.roomId ??
     r.RoomId ??
     "";
-  
+
   return {
     id: roomId,
     name: roomName,
@@ -243,7 +243,7 @@ const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: 
       }
     }
   }
-  
+
   return {
     id:
       g.id ??
@@ -266,10 +266,8 @@ const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: 
         ? String(specializationId)
         : undefined,
     specializationName: specializationName,
-    educationLanguage:
-      typeof g.educationLanguage === "number" ? g.educationLanguage : undefined,
-    educationLevel:
-      typeof g.educationLevel === "number" ? g.educationLevel : undefined,
+    educationLanguage: g.language,
+    educationLevel: g.educationLevel,
   };
 };
 
@@ -278,11 +276,11 @@ const mapStudentFromApi = (s: any): Student => {
   const firstName = s.name ?? s.firstName ?? s.givenName ?? "";
   const surname = s.surname ?? s.lastName ?? s.familyName ?? "";
   const middleName = s.middleName ?? "";
-  const constructedName = firstName && surname 
-    ? `${firstName} ${middleName ? middleName + " " : ""}${surname}`.trim() 
+  const constructedName = firstName && surname
+    ? `${firstName} ${middleName ? middleName + " " : ""}${surname}`.trim()
     : "";
   const fullName = s.fullName ?? constructedName ?? s.name ?? "";
-  
+
   return {
     id: s.id ?? s.Id ?? s.studentId ?? s.userId ?? 0,
     studentId: s.userName ?? s.username ?? s.studentId ?? s.userId ?? "",
@@ -329,7 +327,7 @@ const mapCourseFromApi = (c: any): Course => {
   } else if (teacher && typeof teacher === "object") {
     teacherName = `${teacher.name ?? ""} ${teacher.surname ?? ""}`.trim();
   }
-  
+
   return {
     id: c.id,
     code: c.code ?? c.title ?? "",
@@ -406,12 +404,6 @@ export function DeanManagement() {
   const [teacherSearchQuery, setTeacherSearchQuery] = useState("");
   const [teacherPositionFilter, setTeacherPositionFilter] = useState<string>("all");
 
-  const POSITION_LABELS: Record<number, string> = {
-    1: "Teacher",
-    2: "Docent",
-    3: "Professor",
-    4: "Head Of Department"
-  };
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -432,15 +424,15 @@ export function DeanManagement() {
         ]);
         const departmentsList = toArray(deptsResp);
         const specializationsList = toArray(specsResp);
-        
-        
+
+
         setRooms(toArray(roomsResp).map(mapRoomFromApi));
         setTeachers(toArray(teachersResp).map(mapTeacherFromApi));
         setGroups(toArray(groupsResp).map((g: any) => mapGroupFromApi(g, departmentsList, specializationsList)));
         setCourses(toArray(coursesResp).map(mapCourseFromApi));
         setDepartments(departmentsList);
         setSpecializations(specializationsList);
-        
+
       } catch (err) {
         // Ignore
       }
@@ -599,7 +591,7 @@ export function DeanManagement() {
   };
 
   const handleAddCourse = () => {
-    setCourseForm({ 
+    setCourseForm({
       classTimes: [{ start: "", end: "", day: 1, room: "", frequency: 3 }],
       credits: 0,
       hours: 0,
@@ -759,16 +751,6 @@ export function DeanManagement() {
     setIsGroupDialogOpen(true);
   };
 
-  const handleEditGroup = (group: Group) => {
-    setGroupForm({
-      ...group,
-      code: group.code || group.groupCode,
-      groupCode: group.groupCode || group.code,
-    });
-    setEditingGroupId(group.id);
-    setIsGroupDialogOpen(true);
-  };
-
   const handleSaveGroup = async () => {
     try {
       const groupCode = groupForm.code || groupForm.groupCode;
@@ -798,6 +780,7 @@ export function DeanManagement() {
           toast.error("Specify education language and level for new group");
           return;
         }
+          console.log("SUBMIT educationLanguage =", groupForm.educationLanguage, groupForm);
         await createGroup({
           ...basePayload,
           educationLanguage: Number(groupForm.educationLanguage),
@@ -843,12 +826,6 @@ export function DeanManagement() {
   const handleAddStudent = () => {
     setStudentForm({});
     setEditingStudentId(null);
-    setIsStudentDialogOpen(true);
-  };
-
-  const handleEditStudent = (student: Student) => {
-    setStudentForm(student);
-    setEditingStudentId(student.id);
     setIsStudentDialogOpen(true);
   };
 
@@ -906,7 +883,7 @@ export function DeanManagement() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         toast.success("Import completed. Report downloaded.");
-      } 
+      }
       else if (
         typeof result === "object" &&
         result !== null &&
@@ -917,7 +894,7 @@ export function DeanManagement() {
         } else {
           toast.success("File uploaded successfully");
         }
-      } 
+      }
       else {
         toast.success("File uploaded successfully");
       }
@@ -991,7 +968,7 @@ export function DeanManagement() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         toast.success("Import completed. Report downloaded.");
-      } 
+      }
       // Если это JSON объект с сообщением (обычно это ошибка или успешный ответ без файла)
       else if (
         typeof result === "object" &&
@@ -1003,7 +980,7 @@ export function DeanManagement() {
         } else {
           toast.success("File uploaded successfully");
         }
-      } 
+      }
       else {
         toast.success("File uploaded successfully");
       }
@@ -1072,9 +1049,9 @@ export function DeanManagement() {
     const searchLower = teacherSearchQuery.toLowerCase();
     const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""} ${teacher.userName || ""}`.toLowerCase();
     const matchesSearch = !teacherSearchQuery || fullName.includes(searchLower);
-    const matchesPosition = teacherPositionFilter === "all" || 
+    const matchesPosition = teacherPositionFilter === "all" ||
       (teacher.position && String(teacher.position) === teacherPositionFilter);
-    
+
     return matchesSearch && matchesPosition;
   });
 
@@ -1335,9 +1312,9 @@ export function DeanManagement() {
                                             const roomId = room.id;
                                             const roomName = room.name || "";
                                             const roomCapacity = room.capacity || 0;
-                                            
+
                                             if (!roomId || !roomName) return null;
-                                            
+
                                             return (
                                               <SelectItem key={String(roomId)} value={String(roomId)}>
                                                 {roomName} {roomCapacity > 0 ? `(${roomCapacity})` : ""}
@@ -1481,20 +1458,21 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-code">Group Code</Label>
                         <Input
-                          id="group-code"
-                          placeholder="e.g., CS-50"
-                          value={groupForm.code || groupForm.groupCode || ""}
-                          onChange={(e) =>
-                            setGroupForm({ ...groupForm, code: e.target.value, groupCode: e.target.value })
-                          }
+                            id="group-code"
+                            placeholder="e.g., CS-50"
+                            value={groupForm.code || groupForm.groupCode || ""}
+                            onChange={(e) =>
+                                setGroupForm({ ...groupForm, code: e.target.value, groupCode: e.target.value })
+                            }
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="group-specialization">Specialization</Label>
                         <Select
-                          value={groupForm.specializationId || ""}
-                          onValueChange={(value) => setGroupForm({ ...groupForm, specializationId: value })}
-                        >
+                            value={groupForm.specializationId || ""}
+                            onValueChange={(value) =>
+                                setGroupForm(prev => ({ ...prev, specializationId: value }))
+                            }>
                           <SelectTrigger id="group-specialization">
                             <SelectValue placeholder="Select specialization" />
                           </SelectTrigger>
@@ -1517,8 +1495,10 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-year">Year</Label>
                         <Select
-                          value={groupForm.year?.toString() || ""}
-                          onValueChange={(value) => setGroupForm({ ...groupForm, year: parseInt(value) })}
+                            value={groupForm.year?.toString() || ""}
+                            onValueChange={(value) =>
+                                setGroupForm(prev => ({ ...prev, year: Number(value) }))
+                            }
                         >
                           <SelectTrigger id="group-year">
                             <SelectValue placeholder="Select year" />
@@ -1534,33 +1514,35 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-language">Education Language</Label>
                         <Select
-                          value={groupForm.educationLanguage?.toString() || ""}
-                          onValueChange={(value) => setGroupForm({ ...groupForm, educationLanguage: parseInt(value) })}
+                            value={groupForm.educationLanguage?.toString() || ""}
+                            onValueChange={(value) =>
+                                setGroupForm(prev => ({ ...prev, educationLanguage: Number(value) }))
+                            }
                         >
                           <SelectTrigger id="group-language">
                             <SelectValue placeholder="Select language" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="1">Azerbaijani</SelectItem>
-                            <SelectItem value="2">English</SelectItem>
-                            <SelectItem value="3">Russian</SelectItem>
+                            <SelectItem value="2">Russian</SelectItem>
+                            <SelectItem value="3">English</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="group-level">Education Level</Label>
                         <Select
-                          value={groupForm.educationLevel?.toString() || ""}
-                          onValueChange={(value) => setGroupForm({ ...groupForm, educationLevel: parseInt(value) })}
+                            value={groupForm.educationLevel?.toString() || ""}
+                            onValueChange={(value) =>
+                                setGroupForm(prev => ({ ...prev, educationLevel: Number(value) }))
+                            }
                         >
                           <SelectTrigger id="group-level">
                             <SelectValue placeholder="Select level" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">Associate</SelectItem>
-                            <SelectItem value="2">Bachelor</SelectItem>
-                            <SelectItem value="3">Master</SelectItem>
-                            <SelectItem value="4">Doctorate</SelectItem>
+                            <SelectItem value="1">Bachelor</SelectItem>
+                            <SelectItem value="2">Master</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1583,30 +1565,25 @@ export function DeanManagement() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Group Code</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Year</TableHead>
+                        <TableHead>Specialization</TableHead>
+                        <TableHead>Language</TableHead>
                         <TableHead>Student Count</TableHead>
+                        <TableHead>Education Level</TableHead>
+                        <TableHead>Year</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {groups.map((group, index) => (
                         <TableRow key={group.id ?? `${group.code || group.groupCode}-${index}`}>
-                          <TableCell className="font-medium">
-                            {group.code || group.groupCode || "-"}
-                          </TableCell>
+                          <TableCell className="font-medium">{group.code || group.groupCode || "-"}</TableCell>
                           <TableCell>{group.department || group.departmentName || "-"}</TableCell>
-                          <TableCell>Year {group.year}</TableCell>
+                          <TableCell>{group.educationLanguage }</TableCell>
                           <TableCell>{group.studentCount}</TableCell>
+                          <TableCell>{group.educationLevel}</TableCell>
+                          <TableCell>Year {group.year}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditGroup(group)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1853,7 +1830,6 @@ export function DeanManagement() {
                     <TableHead>Year</TableHead>
                     <TableHead>Year of Admission</TableHead>
                     <TableHead>Admission Score</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1869,15 +1845,6 @@ export function DeanManagement() {
                         <TableCell>{student.year ? `Year ${student.year}` : "-"}</TableCell>
                         <TableCell>{student.yearOfAdmission || "-"}</TableCell>
                         <TableCell>{student.admissionScore ?? "-"}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditStudent(student)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))}
                 </TableBody>
@@ -2131,9 +2098,10 @@ export function DeanManagement() {
                   <SelectContent>
                     <SelectItem value="all">All Positions</SelectItem>
                     <SelectItem value="1">Teacher</SelectItem>
-                    <SelectItem value="2">Docent</SelectItem>
-                    <SelectItem value="3">Professor</SelectItem>
-                    <SelectItem value="4">Head Of Department</SelectItem>
+                    <SelectItem value="2">Head Teacher</SelectItem>
+                    <SelectItem value="3">Docent</SelectItem>
+                    <SelectItem value="4">Professor</SelectItem>
+                    <SelectItem value="5">Head Of Department</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2151,12 +2119,13 @@ export function DeanManagement() {
                   {filteredTeachers.slice((teacherCurrentPage - 1) * teachersPerPage, teacherCurrentPage * teachersPerPage).map((teacher, index) => {
                     const positionLabels: Record<number, string> = {
                       1: "Teacher",
-                      2: "Docent",
-                      3: "Professor",
-                      4: "Head Of Department",
+                      2: "Head Teacher",
+                      3: "Docent",
+                      4: "Professor",
+                      5: "Head Of Department",
                     };
                     const positionLabel = teacher.position ? positionLabels[teacher.position] || "Teacher" : "Teacher";
-                    
+
                     return (
                       <TableRow key={`${teacher.id}-${index}`}>
                         <TableCell className="font-medium">{teacher.name || ""}</TableCell>
