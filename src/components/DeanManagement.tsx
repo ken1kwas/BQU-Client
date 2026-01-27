@@ -22,7 +22,7 @@ import {
   UserCircle,
   Eye,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +50,7 @@ import {
 } from "./ui/select";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Badge } from "./ui/badge";
 import {
   listRooms,
   listTeachers,
@@ -87,9 +88,13 @@ interface Room {
 interface Teacher {
   id: number;
   name: string;
+  surname?: string;
+  middleName?: string;
+  userName?: string;
   email: string;
   department: string;
   phone: string;
+  position?: number;
 }
 
 interface Course {
@@ -99,18 +104,23 @@ interface Course {
   credits: number;
   type: string;
   department: string;
+  departmentName?: string;
   teacherId?: number;
   teacherName?: string;
   groupId?: number;
   groupCode?: string;
   studentCount?: number;
   hasSyllabus?: boolean;
+  year?: number;
+  semester?: number;
 }
 
 interface Group {
   id: number;
-  code: string;
+  code?: string;
+  groupCode?: string;
   department: string;
+  departmentName?: string;
   departmentId?: string;
   year: number;
   studentCount: number;
@@ -124,15 +134,17 @@ interface Student {
   id: number;
   studentId: string;
   name: string;
-  email: string;
-  groupId: number;
+  email?: string;
+  groupId?: number;
   groupCode: string;
   year: number;
   specialization: string;
-  dateOfBirth: string;
-  phoneNumber: string;
-  address: string;
-  language: string;
+  dateOfBirth?: string;
+  phoneNumber?: string;
+  address?: string;
+  language?: string;
+  yearOfAdmission?: string;
+  admissionScore?: number;
 }
 
 const mapRoomFromApi = (r: any): Room => {
@@ -146,11 +158,27 @@ const mapRoomFromApi = (r: any): Room => {
   } else {
     type = "";
   }
+  const roomName =
+    r.roomName ??
+    r.name ??
+    r.Name ??
+    r.RoomName ??
+    r.room ??
+    r.Room ??
+    "";
+
+  const roomId =
+    r.id ??
+    r.Id ??
+    r.roomId ??
+    r.RoomId ??
+    "";
+
   return {
-    id: r.id,
-    name: r.roomName ?? r.name ?? "",
-    building: r.building ?? "",
-    capacity: r.capacity ?? 0,
+    id: roomId,
+    name: roomName,
+    building: r.building ?? r.Building ?? "",
+    capacity: r.capacity ?? r.Capacity ?? 0,
     type,
   };
 };
@@ -158,34 +186,75 @@ const mapRoomFromApi = (r: any): Room => {
 const mapTeacherFromApi = (t: any): Teacher => {
   const firstName = t.name ?? t.firstName ?? "";
   const surname = t.surname ?? t.lastName ?? "";
+  const middleName = t.middleName ?? "";
+  const userName = t.userName ?? t.username ?? "";
   const fullName =
-    `${firstName} ${surname}`.trim() || t.fullName || t.userName || "";
+    `${firstName} ${surname} ${middleName}`.trim() || t.fullName || userName || "";
   return {
-    id: t.id,
-    name: fullName,
+    id: t.id ?? t.Id ?? t.teacherId,
+    name: firstName,
+    surname: surname,
+    middleName: middleName,
+    userName: userName,
     email: t.email ?? "",
     department: t.department?.name ?? t.departmentName ?? "",
     phone: t.phone ?? t.phoneNumber ?? "",
+    position: t.position,
   };
 };
 
-const mapGroupFromApi = (g: any): Group => {
+const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: any[]): Group => {
   const specialization = g.specialization ?? {};
   const specializationId =
     g.specializationId ?? specialization.id ?? specialization.Id;
+  const specializationName =
+    g.specializationName ??
+    specialization.name ??
+    specialization.Name ??
+    specialization.title ??
+    specialization.Title ??
+    "";
   const department = g.department ?? {};
   const departmentId = g.departmentId ?? department.id ?? department.Id;
+  const groupCode = g.groupCode ?? g.code ?? "";
+
+  let departmentName =
+    department.name ??
+    g.department?.name ??
+    g.departmentName ??
+    department.Name ??
+    department.title ??
+    department.Title ??
+    "";
+
+  if (!departmentName && specializationName) {
+    departmentName = specializationName;
+  }
+
+  if (!departmentName && specializationId && specializationsList) {
+    const foundSpec = specializationsList.find((s: any) => {
+      const sId = s?.id ?? s?.Id ?? s?.ID ?? s?.specializationId;
+      return String(sId) === String(specializationId);
+    });
+    if (foundSpec) {
+      const specName = foundSpec.name ?? foundSpec.Name ?? foundSpec.title ?? foundSpec.Title ?? "";
+      if (specName) {
+        departmentName = specName;
+      }
+    }
+  }
+
   return {
     id:
       g.id ??
       g.groupId ??
       g.groupID ??
       g.Id ??
-      g.code ??
-      g.groupCode ??
       `${String(departmentId ?? "dept")}-${String(g.year ?? "year")}`,
-    code: g.groupCode ?? g.code ?? "",
-    department: department.name ?? g.department?.name ?? g.departmentName ?? "",
+    code: groupCode,
+    groupCode: groupCode,
+    department: departmentName,
+    departmentName: departmentName,
     departmentId:
       departmentId !== undefined && departmentId !== null
         ? String(departmentId)
@@ -196,35 +265,69 @@ const mapGroupFromApi = (g: any): Group => {
       specializationId !== undefined && specializationId !== null
         ? String(specializationId)
         : undefined,
-    specializationName: specialization.name ?? specialization.Name ?? "",
-    educationLanguage:
-      typeof g.educationLanguage === "number" ? g.educationLanguage : undefined,
-    educationLevel:
-      typeof g.educationLevel === "number" ? g.educationLevel : undefined,
+    specializationName: specializationName,
+    educationLanguage: g.language,
+    educationLevel: g.educationLevel,
   };
 };
 
 const mapStudentFromApi = (s: any): Student => {
+  // Извлекаем имя из разных возможных полей
+  const firstName = s.name ?? s.firstName ?? s.givenName ?? "";
+  const surname = s.surname ?? s.lastName ?? s.familyName ?? "";
+  const middleName = s.middleName ?? "";
+  const constructedName = firstName && surname
+    ? `${firstName} ${middleName ? middleName + " " : ""}${surname}`.trim()
+    : "";
+  const fullName = s.fullName ?? constructedName ?? s.name ?? "";
+
   return {
-    id: s.id,
-    studentId: s.studentId ?? "",
-    name: s.fullName ?? "",
-    email: s.email ?? "",
-    groupId: s.groupId ?? 0,
-    groupCode: s.groupName ?? "",
-    year: s.year ?? 0,
-    specialization: s.speciality ?? "",
-    dateOfBirth: s.dateOfBirth ?? "",
-    phoneNumber: s.phoneNumber ?? "",
+    id: s.id ?? s.Id ?? s.studentId ?? s.userId ?? 0,
+    studentId: s.userName ?? s.username ?? s.studentId ?? s.userId ?? "",
+    name: fullName,
+    email: s.email ?? s.emailAddress ?? "",
+    groupId: s.groupId ?? s.group?.id ?? s.groupId,
+    groupCode: s.groupName ?? s.groupCode ?? s.group?.groupCode ?? s.group?.code ?? s.group?.name ?? "",
+    year: s.year ?? s.currentYear ?? s.academicYear ?? 0,
+    specialization: s.speciality ?? s.specialization ?? s.specializationName ?? "",
+    dateOfBirth: s.dateOfBirth ?? s.birthDate ?? s.dob,
+    phoneNumber: s.phoneNumber ?? s.phone ?? s.mobile ?? "",
     address: s.address ?? "",
     language: s.language ?? "",
+    yearOfAdmission: s.yearOfAdmission ?? s.admissionYear ?? s.yearOfAdmission,
+    admissionScore: s.admissionScore ?? s.score ?? undefined,
   };
+};
+
+const FREQUENCY_LABELS: Record<number, string> = {
+  1: "Lower",
+  2: "Upper",
+  3: "Both"
+};
+
+const DAY_LABELS: Record<number, string> = {
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+  7: "Sunday"
 };
 
 const mapCourseFromApi = (c: any): Course => {
   const teacher = c.teacher ?? {};
   const group = c.group ?? {};
   const dept = c.department ?? {};
+  let teacherName = "";
+  if (typeof c.teacher === "string") {
+    teacherName = c.teacher;
+  } else if (c.teacherName) {
+    teacherName = c.teacherName;
+  } else if (teacher && typeof teacher === "object") {
+    teacherName = `${teacher.name ?? ""} ${teacher.surname ?? ""}`.trim();
+  }
+
   return {
     id: c.id,
     code: c.code ?? c.title ?? "",
@@ -232,13 +335,15 @@ const mapCourseFromApi = (c: any): Course => {
     credits: c.credits ?? 0,
     type: c.type ?? "Lecture",
     department: dept.name ?? dept.departmentName ?? "",
-    teacherId: c.teacherId ?? teacher.id,
-    teacherName:
-      c.teacherName ?? `${teacher.name ?? ""} ${teacher.surname ?? ""}`.trim(),
+    teacherId: c.teacherId ?? (typeof teacher === "object" ? teacher.id : undefined),
+    teacherName: teacherName,
     groupId: c.groupId ?? group.id,
     groupCode: c.groupCode ?? group.groupCode ?? "",
     studentCount: c.studentCount ?? 0,
     hasSyllabus: Boolean(c.syllabusId),
+    departmentName: dept.name ?? dept.departmentName ?? "",
+    year: c.year,
+    semester: c.semester ?? c.semster,
   };
 };
 
@@ -299,7 +404,6 @@ export function DeanManagement() {
           roomsResp,
           teachersResp,
           groupsResp,
-          studentsResp,
           coursesResp,
           deptsResp,
           specsResp,
@@ -307,20 +411,23 @@ export function DeanManagement() {
           listRooms(1, 100),
           listTeachers(1, 100),
           listGroups(1, 100),
-          listStudents(1, 100),
           listTaughtSubjects(1, 100),
           listDepartments(1, 100),
           listSpecializations(1, 100),
         ]);
+        const departmentsList = toArray(deptsResp);
+        const specializationsList = toArray(specsResp);
+
+
         setRooms(toArray(roomsResp).map(mapRoomFromApi));
         setTeachers(toArray(teachersResp).map(mapTeacherFromApi));
-        setGroups(toArray(groupsResp).map(mapGroupFromApi));
-        setStudents(toArray(studentsResp).map(mapStudentFromApi));
+        setGroups(toArray(groupsResp).map((g: any) => mapGroupFromApi(g, departmentsList, specializationsList)));
         setCourses(toArray(coursesResp).map(mapCourseFromApi));
-        setDepartments(toArray(deptsResp));
-        setSpecializations(toArray(specsResp));
+        setDepartments(departmentsList);
+        setSpecializations(specializationsList);
+
       } catch (err) {
-        console.error(err);
+        // Ignore
       }
     };
     fetchAll();
@@ -331,26 +438,76 @@ export function DeanManagement() {
       try {
         if (studentSearchQuery) {
           const resp = await searchStudents(studentSearchQuery);
-          setStudents(toArray(resp).map(mapStudentFromApi));
+          const studentsArray = toArray(resp);
+          if (studentsArray.length > 0) {
+            setStudents(studentsArray.map(mapStudentFromApi));
+          }
         } else if (
           studentGroupFilter !== "all" ||
           studentYearFilter !== "all"
         ) {
-          const groupObj = groups.find((g) => g.code === studentGroupFilter);
+          // Ждем загрузки groups перед фильтрацией
+          if (groups.length === 0) {
+            return;
+          }
+          const groupObj = groups.find((g) => (g.code || g.groupCode) === studentGroupFilter);
           const groupId =
-            studentGroupFilter !== "all" ? groupObj?.id.toString() : undefined;
+            studentGroupFilter !== "all" ? groupObj?.id?.toString() : undefined;
           const year =
             studentYearFilter !== "all"
               ? parseInt(studentYearFilter, 10)
               : undefined;
           const resp = await filterStudents(groupId, year);
-          setStudents(toArray(resp).map(mapStudentFromApi));
+          const studentsArray = toArray(resp);
+          if (studentsArray.length > 0) {
+            setStudents(studentsArray.map(mapStudentFromApi));
+          }
         } else {
-          const resp = await listStudents(1, 100);
-          setStudents(toArray(resp).map(mapStudentFromApi));
+          // Загружаем всех студентов
+          let studentsLoaded = false;
+          try {
+            const resp = await listStudents(1, 100);
+            const studentsArray = toArray(resp);
+            if (studentsArray.length > 0) {
+              const mapped = studentsArray.map(mapStudentFromApi);
+              setStudents(mapped);
+              studentsLoaded = true;
+            } else {
+              // Пробуем альтернативный метод
+              try {
+                const resp2 = await filterStudents(undefined, undefined);
+                const studentsArray2 = toArray(resp2);
+                if (studentsArray2.length > 0) {
+                  setStudents(studentsArray2.map(mapStudentFromApi));
+                  studentsLoaded = true;
+                }
+              } catch (filterErr) {
+                // Ignore
+              }
+            }
+          } catch (listErr: any) {
+            // Если listStudents не работает, пробуем filterStudents без параметров
+            try {
+              const resp = await filterStudents(undefined, undefined);
+              const studentsArray = toArray(resp);
+              if (studentsArray.length > 0) {
+                setStudents(studentsArray.map(mapStudentFromApi));
+                studentsLoaded = true;
+              }
+            } catch (filterErr) {
+              // Показываем предупреждение пользователю только если список пустой
+              if (students.length === 0 && !studentsLoaded) {
+                toast.error("Unable to load students. The server returned an error (500). Please check the backend logs.", {
+                  duration: 5000,
+                });
+                // Устанавливаем пустой массив, чтобы показать, что данных нет
+                setStudents([]);
+              }
+            }
+          }
         }
       } catch (err) {
-        console.error(err);
+        // Не устанавливаем пустой массив при ошибке, оставляем текущий список
       }
     };
     fetchFilteredStudents();
@@ -427,9 +584,34 @@ export function DeanManagement() {
   };
 
   const handleAddCourse = () => {
-    setCourseForm({});
+    setCourseForm({
+      classTimes: [{ start: "", end: "", day: 1, room: "", frequency: 3 }],
+      credits: 0,
+      hours: 0,
+      year: 1,
+      semester: 1,
+    });
     setEditingCourseId(null);
     setIsCourseDialogOpen(true);
+  };
+
+  const addClassTime = () => {
+    setCourseForm({
+      ...courseForm,
+      classTimes: [...(courseForm.classTimes || []), { start: "", end: "", day: 1, room: "", frequency: 3 }]
+    });
+  };
+
+  const removeClassTime = (index: number) => {
+    const newClassTimes = [...(courseForm.classTimes || [])];
+    newClassTimes.splice(index, 1);
+    setCourseForm({ ...courseForm, classTimes: newClassTimes });
+  };
+
+  const updateClassTime = (index: number, field: keyof any, value: string | number) => {
+    const newClassTimes = [...(courseForm.classTimes || [])];
+    newClassTimes[index] = { ...newClassTimes[index], [field]: value };
+    setCourseForm({ ...courseForm, classTimes: newClassTimes });
   };
 
   const handleEditCourse = (course: Course) => {
@@ -474,19 +656,14 @@ export function DeanManagement() {
           departmentId: String(courseForm.departmentId),
           teacherId: String(courseForm.teacherId),
           groupId: String(courseForm.groupId),
-          credits: Number(courseForm.credits ?? 0),
-          hours: Number(courseForm.hours ?? 0),
-          year: Number(courseForm.year ?? 1),
-          semester: Number(courseForm.semester ?? 1),
-          classTimes:
-            courseForm.classTimes?.map((ct: any) => ({
-              start: ensureHHMMSS(ct.start),
-              end: ensureHHMMSS(ct.end),
-              day: Number(ct.day),
-              room: String(ct.room),
-              frequency: Number(ct.frequency),
-            })) ?? [],
-        });
+          credits: Number(courseForm.credits),
+          hours: Number(courseForm.hours),
+          year: Number(courseForm.year),
+          semester: Number(courseForm.semester),
+          classTimes: validClassTimes,
+        };
+
+        await createTaughtSubject(requestPayload);
         toast.success("Course added successfully");
       }
 
@@ -517,16 +694,10 @@ export function DeanManagement() {
     setIsGroupDialogOpen(true);
   };
 
-  const handleEditGroup = (group: Group) => {
-    setGroupForm(group);
-    setEditingGroupId(group.id);
-    setIsGroupDialogOpen(true);
-  };
-
   const handleSaveGroup = async () => {
     try {
       if (
-        !groupForm.code ||
+        !groupCode ||
         !groupForm.specializationId ||
         groupForm.year === undefined
       ) {
@@ -535,7 +706,7 @@ export function DeanManagement() {
       }
 
       const basePayload = {
-        groupCode: groupForm.code,
+        groupCode: groupCode,
         specializationId: groupForm.specializationId,
         year: Number(groupForm.year),
       };
@@ -551,6 +722,7 @@ export function DeanManagement() {
           toast.error("Specify education language and level for new group");
           return;
         }
+          console.log("SUBMIT educationLanguage =", groupForm.educationLanguage, groupForm);
         await createGroup({
           ...basePayload,
           educationLanguage: Number(groupForm.educationLanguage),
@@ -559,7 +731,7 @@ export function DeanManagement() {
         toast.success("Group added successfully");
       }
       const resp = await listGroups(1, 100);
-      setGroups(toArray(resp).map(mapGroupFromApi));
+      setGroups(toArray(resp).map((g: any) => mapGroupFromApi(g, departments, specializations)));
     } catch (error: any) {
       if (editingGroupId) {
         setGroups(
@@ -596,12 +768,6 @@ export function DeanManagement() {
   const handleAddStudent = () => {
     setStudentForm({});
     setEditingStudentId(null);
-    setIsStudentDialogOpen(true);
-  };
-
-  const handleEditStudent = (student: Student) => {
-    setStudentForm(student);
-    setEditingStudentId(student.id);
     setIsStudentDialogOpen(true);
   };
 
@@ -658,16 +824,30 @@ export function DeanManagement() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        toast.success("Import report downloaded");
-      } else {
+        toast.success("Import completed. Report downloaded.");
+      }
+      else if (
+        typeof result === "object" &&
+        result !== null &&
+        !(result instanceof Blob)
+      ) {
+        if ((result as any).message || (result as any).error) {
+          toast.error((result as any).message || (result as any).error || "Error importing file");
+        } else {
+          toast.success("File uploaded successfully");
+        }
+      }
+      else {
         toast.success("File uploaded successfully");
       }
 
       const resp = await listStudents(1, 100);
       setStudents(toArray(resp).map(mapStudentFromApi));
       setIsUploadDialogOpen(false);
+      event.target.value = "";
     } catch (error: any) {
       toast.error(error?.message ?? "Error importing file");
+      event.target.value = "";
     }
   };
 
@@ -679,6 +859,7 @@ export function DeanManagement() {
 
     try {
       const result = await importTeachersExcel(file);
+
       if (result instanceof Blob) {
         const url = URL.createObjectURL(result);
         const link = document.createElement("a");
@@ -688,21 +869,38 @@ export function DeanManagement() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        toast.success("Import report downloaded");
-      } else {
+        toast.success("Import completed. Report downloaded.");
+      }
+      // Если это JSON объект с сообщением (обычно это ошибка или успешный ответ без файла)
+      else if (
+        typeof result === "object" &&
+        result !== null &&
+        !(result instanceof Blob)
+      ) {
+        if ((result as any).message || (result as any).error) {
+          toast.error((result as any).message || (result as any).error || "Error importing file");
+        } else {
+          toast.success("File uploaded successfully");
+        }
+      }
+      else {
         toast.success("File uploaded successfully");
       }
+
       const resp = await listTeachers(1, 100);
       setTeachers(toArray(resp).map(mapTeacherFromApi));
       setIsTeacherUploadDialogOpen(false);
+      event.target.value = "";
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to import teachers");
+      event.target.value = "";
     }
   };
 
   const downloadTeacherTemplate = async () => {
     try {
-      const resp = await fetch("/teacher-template.xlsx");
+      const fileName = "TeacherTemplate(2).xlsx";
+      const resp = await fetch(`/${encodeURIComponent(fileName)}`);
       if (!resp.ok) {
         throw new Error("Template file not found");
       }
@@ -722,7 +920,8 @@ export function DeanManagement() {
   };
   const downloadTemplate = async () => {
     try {
-      const resp = await fetch("/students-template.xlsx");
+      const fileName = "students-template (2).xlsx";
+      const resp = await fetch(`/${encodeURIComponent(fileName)}`);
       if (!resp.ok) {
         throw new Error("Template file not found");
       }
@@ -748,6 +947,20 @@ export function DeanManagement() {
     filteredStudents.length,
   );
 
+  const filteredTeachers = teachers.filter(teacher => {
+    const searchLower = teacherSearchQuery.toLowerCase();
+    const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""} ${teacher.userName || ""}`.toLowerCase();
+    const matchesSearch = !teacherSearchQuery || fullName.includes(searchLower);
+    const matchesPosition = teacherPositionFilter === "all" ||
+      (teacher.position && String(teacher.position) === teacherPositionFilter);
+
+    return matchesSearch && matchesPosition;
+  });
+
+  const teacherTotalPages = Math.ceil(filteredTeachers.length / teachersPerPage);
+  const teacherStartIndex = (teacherCurrentPage - 1) * teachersPerPage + 1;
+  const teacherEndIndex = Math.min(teacherCurrentPage * teachersPerPage, filteredTeachers.length);
+
   return (
     <div className="space-y-6">
       <div>
@@ -757,16 +970,8 @@ export function DeanManagement() {
         </p>
       </div>
 
-      <Tabs defaultValue="rooms" className="w-full">
+      <Tabs defaultValue="courses" className="w-full">
         <TabsList>
-          <TabsTrigger value="rooms">
-            <DoorOpen className="h-4 w-4 mr-2" />
-            Rooms
-          </TabsTrigger>
-          <TabsTrigger value="teachers">
-            <Users className="h-4 w-4 mr-2" />
-            Teachers
-          </TabsTrigger>
           <TabsTrigger value="courses">
             <BookOpen className="h-4 w-4 mr-2" />
             Courses
@@ -779,6 +984,10 @@ export function DeanManagement() {
             <UserCircle className="h-4 w-4 mr-2" />
             Students
           </TabsTrigger>
+          <TabsTrigger value="teachers">
+            <Users className="h-4 w-4 mr-2" />
+            Teachers
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="rooms" className="space-y-4">
@@ -786,107 +995,275 @@ export function DeanManagement() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Room Management</CardTitle>
-                  <CardDescription>
-                    Add, edit, or remove classroom and lecture hall information
-                  </CardDescription>
+                  <CardTitle>Course Management</CardTitle>
+                  <CardDescription>Add, edit, or remove course information</CardDescription>
                 </div>
-                <Dialog
-                  open={isRoomDialogOpen}
-                  onOpenChange={setIsRoomDialogOpen}
-                >
+                <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button onClick={handleAddRoom}>
+                    <Button onClick={handleAddCourse}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Room
+                      Add Course
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>
-                        {editingRoomId ? "Edit Room" : "Add New Room"}
-                      </DialogTitle>
+                      <DialogTitle>{editingCourseId ? "Edit Course" : "Add New Course"}</DialogTitle>
                       <DialogDescription>
-                        {editingRoomId
-                          ? "Update room information"
-                          : "Enter details for the new room"}
+                        {editingCourseId ? "Update course information" : "Enter details for the new course"}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="room-name">Room Name</Label>
-                        <Input
-                          id="room-name"
-                          placeholder="e.g., A-101"
-                          value={roomForm.name || ""}
-                          onChange={(e) =>
-                            setRoomForm({ ...roomForm, name: e.target.value })
-                          }
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="course-code">Course Code</Label>
+                          <Input
+                            id="course-code"
+                            placeholder="e.g., MAT-AN"
+                            value={courseForm.code || ""}
+                            onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-title">Course Title</Label>
+                          <Input
+                            id="course-title"
+                            placeholder="e.g., Mat. Analiz"
+                            value={courseForm.title || ""}
+                            onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="room-building">Building</Label>
-                        <Input
-                          id="room-building"
-                          placeholder="e.g., Building A"
-                          value={roomForm.building || ""}
-                          onChange={(e) =>
-                            setRoomForm({
-                              ...roomForm,
-                              building: e.target.value,
-                            })
-                          }
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="course-department">Department</Label>
+                          <Select
+                            value={courseForm.departmentId?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, departmentId: value })}
+                          >
+                            <SelectTrigger id="course-department">
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments.map(dept => {
+                                const deptId = dept?.id ?? dept?.Id ?? dept?.departmentId;
+                                const deptName = dept?.name ?? dept?.Name ?? dept?.title ?? dept?.Title ?? "";
+                                if (!deptId || !deptName) return null;
+                                return (
+                                  <SelectItem key={String(deptId)} value={String(deptId)}>{deptName}</SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-teacher">Teacher</Label>
+                          <Select
+                            value={courseForm.teacherId?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, teacherId: value })}
+                          >
+                            <SelectTrigger id="course-teacher">
+                              <SelectValue placeholder="Select teacher" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teachers.map(teacher => {
+                                const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() || teacher.userName || `Teacher ${teacher.id}`;
+                                return (
+                                  <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                    {fullName}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="room-capacity">Capacity</Label>
-                        <Input
-                          id="room-capacity"
-                          type="number"
-                          placeholder="e.g., 30"
-                          value={roomForm.capacity || ""}
-                          onChange={(e) =>
-                            setRoomForm({
-                              ...roomForm,
-                              capacity: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="course-group">Group</Label>
+                          <Select
+                            value={courseForm.groupId?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, groupId: value })}
+                          >
+                            <SelectTrigger id="course-group">
+                              <SelectValue placeholder="Select group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {groups.map(group => (
+                                <SelectItem key={group.id} value={group.id.toString()}>{group.code || group.groupCode}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-credits">Credits</Label>
+                          <Input
+                            id="course-credits"
+                            type="number"
+                            placeholder="e.g., 5"
+                            value={courseForm.credits || ""}
+                            onChange={(e) => setCourseForm({ ...courseForm, credits: parseInt(e.target.value) })}
+                          />
+                        </div>
                       </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="course-hours">Hours</Label>
+                          <Input
+                            id="course-hours"
+                            type="number"
+                            placeholder="e.g., 60"
+                            value={courseForm.hours || ""}
+                            onChange={(e) => setCourseForm({ ...courseForm, hours: parseInt(e.target.value) })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-year">Year</Label>
+                          <Select
+                            value={courseForm.year?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, year: parseInt(value) })}
+                          >
+                            <SelectTrigger id="course-year">
+                              <SelectValue placeholder="Select year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">Year 1</SelectItem>
+                              <SelectItem value="2">Year 2</SelectItem>
+                              <SelectItem value="3">Year 3</SelectItem>
+                              <SelectItem value="4">Year 4</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="course-semester">Semester</Label>
+                          <Select
+                            value={courseForm.semester?.toString() || ""}
+                            onValueChange={(value) => setCourseForm({ ...courseForm, semester: parseInt(value) })}
+                          >
+                            <SelectTrigger id="course-semester">
+                              <SelectValue placeholder="Select semester" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">Semester 1</SelectItem>
+                              <SelectItem value="2">Semester 2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
-                        <Label htmlFor="room-type">Room Type</Label>
-                        <Select
-                          value={roomForm.type || ""}
-                          onValueChange={(value: string) =>
-                            setRoomForm({ ...roomForm, type: value })
-                          }
-                        >
-                          <SelectTrigger id="room-type">
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Lecture Hall">
-                              Lecture Hall
-                            </SelectItem>
-                            <SelectItem value="Classroom">Classroom</SelectItem>
-                            <SelectItem value="Laboratory">
-                              Laboratory
-                            </SelectItem>
-                            <SelectItem value="Seminar Room">
-                              Seminar Room
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center justify-between">
+                          <Label>Class Times</Label>
+                          <Button type="button" variant="outline" size="sm" onClick={addClassTime}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Time Slot
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {(courseForm.classTimes || []).map((classTime, index) => (
+                            <Card key={index} className="p-4">
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-2">
+                                    <Label>Start Time</Label>
+                                    <Input
+                                      type="time"
+                                      value={classTime.start}
+                                      onChange={(e) => updateClassTime(index, "start", e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>End Time</Label>
+                                    <Input
+                                      type="time"
+                                      value={classTime.end}
+                                      onChange={(e) => updateClassTime(index, "end", e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div className="space-y-2">
+                                    <Label>Day</Label>
+                                    <Select
+                                      value={classTime.day.toString()}
+                                      onValueChange={(value) => updateClassTime(index, "day", parseInt(value))}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {Object.entries(DAY_LABELS).map(([value, label]) => (
+                                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Room</Label>
+                                    <Select
+                                      value={classTime.room}
+                                      onValueChange={(value) => updateClassTime(index, "room", value)}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select room" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {rooms.length === 0 ? (
+                                          <SelectItem value="" disabled>No rooms available</SelectItem>
+                                        ) : (
+                                          rooms.map(room => {
+                                            const roomId = room.id;
+                                            const roomName = room.name || "";
+                                            const roomCapacity = room.capacity || 0;
+
+                                            if (!roomId || !roomName) return null;
+
+                                            return (
+                                              <SelectItem key={String(roomId)} value={String(roomId)}>
+                                                {roomName} {roomCapacity > 0 ? `(${roomCapacity})` : ""}
+                                              </SelectItem>
+                                            );
+                                          })
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Frequency</Label>
+                                    <Select
+                                      value={classTime.frequency.toString()}
+                                      onValueChange={(value) => updateClassTime(index, "frequency", parseInt(value))}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
+                                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                {(courseForm.classTimes || []).length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => removeClassTime(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Remove
+                                  </Button>
+                                )}
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsRoomDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSaveRoom}>Save</Button>
+                      <Button variant="outline" onClick={() => setIsCourseDialogOpen(false)}>Cancel</Button>
+                      <Button onClick={handleSaveCourse}>Save</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -896,33 +1273,45 @@ export function DeanManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Room Name</TableHead>
-                    <TableHead>Building</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Teacher</TableHead>
+                    <TableHead>Group</TableHead>
+                    <TableHead>Credits</TableHead>
+                    <TableHead>Year/Sem</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rooms.map((room) => (
-                    <TableRow key={room.id}>
-                      <TableCell className="font-medium">{room.name}</TableCell>
-                      <TableCell>{room.building}</TableCell>
-                      <TableCell>{room.capacity}</TableCell>
-                      <TableCell>{room.type}</TableCell>
+                  {courses.map((course) => (
+                    <TableRow key={course.id}>
+                      <TableCell className="font-medium">
+                        {course.code}
+                      </TableCell>
+                      <TableCell>{course.title}</TableCell>
+                      <TableCell>{course.departmentName || "-"}</TableCell>
+                      <TableCell>{course.teacherName || "-"}</TableCell>
+                      <TableCell>{course.groupCode || "-"}</TableCell>
+                      <TableCell>{course.credits}</TableCell>
+                      <TableCell>
+                        {course.year && course.semester
+                          ? `Y${course.year}/S${course.semester}`
+                          : "-"}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleEditRoom(room)}
+                            onClick={() => handleEditCourse(course)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteRoom(room.id)}
+                            onClick={() => handleDeleteCourse(course.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -941,7 +1330,7 @@ export function DeanManagement() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Teacher Management</CardTitle>
+                  <CardTitle>Group Management</CardTitle>
                   <CardDescription>
                     Add, edit, or remove teacher information
                   </CardDescription>
@@ -1415,172 +1804,47 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-code">Group Code</Label>
                         <Input
-                          id="group-code"
-                          placeholder="e.g., CS-101"
-                          value={groupForm.code || ""}
-                          onChange={(e) =>
-                            setGroupForm({ ...groupForm, code: e.target.value })
-                          }
+                            id="group-code"
+                            placeholder="e.g., CS-50"
+                            value={groupForm.code || groupForm.groupCode || ""}
+                            onChange={(e) =>
+                                setGroupForm({ ...groupForm, code: e.target.value, groupCode: e.target.value })
+                            }
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-department">Department</Label>
+                        <Label htmlFor="group-specialization">Specialization</Label>
                         <Select
-                          value={groupForm.departmentId || ""}
-                          onValueChange={(value: string) => {
-                            const dept = departments.find((d) => {
-                              const deptId = d?.id ?? d?.Id ?? d?.departmentId;
-                              return String(deptId) === value;
-                            });
-                            setGroupForm({
-                              ...groupForm,
-                              departmentId: value,
-                              department:
-                                dept?.name ??
-                                dept?.Name ??
-                                dept?.title ??
-                                dept?.Title ??
-                                "",
-                            });
-                          }}
-                          disabled={departments.length === 0}
-                        >
-                          <SelectTrigger id="group-department">
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departments.map((dept) => {
-                              const deptId =
-                                dept?.id ?? dept?.Id ?? dept?.departmentId;
-                              if (deptId === undefined || deptId === null) {
-                                return null;
-                              }
-                              const deptIdStr = String(deptId);
-                              const deptName =
-                                dept?.name ??
-                                dept?.Name ??
-                                dept?.title ??
-                                dept?.Title ??
-                                `Department ${deptIdStr}`;
-                              return (
-                                <SelectItem key={deptIdStr} value={deptIdStr}>
-                                  {deptName}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="group-specialization">
-                          Specialization
-                        </Label>
-                        <Select
-                          value={groupForm.specializationId || ""}
-                          onValueChange={(value: string) => {
-                            const spec = specializations.find((s) => {
-                              const specId =
-                                s?.id ?? s?.Id ?? s?.ID ?? s?.specializationId;
-                              return String(specId) === value;
-                            });
-                            setGroupForm({
-                              ...groupForm,
-                              specializationId: value,
-                              specializationName:
-                                spec?.name ??
-                                spec?.Name ??
-                                spec?.title ??
-                                spec?.Title,
-                            });
-                          }}
-                        >
+                            value={groupForm.specializationId || ""}
+                            onValueChange={(value) =>
+                                setGroupForm(prev => ({ ...prev, specializationId: value }))
+                            }>
                           <SelectTrigger id="group-specialization">
                             <SelectValue placeholder="Select specialization" />
                           </SelectTrigger>
                           <SelectContent>
-                            {specializations.map((spec) => {
-                              const specId =
-                                spec?.id ??
-                                spec?.Id ??
-                                spec?.ID ??
-                                spec?.specializationId;
-                              if (specId === undefined || specId === null) {
-                                return null;
-                              }
-                              const specIdStr = String(specId);
-                              const specName =
-                                spec?.name ??
-                                spec?.Name ??
-                                spec?.title ??
-                                spec?.Title ??
-                                `Specialization ${specIdStr}`;
-                              return (
-                                <SelectItem key={specIdStr} value={specIdStr}>
-                                  {specName}
-                                </SelectItem>
-                              );
-                            })}
+                            {specializations.length === 0 ? (
+                              <SelectItem value="" disabled>No specializations available</SelectItem>
+                            ) : (
+                              specializations.map(spec => {
+                                const specId = spec?.id ?? spec?.Id ?? spec?.ID ?? spec?.specializationId;
+                                const specName = spec?.name ?? spec?.Name ?? spec?.title ?? spec?.Title ?? "";
+                                if (!specId || !specName) return null;
+                                return (
+                                  <SelectItem key={String(specId)} value={String(specId)}>{specName}</SelectItem>
+                                );
+                              })
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-language">
-                          Education Language (enum)
-                        </Label>
-                        <Input
-                          id="group-language"
-                          type="number"
-                          placeholder="Match backend enum"
-                          value={
-                            groupForm.educationLanguage !== undefined
-                              ? groupForm.educationLanguage.toString()
-                              : ""
-                          }
-                          onChange={(e) =>
-                            setGroupForm({
-                              ...groupForm,
-                              educationLanguage:
-                                e.target.value === ""
-                                  ? undefined
-                                  : Number(e.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="group-level">
-                          Education Level (enum)
-                        </Label>
-                        <Input
-                          id="group-level"
-                          type="number"
-                          placeholder="Match backend enum"
-                          value={
-                            groupForm.educationLevel !== undefined
-                              ? groupForm.educationLevel.toString()
-                              : ""
-                          }
-                          onChange={(e) =>
-                            setGroupForm({
-                              ...groupForm,
-                              educationLevel:
-                                e.target.value === ""
-                                  ? undefined
-                                  : Number(e.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
                         <Label htmlFor="group-year">Year</Label>
                         <Select
-                          value={groupForm.year?.toString() || ""}
-                          onValueChange={(value: string) =>
-                            setGroupForm({
-                              ...groupForm,
-                              year: parseInt(value),
-                            })
-                          }
+                            value={groupForm.year?.toString() || ""}
+                            onValueChange={(value) =>
+                                setGroupForm(prev => ({ ...prev, year: Number(value) }))
+                            }
                         >
                           <SelectTrigger id="group-year">
                             <SelectValue placeholder="Select year" />
@@ -1594,19 +1858,39 @@ export function DeanManagement() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-students">Student Count</Label>
-                        <Input
-                          id="group-students"
-                          type="number"
-                          placeholder="e.g., 25"
-                          value={groupForm.studentCount || ""}
-                          onChange={(e) =>
-                            setGroupForm({
-                              ...groupForm,
-                              studentCount: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
+                        <Label htmlFor="group-language">Education Language</Label>
+                        <Select
+                            value={groupForm.educationLanguage?.toString() || ""}
+                            onValueChange={(value) =>
+                                setGroupForm(prev => ({ ...prev, educationLanguage: Number(value) }))
+                            }
+                        >
+                          <SelectTrigger id="group-language">
+                            <SelectValue placeholder="Select language" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Azerbaijani</SelectItem>
+                            <SelectItem value="2">Russian</SelectItem>
+                            <SelectItem value="3">English</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="group-level">Education Level</Label>
+                        <Select
+                            value={groupForm.educationLevel?.toString() || ""}
+                            onValueChange={(value) =>
+                                setGroupForm(prev => ({ ...prev, educationLevel: Number(value) }))
+                            }
+                        >
+                          <SelectTrigger id="group-level">
+                            <SelectValue placeholder="Select level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">Bachelor</SelectItem>
+                            <SelectItem value="2">Master</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
@@ -1624,51 +1908,28 @@ export function DeanManagement() {
             </CardHeader>
             <CardContent>
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Group Code</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Specialization</TableHead>
-                    <TableHead>Language</TableHead>
-                    <TableHead>Level</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Student Count</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {groups.map((group, index) => (
-                    <TableRow key={group.id ?? `${group.code}-${index}`}>
-                      <TableCell className="font-medium">
-                        {group.code}
-                      </TableCell>
-                      <TableCell>{group.department}</TableCell>
-                      <TableCell>
-                        {group.specializationName ||
-                          group.specializationId ||
-                          "-"}
-                      </TableCell>
-                      <TableCell>
-                        {group.educationLanguage !== undefined
-                          ? group.educationLanguage
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {group.educationLevel !== undefined
-                          ? group.educationLevel
-                          : "-"}
-                      </TableCell>
-                      <TableCell>Year {group.year}</TableCell>
-                      <TableCell>{group.studentCount}</TableCell>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Group Code</TableHead>
+                        <TableHead>Specialization</TableHead>
+                        <TableHead>Language</TableHead>
+                        <TableHead>Student Count</TableHead>
+                        <TableHead>Education Level</TableHead>
+                        <TableHead>Year</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {groups.map((group, index) => (
+                        <TableRow key={group.id ?? `${group.code || group.groupCode}-${index}`}>
+                          <TableCell className="font-medium">{group.code || group.groupCode || "-"}</TableCell>
+                          <TableCell>{group.department || group.departmentName || "-"}</TableCell>
+                          <TableCell>{group.educationLanguage }</TableCell>
+                          <TableCell>{group.studentCount}</TableCell>
+                          <TableCell>{group.educationLevel}</TableCell>
+                          <TableCell>Year {group.year}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditGroup(group)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1746,33 +2007,15 @@ export function DeanManagement() {
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Gender (M/F)</span>
-                            <span className="text-sm text-muted-foreground">
-                              M
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
                             <span className="font-medium">GroupName</span>
                             <span className="text-sm text-muted-foreground">
-                              TK-105
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">DecreeNumber</span>
-                            <span className="text-sm text-muted-foreground">
-                              1
+                              TK-109
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
                             <span className="font-medium">AdmissionScore</span>
                             <span className="text-sm text-muted-foreground">
-                              650.5
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">FormOfEducation</span>
-                            <span className="text-sm text-muted-foreground">
-                              InPerson
+                              650,5
                             </span>
                           </div>
                         </div>
@@ -1890,14 +2133,19 @@ export function DeanManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Groups</SelectItem>
-                    {groups.map((group, index) => (
-                      <SelectItem
-                        key={group.id ?? `${group.code}-${index}`}
-                        value={group.code}
-                      >
-                        {group.code}
-                      </SelectItem>
-                    ))}
+                    {groups
+                      .filter((group) => group.code || group.groupCode)
+                      .map((group, index) => {
+                        const groupCode = group.code || group.groupCode || "";
+                        return (
+                          <SelectItem
+                            key={group.id ?? `${groupCode}-${index}`}
+                            value={groupCode}
+                          >
+                            {groupCode}
+                          </SelectItem>
+                        );
+                      })}
                   </SelectContent>
                 </Select>
                 <Select
@@ -1922,11 +2170,12 @@ export function DeanManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Student ID</TableHead>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Full Name</TableHead>
                     <TableHead>Group</TableHead>
                     <TableHead>Year</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Year of Admission</TableHead>
+                    <TableHead>Admission Score</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1935,20 +2184,13 @@ export function DeanManagement() {
                     .map((student) => (
                       <TableRow key={student.id}>
                         <TableCell className="font-medium">
-                          {student.studentId}
+                          {student.studentId || "-"}
                         </TableCell>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.groupCode}</TableCell>
-                        <TableCell>Year {student.year}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditStudent(student)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
+                        <TableCell>{student.name || "-"}</TableCell>
+                        <TableCell>{student.groupCode || "-"}</TableCell>
+                        <TableCell>{student.year ? `Year ${student.year}` : "-"}</TableCell>
+                        <TableCell>{student.yearOfAdmission || "-"}</TableCell>
+                        <TableCell>{student.admissionScore ?? "-"}</TableCell>
                       </TableRow>
                     ))}
                 </TableBody>
@@ -1998,57 +2240,39 @@ export function DeanManagement() {
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Student ID</Label>
-                    <p className="font-medium">{studentForm.studentId}</p>
+                    <Label className="text-muted-foreground">Username</Label>
+                    <p className="font-medium">{studentForm.studentId || "-"}</p>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Full Name</Label>
-                    <p className="font-medium">{studentForm.name}</p>
+                    <p className="font-medium">{studentForm.name || "-"}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Email</Label>
-                    <p className="font-medium">{studentForm.email}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">
-                      Phone Number
-                    </Label>
-                    <p className="font-medium">{studentForm.phoneNumber}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">
-                      Date of Birth
-                    </Label>
-                    <p className="font-medium">{studentForm.dateOfBirth}</p>
-                  </div>
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Group</Label>
-                    <p className="font-medium">{studentForm.groupCode}</p>
+                    <p className="font-medium">{studentForm.groupCode || "-"}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Year</Label>
+                    <p className="font-medium">{studentForm.year ? `Year ${studentForm.year}` : "-"}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Year</Label>
-                    <p className="font-medium">Year {studentForm.year}</p>
+                    <Label className="text-muted-foreground">Specialization</Label>
+                    <p className="font-medium">{studentForm.specialization || "-"}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">
-                      Specialization
-                    </Label>
-                    <p className="font-medium">{studentForm.specialization}</p>
+                    <Label className="text-muted-foreground">Year of Admission</Label>
+                    <p className="font-medium">{studentForm.yearOfAdmission || "-"}</p>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Address</Label>
-                  <p className="font-medium">{studentForm.address}</p>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Language</Label>
-                  <p className="font-medium">{studentForm.language}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Admission Score</Label>
+                    <p className="font-medium">{studentForm.admissionScore ?? "-"}</p>
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -2058,6 +2282,238 @@ export function DeanManagement() {
               </div>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+        <TabsContent value="teachers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Teacher Management</CardTitle>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Dialog open={isTeacherFormatInfoOpen} onOpenChange={setIsTeacherFormatInfoOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <Info className="h-4 w-4 mr-2" />
+                        Excel Format
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Excel File Format Information</DialogTitle>
+                        <DialogDescription>
+                          Required format for Excel teacher import
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Alert>
+                          <FileSpreadsheet className="h-4 w-4" />
+                          <AlertTitle>Required Columns</AlertTitle>
+                          <AlertDescription>
+                            Your Excel file must contain the following columns in this exact order:
+                          </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Name</span>
+                            <span className="text-sm text-muted-foreground">
+                              Abbas
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Surname</span>
+                            <span className="text-sm text-muted-foreground">
+                              Mehdiyev
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">MiddleName</span>
+                            <span className="text-sm text-muted-foreground">
+                              Ali
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">UserName</span>
+                            <span className="text-sm text-muted-foreground">
+                              K2L3MRW
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">DepartmentName</span>
+                            <span className="text-sm text-muted-foreground">
+                              Riyazi Kiberneti
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Position</span>
+                            <span className="text-sm text-muted-foreground">
+                              Docent
+                            </span>
+                          </div>
+                        </div>
+                        <Alert>
+                          <Info className="h-4 w-4" />
+                          <AlertTitle>Important Notes</AlertTitle>
+                          <AlertDescription>
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                              <li>The first row must contain column headers</li>
+                              <li>All fields are required</li>
+                              <li>File format: .xlsx or .xls</li>
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsTeacherFormatInfoOpen(false)}>Close</Button>
+                        <Button onClick={downloadTeacherTemplate}>
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Download Template
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Dialog open={isTeacherUploadDialogOpen} onOpenChange={setIsTeacherUploadDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Excel
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Upload Teachers from Excel</DialogTitle>
+                        <DialogDescription>
+                          Upload an Excel file (.xlsx or .xls) to import multiple teachers at once
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Alert>
+                          <Info className="h-4 w-4" />
+                          <AlertTitle>Before uploading</AlertTitle>
+                          <AlertDescription>
+                            Make sure your Excel file follows the required format. Click "Excel Format" to view requirements or download a template.
+                          </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-file">Select Excel File</Label>
+                          <Input
+                            id="teacher-file"
+                            type="file"
+                            accept=".xlsx,.xls"
+                            onChange={handleTeacherFileUpload}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsTeacherUploadDialogOpen(false)}>Cancel</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Alert className="mb-4">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Teacher Import</AlertTitle>
+                <AlertDescription>
+                  Teachers can only be added in bulk via Excel file upload.
+                </AlertDescription>
+              </Alert>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search by name..."
+                    value={teacherSearchQuery}
+                    onChange={(e) => {
+                      setTeacherSearchQuery(e.target.value);
+                      setTeacherCurrentPage(1);
+                    }}
+                  />
+                </div>
+                <Select
+                  value={teacherPositionFilter}
+                  onValueChange={(value) => {
+                    setTeacherPositionFilter(value);
+                    setTeacherCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter by position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Positions</SelectItem>
+                    <SelectItem value="1">Teacher</SelectItem>
+                    <SelectItem value="2">Head Teacher</SelectItem>
+                    <SelectItem value="3">Docent</SelectItem>
+                    <SelectItem value="4">Professor</SelectItem>
+                    <SelectItem value="5">Head Of Department</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Surname</TableHead>
+                    <TableHead>Middle Name</TableHead>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Position</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTeachers.slice((teacherCurrentPage - 1) * teachersPerPage, teacherCurrentPage * teachersPerPage).map((teacher, index) => {
+                    const positionLabels: Record<number, string> = {
+                      1: "Teacher",
+                      2: "Head Teacher",
+                      3: "Docent",
+                      4: "Professor",
+                      5: "Head Of Department",
+                    };
+                    const positionLabel = teacher.position ? positionLabels[teacher.position] || "Teacher" : "Teacher";
+
+                    return (
+                      <TableRow key={`${teacher.id}-${index}`}>
+                        <TableCell className="font-medium">{teacher.name || ""}</TableCell>
+                        <TableCell>{teacher.surname || ""}</TableCell>
+                        <TableCell>{teacher.middleName || ""}</TableCell>
+                        <TableCell>{teacher.userName || ""}</TableCell>
+                        <TableCell>
+                          <Badge>{positionLabel}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {teacherStartIndex} to {teacherEndIndex} of {filteredTeachers.length} teachers
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Page {teacherCurrentPage} of {teacherTotalPages}</span>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTeacherCurrentPage(teacherCurrentPage - 1)}
+                      disabled={teacherCurrentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTeacherCurrentPage(teacherCurrentPage + 1)}
+                      disabled={teacherCurrentPage >= teacherTotalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

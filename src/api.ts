@@ -37,11 +37,27 @@ export async function uploadStudentsExcel(file: File): Promise<any> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const resp = await fetchOrThrow(`${BASE_URL}/api/students/import`, {
+  // Для FormData НЕ устанавливаем Content-Type вручную
+  // Браузер установит его автоматически с правильным boundary
+  const url = `${BASE_URL}/api/students/import`;
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  
+  // Добавляем только Authorization, НЕ Content-Type
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const resp = await fetch(url, {
     method: "POST",
-    headers: authHeader(),
+    headers,
     body: formData,
   });
+
+  if (!resp.ok) {
+    const errorText = await parseError(resp);
+    throw new Error(errorText);
+  }
 
   const ct = (resp.headers.get("content-type") || "").toLowerCase();
   if (ct.includes("application/json")) {
@@ -52,7 +68,8 @@ export async function uploadStudentsExcel(file: File): Promise<any> {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ) ||
     ct.includes("application/vnd.ms-excel") ||
-    ct.includes("application/octet-stream")
+    ct.includes("application/octet-stream") ||
+    ct.includes("application/x-msdownload")
   ) {
     return await resp.blob();
   }
@@ -106,7 +123,8 @@ export async function apiJson<T>(
   });
 
   if (!resp.ok) {
-    throw new Error(await parseError(resp));
+    const errorText = await parseError(resp);
+    throw new Error(errorText);
   }
 
   if (resp.status === 204) return null as T;
@@ -268,6 +286,10 @@ export function getGroup(id: string) {
   return apiJson<any>(`/api/groups/${encodeURIComponent(id)}`);
 }
 
+export function getGroupSchedule(id: string) {
+  return apiJson<any>(`/api/groups/schedule/${encodeURIComponent(id)}`);
+}
+
 export function createGroup(req: {
   groupCode: string;
   specializationId: string;
@@ -308,7 +330,9 @@ export function filterStudents(groupId?: string, year?: number) {
   const qs = new URLSearchParams();
   if (groupId) qs.set("groupId", groupId);
   if (year !== undefined) qs.set("year", String(year));
-  return apiJson<any>(`/api/students/filter-by?${qs.toString()}`);
+  const queryString = qs.toString();
+  const url = queryString ? `/api/students/filter-by?${queryString}` : `/api/students/filter-by`;
+  return apiJson<any>(url);
 }
 
 export function createStudent(req: {
@@ -359,11 +383,27 @@ export async function importTeachersExcel(file: File): Promise<any> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const resp = await fetchOrThrow(`${BASE_URL}/api/teachers/import`, {
+  // Для FormData НЕ устанавливаем Content-Type вручную
+  // Браузер установит его автоматически с правильным boundary
+  const url = `${BASE_URL}/api/teachers/import`;
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  
+  // Добавляем только Authorization, НЕ Content-Type
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const resp = await fetch(url, {
     method: "POST",
-    headers: authHeader(),
+    headers,
     body: formData,
   });
+
+  if (!resp.ok) {
+    const errorText = await parseError(resp);
+    throw new Error(errorText);
+  }
 
   const ct = (resp.headers.get("content-type") || "").toLowerCase();
   if (ct.includes("application/json")) {
@@ -374,7 +414,8 @@ export async function importTeachersExcel(file: File): Promise<any> {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ) ||
     ct.includes("application/vnd.ms-excel") ||
-    ct.includes("application/octet-stream")
+    ct.includes("application/octet-stream") ||
+    ct.includes("application/x-msdownload")
   ) {
     return await resp.blob();
   }

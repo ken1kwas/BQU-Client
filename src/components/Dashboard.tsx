@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -6,10 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-// import { Badge } from "./ui/badge";
-// import { AlertCircle, CheckCircle, XCircle, FileText, CalendarDays } from "lucide-react";
+import { Badge } from "./ui/badge";
+import { AlertCircle, CheckCircle, XCircle, FileText, CalendarDays } from "lucide-react";
 import { CourseCard } from "./CourseCard";
-import { getStudentDashboard } from "../api";
+import { getStudentDashboard, getStudentProfile } from "../api";
 
 interface DashboardCourse {
   id: string | number;
@@ -21,37 +21,77 @@ interface DashboardCourse {
   instructor?: string;
 }
 
-// interface DashboardNotification {
-//   id: string | number;
-//   type: string;
-//   course: string;
-//   code?: string;
-//   message: string;
-//   timestamp: string;
-// }
+interface DashboardNotification {
+  id: string | number;
+  type: string;
+  course: string;
+  code?: string;
+  message: string;
+  timestamp: string;
+}
 
 export function Dashboard() {
   const [courses, setCourses] = useState<DashboardCourse[]>([]);
-  // const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
+  const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [studentName, setStudentName] = useState<string>("");
+
+  // Get student name from profile
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const profile = await getStudentProfile();
+        if (!mounted) return;
+
+        const studentData =
+          profile?.studentAcademicInfoDto ||
+          profile?.studentProfile ||
+          profile?.profile ||
+          profile ||
+          {};
+        const firstName =
+          studentData.name ||
+          studentData.firstName ||
+          studentData.givenName ||
+          "";
+        const surname =
+          studentData.surname ||
+          studentData.lastName ||
+          studentData.familyName ||
+          "";
+
+        const fullName = [firstName, surname].filter(Boolean).join(" ").trim();
+        if (fullName) {
+          setStudentName(fullName);
+        } else {
+          const userName = studentData.userName || studentData.username || "";
+          if (userName) {
+            setStudentName(userName);
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to load student name:", err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
-        // Attempt to fetch dashboard data from the backend.  If the
-        // backend returns an object with `todayClasses` and
-        // `notifications` we normalise it into our local state.
         const data = await getStudentDashboard();
         if (!mounted) return;
         if (Array.isArray(data)) {
-          // Some implementations may return the classes directly.
           setCourses(data);
         } else {
           if (Array.isArray(data.todayClasses)) setCourses(data.todayClasses);
-          // if (Array.isArray(data.notifications)) setNotifications(data.notifications);
+          if (Array.isArray(data.notifications)) setNotifications(data.notifications);
         }
       } catch (err: any) {
         if (!mounted) return;
@@ -68,9 +108,9 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1>Welcome!</h1>
+        <h1>Welcome back{studentName ? `, ${studentName}` : ""}!</h1>
         <p className="text-muted-foreground">
-          Current information about your courses.
+          Here's what's happening with your courses today.
         </p>
       </div>
       {error && <p className="text-destructive">{error}</p>}
@@ -100,20 +140,19 @@ export function Dashboard() {
             )}
           </CardContent>
         </Card>
-        {/*
+
         <Card>
           <CardHeader>
-            <CardTitle>Уведомления</CardTitle>
-            <CardDescription>Последние обновления</CardDescription>
+            <CardTitle>Notifications</CardTitle>
+            <CardDescription>Recent updates</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
-              <p>Загрузка…</p>
+              <p>Loading…</p>
             ) : notifications.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Нет уведомлений.</p>
+              <p className="text-muted-foreground text-sm">No notifications.</p>
             ) : (
               notifications.map((notification) => {
-                // Choose an appropriate icon based on type
                 let Icon = AlertCircle;
                 let color = "text-yellow-500";
                 switch (notification.type?.toLowerCase()) {
@@ -157,7 +196,6 @@ export function Dashboard() {
             )}
           </CardContent>
         </Card>
-        */}
       </div>
     </div>
   );

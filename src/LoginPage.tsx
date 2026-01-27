@@ -52,7 +52,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border border-border">
-            <div className="mb-6 text-center">
+            <div className="mb-4 text-center">
               <h2 className="text-2xl font-semibold">LMS-ə daxil olun</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Korporativ hesabdan istifadə edin
