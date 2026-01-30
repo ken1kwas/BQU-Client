@@ -7,19 +7,10 @@ import {
 } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { FileUp, Plus, Users, BookOpen, Calendar } from "lucide-react";
+import { FileUp, Users, BookOpen, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "./ui/dialog";
-import { ScrollArea } from "./ui/scroll-area";
-import { Input } from "./ui/input";
+// removed AddTopics dialog-related imports (not used anymore)
 import {
   listTeacherCourses,
   uploadSyllabusFile,
@@ -103,132 +94,14 @@ const mapTopicsFromApi = (raw: any): CourseTopic[] => {
   return [];
 };
 
-interface AddTopicsDialogProps {
-  courseName: string;
-  courseCode: string;
-  courseType: string;
-  initialTopics?: CourseTopic[];
-}
-
-function AddTopicsDialog({
-  courseName,
-  courseCode,
-  courseType,
-  initialTopics = [],
-}: AddTopicsDialogProps) {
-  const sessionLabel = courseType === "lecture" ? "Lecture" : "Seminar";
-
-  const ensureRows = (topics: CourseTopic[]): CourseTopic[] =>
-    topics.length > 0
-      ? topics.map((item, index) => ({
-          session:
-            Number.isFinite(item.session) && Number(item.session) > 0
-              ? Number(item.session)
-              : index + 1,
-          topic: item.topic ?? "",
-          date: item.date ?? "",
-        }))
-      : [{ session: 1, topic: "", date: "" }];
-
-  const [topicRows, setTopicRows] = useState<CourseTopic[]>(() =>
-    ensureRows(initialTopics),
-  );
-
-  useEffect(() => {
-    setTopicRows(ensureRows(initialTopics));
-  }, [initialTopics]);
-
-  const handleTopicChange = (index: number, value: string) => {
-    setTopicRows((prev) => {
-      const next = [...prev];
-      if (!next[index]) return prev;
-      next[index] = { ...next[index], topic: value };
-      return next;
-    });
-  };
-
-  const handleAddTopic = () => {
-    setTopicRows((prev) => [
-      ...prev,
-      { session: prev.length + 1, topic: "", date: "" },
-    ]);
-  };
-
-  const handleClearTopic = (index: number) => {
-    setTopicRows((prev) => {
-      const next = [...prev];
-      if (!next[index]) return prev;
-      next[index] = { ...next[index], topic: "" };
-      return next;
-    });
-  };
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full">
-          <Plus className="h-4 w-4 mr-1.5" />
-          Add Topics
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Manage Course Topics</DialogTitle>
-          <DialogDescription>
-            Add or edit topics for {courseName}
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="h-[500px] pr-4">
-          <div className="space-y-3">
-            {topicRows.map((item, index) => (
-              <div
-                key={`${item.session}-${index}`}
-                className="flex items-center gap-3 p-3 border rounded-lg"
-              >
-                <div className="flex-shrink-0 w-24">
-                  <div className="text-sm font-medium">
-                    {sessionLabel} {item.session}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {item.date}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <Input
-                    placeholder="Add topic..."
-                    value={item.topic}
-                    onChange={(e) => handleTopicChange(index, e.target.value)}
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleClearTopic(index)}
-                >
-                  Clear
-                </Button>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-        <div className="flex items-center justify-between gap-2 pt-3">
-          <Button variant="outline" onClick={handleAddTopic}>
-            Add Row
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline">Cancel</Button>
-            <Button>Save Topics</Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+// AddTopicsDialog removed — feature hidden for teachers per request
 
 export function TeacherCourses({
   onCourseSelect,
 }: {
-  onCourseSelect: (courseId: string | number) => void;
+  onCourseSelect: (
+    course: string | number | { id: string | number; studentCount?: number; hours?: number },
+  ) => void;
 }) {
   // Local state for courses loaded from the backend
   const [courses, setCourses] = useState<TeacherCourse[]>([]);
@@ -238,15 +111,16 @@ export function TeacherCourses({
     try {
       const resp = await listTeacherCourses();
       const list = toArray(resp).map((c: any) => {
-        const id = c.id ?? c.taughtSubjectId ?? c.taughtSubject?.id;
+        const id =
+          c.courseId ?? c.id ?? c.taughtSubjectId ?? c.taughtSubject?.id;
         const syllabusId =
           c.syllabusId ?? c.syllabus?.id ?? c.syllabus?.syllabusId ?? null;
 
         const teacherCourse: TeacherCourse = {
           id,
           title:
-            c.title ?? c.name ?? c.taughtSubject?.title ?? c.subjectTitle ?? "",
-          code: c.code ?? c.taughtSubject?.code ?? "",
+            c.courseName ?? c.title ?? c.name ?? c.taughtSubject?.title ?? c.subjectTitle ?? "",
+          code: c.courseCode ?? c.code ?? c.taughtSubject?.code ?? "",
           type: c.type ?? c.classType ?? "Lecture",
           groups: Array.isArray(c.groups)
             ? c.groups
@@ -256,11 +130,13 @@ export function TeacherCourses({
               ? [c.group.groupCode]
               : c.groupCode
                 ? [c.groupCode]
-                : [],
+                : c.groupName
+                  ? [c.groupName]
+                  : [],
           studentCount:
             c.studentCount ?? c.studentsCount ?? c.students?.length ?? 0,
           hours: c.hours ?? c.weeklyHours ?? c.totalHours ?? 0,
-          credits: c.credits ?? c.credit ?? 0,
+          credits: c.creditCount ?? c.credits ?? c.credit ?? 0,
           hasSyllabus: Boolean(syllabusId),
           syllabusId,
           topics: mapTopicsFromApi(c),
@@ -348,11 +224,17 @@ export function TeacherCourses({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => onCourseSelect(course.id)}
+                  onClick={() =>
+                    onCourseSelect({
+                      id: course.id,
+                      studentCount: course.studentCount,
+                      hours: course.hours,
+                    })
+                  }
                 >
                   Manage Grades
                 </Button>
@@ -364,12 +246,7 @@ export function TeacherCourses({
                   <FileUp className="h-4 w-4 mr-1.5" />
                   {course.hasSyllabus ? "Update" : "Add"} Syllabus
                 </Button>
-                <AddTopicsDialog
-                  courseName={course.title}
-                  courseCode={course.code}
-                  courseType={course.type}
-                  initialTopics={course.topics}
-                />
+                
               </div>
             </CardContent>
           </Card>

@@ -89,8 +89,9 @@ export default function App() {
   // Track whether role resolution is in progress to avoid repeated
   // calls to the API.
   const [loadingRole, setLoadingRole] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState<
-    string | number | null
+  const [selectedCourse, setSelectedCourse] = useState<
+    | { id: string | number; studentCount?: number; hours?: number }
+    | null
   >(null);
 
   // For production use we remove the manual role switch.  If you
@@ -99,12 +100,18 @@ export default function App() {
   // `handleRoleSwitch`.  Leaving it undefined hides the control.
   const handleRoleSwitch: undefined | (() => void) = undefined;
 
-  const handleCourseSelect = (courseId: string | number) => {
-    setSelectedCourseId(courseId);
+  const handleCourseSelect = (
+    course: string | number | { id: string | number; studentCount?: number; hours?: number },
+  ) => {
+    if (course && typeof course === "object") {
+      setSelectedCourse(course as { id: string | number; studentCount?: number; hours?: number });
+    } else {
+      setSelectedCourse({ id: course as string | number });
+    }
   };
 
   const handleBackToCourses = () => {
-    setSelectedCourseId(null);
+    setSelectedCourse(null);
   };
 
   // Resolve the user's role from the backend based on the stored
@@ -179,11 +186,13 @@ export default function App() {
     }
 
     if (userRole === "teacher") {
-      if (selectedCourseId !== null) {
+      if (selectedCourse !== null) {
         return (
           <TeacherCourseDetail
-            courseId={selectedCourseId}
+            courseId={selectedCourse.id}
             onBack={handleBackToCourses}
+            initialStudentCount={selectedCourse.studentCount}
+            initialHours={selectedCourse.hours}
           />
         );
       }
@@ -308,13 +317,11 @@ export default function App() {
                     {group.items.map((item) => (
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
-                          onClick={() => {
-                            setActiveView(item.id);
-                            setSelectedCourseId(null);
-                          }}
-                          isActive={
-                            activeView === item.id && selectedCourseId === null
-                          }
+                            onClick={() => {
+                              setActiveView(item.id);
+                              setSelectedCourse(null);
+                            }}
+                            isActive={activeView === item.id && selectedCourse === null}
                           className="py-3"
                         >
                           <item.icon className="h-5 w-5" />
