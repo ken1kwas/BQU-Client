@@ -287,7 +287,7 @@ export function getGroup(id: string) {
 }
 
 export function getGroupSchedule(id: string) {
-  return apiJson<any>(`/api/groups/schedule/${encodeURIComponent(id)}`);
+  return apiJson<any>(`/api/groups/${encodeURIComponent(id)}/schedule`);
 }
 
 export function createGroup(req: {

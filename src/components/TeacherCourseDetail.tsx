@@ -148,15 +148,21 @@ const ASSIGNMENTS_COUNT = 10;
 export function TeacherCourseDetail({
   courseId,
   onBack,
+  initialStudentCount,
+  initialHours,
 }: {
   courseId: string | number;
   onBack: () => void;
+  initialStudentCount?: number;
+  initialHours?: number;
 }) {
   const taughtSubjectId = String(courseId);
 
   const [students, setStudents] = useState<Student[]>([]);
   const [courseTitle, setCourseTitle] = useState<string>("");
-  const [courseHours, setCourseHours] = useState<number>(0);
+  const [courseHours, setCourseHours] = useState<number | undefined>(
+    initialHours,
+  );
   const [sessions, setSessions] = useState<CourseSession[]>([]);
   const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -228,12 +234,13 @@ export function TeacherCourseDetail({
         taughtSubject?.taughtSubjectTitle ??
         "";
 
-      const nextHours = Number(
-        taughtSubject?.hours ?? taughtSubject?.totalHours ?? 0,
-      );
+      const rawHours = taughtSubject?.hours ?? taughtSubject?.totalHours;
 
       setCourseTitle(nextTitle ? String(nextTitle) : "");
-      setCourseHours(Number.isFinite(nextHours) ? nextHours : 0);
+      if (rawHours !== undefined && rawHours !== null) {
+        const nextHours = Number(rawHours);
+        if (Number.isFinite(nextHours)) setCourseHours(nextHours);
+      }
 
       const groupId =
         taughtSubject?.groupId ??
@@ -370,7 +377,7 @@ export function TeacherCourseDetail({
       toast.error(e?.message ?? "Failed to load course data");
       setStudents([]);
       setCourseTitle("");
-      setCourseHours(0);
+      // don't overwrite courseHours on error; keep initialHours if present
       setSessions([]);
     } finally {
       setIsLoading(false);
@@ -554,14 +561,14 @@ export function TeacherCourseDetail({
           <Users className="h-5 w-5 text-muted-foreground" />
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">Students</span>
-            <span className="font-medium">{students.length}</span>
+            <span className="font-medium">{students.length || initialStudentCount || 0}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-muted-foreground" />
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">Hours</span>
-            <span className="font-medium">{courseHours || "—"}</span>
+            <span className="font-medium">{courseHours !== undefined ? courseHours : "—"}</span>
           </div>
         </div>
       </div>

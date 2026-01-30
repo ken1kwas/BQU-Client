@@ -334,14 +334,14 @@ const mapCourseFromApi = (c: any): Course => {
     title: c.title ?? c.name ?? "",
     credits: c.credits ?? 0,
     type: c.type ?? "Lecture",
-    department: dept.name ?? dept.departmentName ?? "",
+    department: (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
     teacherId: c.teacherId ?? (typeof teacher === "object" ? teacher.id : undefined),
     teacherName: teacherName,
     groupId: c.groupId ?? group.id,
     groupCode: c.groupCode ?? group.groupCode ?? "",
     studentCount: c.studentCount ?? 0,
     hasSyllabus: Boolean(c.syllabusId),
-    departmentName: dept.name ?? dept.departmentName ?? "",
+    departmentName: (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
     year: c.year,
     semester: c.semester ?? c.semster,
   };
@@ -1218,7 +1218,7 @@ export function DeanManagement() {
                           <Label htmlFor="course-year">Year</Label>
                           <Select
                             value={courseForm.year?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, year: parseInt(value) })}
+                            onValueChange={(value: string) => setCourseForm({ ...courseForm, year: parseInt(value) })}
                           >
                             <SelectTrigger id="course-year">
                               <SelectValue placeholder="Select year" />
@@ -1377,7 +1377,7 @@ export function DeanManagement() {
                     <TableHead>Teacher</TableHead>
                     <TableHead>Group</TableHead>
                     <TableHead>Credits</TableHead>
-                    <TableHead>Year/Sem</TableHead>
+                    <TableHead>Year</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1388,15 +1388,11 @@ export function DeanManagement() {
                         {course.code}
                       </TableCell>
                       <TableCell>{course.title}</TableCell>
-                      <TableCell>{course.departmentName || "-"}</TableCell>
+                      <TableCell>{course.department}</TableCell>
                       <TableCell>{course.teacherName || "-"}</TableCell>
                       <TableCell>{course.groupCode || "-"}</TableCell>
                       <TableCell>{course.credits}</TableCell>
-                      <TableCell>
-                        {course.year && course.semester
-                          ? `Y${course.year}/S${course.semester}`
-                          : "-"}
-                      </TableCell>
+                      <TableCell>{course.year || "-"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button

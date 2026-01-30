@@ -22,8 +22,6 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Badge } from "./ui/badge";
-
-// Import API helpers to retrieve rooms, groups and taught subjects
 import { listRooms, listGroups, listTaughtSubjects, getGroupSchedule, toArray } from "../api";
 
 interface ScheduleEntry {
@@ -32,7 +30,7 @@ interface ScheduleEntry {
   courseName: string;
   courseCode: string;
   teacherName: string;
-  roomId: number;
+  roomId: string | number;
   roomName: string;
   groupCode: string;
   dayOfWeek: string;
@@ -199,8 +197,19 @@ export function DeanSchedule() {
           }
 
           const room = item.room ?? {};
-          const roomName = item.roomName ?? item.room?.name ?? item.room?.roomName ?? "";
-          const roomId = item.roomId ?? item.room?.id ?? 0;
+          let roomName = item.roomName ?? item.room?.name ?? item.room?.roomName ?? "";
+          const rawRoomId = item.roomId ?? (typeof item.room === "number" || typeof item.room === "string" ? item.room : item.room?.id);
+          if ((!roomName || roomName.trim() === "") && rawRoomId != null && Array.isArray(rooms) && rooms.length > 0) {
+            const found = rooms.find((r: any) => {
+              if (r.id != null && rawRoomId != null && (r.id === rawRoomId || r.id === Number(rawRoomId))) return true;
+              const candidateName = (r.name ?? r.roomName ?? "").toString();
+              if (candidateName && (candidateName === rawRoomId || candidateName === String(rawRoomId))) return true;
+              return false;
+            });
+            if (found) roomName = found.name ?? found.roomName ?? "";
+          }
+          roomName = roomName || item.location || item.locationName || item.auditorium || item.auditoriumName || "";
+          const roomId = rawRoomId ?? item.room?.id ?? item.roomId ?? "";
 
           let startTime = "";
           let endTime = "";
@@ -274,7 +283,7 @@ export function DeanSchedule() {
     };
 
     fetchSchedule();
-  }, [selectedGroup, groups]);
+  }, [selectedGroup, groups, rooms]);
 
   return (
     <div className="space-y-6">
@@ -395,7 +404,7 @@ export function DeanSchedule() {
                               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                 <User className="h-3 w-3 shrink-0" />
                                 <span>{entry.teacherName}</span>
-                              </div>
+                              </div> 
                               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                 <Users2 className="h-3 w-3 shrink-0" />
                                 <span>{entry.groupCode}</span>

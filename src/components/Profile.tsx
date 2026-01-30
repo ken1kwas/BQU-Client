@@ -25,8 +25,8 @@ function unwrapProfile(resp: any, role: "student" | "teacher" | "dean"): AnyObj 
   if (!resp) return {};
   // Backend envelopes like: { deanProfile: {...}, isSucceeded, ... }
   if (role === "dean") return resp.deanProfile ?? resp.profile ?? resp;
-  if (role === "teacher") return resp.teacherProfile ?? resp.profile ?? resp;
-  return resp.studentProfile ?? resp.profile ?? resp;
+  if (role === "teacher") return resp.teacherProfile ?? resp.teacherAcademicInfo ?? resp.profile ?? resp;
+  return resp.studentProfile ?? resp.studentAcademicInfoDto ?? resp.profile ?? resp;
 }
 
 function formatDate(value: any): string {
@@ -79,8 +79,11 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
     const phone = pick(profile, ["phone", "phoneNumber", "mobile", "mobilePhone"]);
     const dateOfBirth = pick(profile, ["dateOfBirth", "birthDate", "dob"]);
     const employeeId = pick(profile, ["employeeId", "employeeID", "staffId", "staffID"]);
-    const studentId = pick(profile, ["studentId", "studentID", "recordBookNumber"]);
+    const userName = pick(profile, ["userName", "username", "userCode"]);
+    const admissionYear = pick(profile, ["admissionYear", "joinYear"]);
     const faculty = pick(profile, ["faculty", "facultyName"]);
+    const stateName = pick(profile, ["stateName", "departmentName"]);
+    const specialization = pick(profile, ["specialization", "major", "program"]);
     const finCode = pick(profile, ["finCode", "fin", "pin"]);
     const roleName = pick(profile, ["roleName", "role"]);
     const status = pick(profile, ["status", "accountStatus"]) || "Active";
@@ -92,8 +95,11 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
       phone,
       dateOfBirth,
       employeeId,
-      studentId,
+      userName,
+      admissionYear,
       faculty,
+      stateName,
+      specialization,
       finCode,
       roleName,
       status,
@@ -140,12 +146,10 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
                   </>
                 ) : isTeacher ? (
                   <>
-                    <p>Employee ID: {info.employeeId || "—"}</p>
-                    <p>{info.faculty || "—"}</p>
+                    <p>FIN code:  {info.userName || "—"}</p>
                   </>
                 ) : (
                   <>
-                    <p>Student ID: {info.studentId || "—"}</p>
                     <p>{info.faculty || "—"}</p>
                   </>
                 )}
@@ -164,26 +168,16 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
 
           {/* All information in one card */}
           <div className="grid gap-6 md:grid-cols-2 pt-2">
-            {!isDean && (
+            {!isTeacher && !isDean && (
               <>
                 <div className="flex items-start gap-3">
                   <IdCard className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">
-                      {isTeacher ? "Employee ID" : "Student ID"}
-                    </p>
-                    <p>{isTeacher ? info.employeeId : info.studentId || "—"}</p>
+                    <p className="text-sm text-muted-foreground">User Name</p>
+                    <p>{info.userName || "—"}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">
-                      {isTeacher ? "Join Year" : "Admission Year"}
-                    </p>
-                    <p>{info.dateOfBirth ? formatDate(info.dateOfBirth) : "—"}</p>
-                  </div>
-                </div>
+                
               </>
             )}
             <div className="flex items-start gap-3">
@@ -199,34 +193,10 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
                 <p className="text-sm text-muted-foreground">
                   {isDean ? "Role" : isTeacher ? "Department" : "Specialization"}
                 </p>
-                <p>{isDean ? info.roleName : info.faculty || "—"}</p>
+                <p>{isDean ? info.roleName : isTeacher ? info.stateName : info.specialization || "—"}</p>
               </div>
             </div>
-            {!isDean && (
-              <>
-                <div className="flex items-start gap-3">
-                  <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="break-all">{info.email || "—"}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p>{info.phone || "—"}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Date of Birth</p>
-                    <p>{info.dateOfBirth ? formatDate(info.dateOfBirth) : "—"}</p>
-                  </div>
-                </div>
-              </>
-            )}
+            
           </div>
         </CardContent>
       </Card>
