@@ -266,7 +266,7 @@ export default function App() {
   if (!userRole) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <span>Загрузка…</span>
+        <span>Loading...</span>
       </div>
     );
   }

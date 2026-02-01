@@ -40,6 +40,7 @@ import {
   getTaughtSubject,
   listTaughtSubjectStudents,
   listTaughtSubjectColloquiums,
+  listTaughtSubjectClasses,
   createColloquium,
   deleteColloquium,
   updateColloquiumGrade,
@@ -216,16 +217,64 @@ export function TeacherCourseDetail({
   const loadCourseData = async () => {
     setIsLoading(true);
     try {
-      const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
-      const taughtSubject = unwrap<any>(taughtSubjectResp);
-
-      const sessionItems = mapSessionsFromApi(taughtSubject);
+      // First, get classes/attendance data
+      let classesData: any[] = [];
+      let sessionItems: CourseSession[] = [];
+      
+      try {
+        console.log("Fetching classes for taught subject:", taughtSubjectId);
+        const classesResp = await listTaughtSubjectClasses(taughtSubjectId);
+        console.log("Classes response:", classesResp);
+        const classesDataWrapped = unwrap<any>(classesResp);
+        console.log("Classes data after unwrap:", classesDataWrapped);
+        
+        const attendancesArray = toArray(classesDataWrapped?.activityAndAttendances ?? classesDataWrapped?.data?.activityAndAttendances ?? []);
+        console.log("Attendances array:", attendancesArray);
+        
+        if (attendancesArray.length > 0) {
+          // Get first student's classes to build session list (all students have same classes)
+          const firstStudent = attendancesArray[0];
+          const classesFromFirst = toArray(firstStudent?.classes ?? []);
+          console.log("Classes from first student:", classesFromFirst);
+          
+          sessionItems = classesFromFirst.map((cls: any, index: number) => ({
+            id: String(cls?.classId ?? index + 1),
+            date: formatSessionDate(cls?.classDate),
+            time: cls?.formattedClassHours ?? "",
+            type: (String(cls?.classType ?? "L")[0].toUpperCase() as "L" | "S"),
+          }));
+          
+          classesData = attendancesArray;
+        }
+      } catch (e) {
+        console.error("Failed to load classes:", e);
+        classesData = [];
+        sessionItems = [];
+      }
+      
+      // If no classes data, fall back to taught subject sessions
+      if (sessionItems.length === 0) {
+        const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
+        const taughtSubject = unwrap<any>(taughtSubjectResp);
+        sessionItems = mapSessionsFromApi(taughtSubject);
+      }
+      
       setSessions(sessionItems);
       setSelectedColumn((prev) =>
         prev !== null && (prev < 0 || prev >= sessionItems.length)
           ? null
           : prev,
       );
+
+      // Try to get course title and hours - but don't fail if it errors
+      let taughtSubject: any = {};
+      try {
+        const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
+        taughtSubject = unwrap<any>(taughtSubjectResp);
+      } catch (e) {
+        console.warn("Could not fetch taught subject details (non-fatal):", e);
+        // Continue with empty taughtSubject - we already have sessions from classes
+      }
 
       const nextTitle =
         taughtSubject?.title ??
@@ -370,7 +419,86 @@ export function TeacherCourseDetail({
         colloquiums = [];
       }
 
-      const merged = applyColloquiumsToStudents(mappedStudents, colloquiums);
+      // Apply classes data to students if available
+      let enhancedStudents = mappedStudents;
+      if (classesData.length > 0) {
+        const byKey = new Map<string, any>();
+
+        const normalize = (v: any) =>
+          String(v ?? "").toLowerCase().trim();
+
+        // Index classesData by several possible keys: studentId and studentFullName
+        for (const data of classesData) {
+          const idKey = normalize(data?.studentId ?? data?.student?.id);
+          const nameKey = normalize(data?.studentFullName ?? data?.student?.fullName ?? data?.student?.name);
+          if (idKey) byKey.set(idKey, data);
+          if (nameKey) byKey.set(nameKey, data);
+        }
+
+        console.log("Classes index keys:", Array.from(byKey.keys()));
+        console.log("Mapped students:", mappedStudents.map((s) => ({ id: normalize(s.id), name: normalize(s.name) })));
+
+        enhancedStudents = mappedStudents.map((student) => {
+          const candidateKeys = [
+            normalize(student.id),
+            normalize((student as any).studentId),
+            normalize((student as any).userId),
+            normalize((student as any).user?.id),
+            normalize(student.name),
+          ].filter(Boolean);
+
+          let classesForStudent: any = null;
+          for (const k of candidateKeys) {
+            if (byKey.has(k)) {
+              classesForStudent = byKey.get(k);
+              break;
+            }
+          }
+
+          if (!classesForStudent) {
+            console.log(`No classes found for student ${student.name} (keys: ${candidateKeys.join(",")})`);
+            return student;
+          }
+
+          const classes = toArray(classesForStudent.classes ?? classesForStudent?.classesList ?? []);
+          console.log(`Found ${classes.length} classes for student ${student.name}`);
+
+          // Build attendance aligned to the `sessions` (sessionItems) length
+          console.log(`Building attendance for ${student.name}: ${classes.length} classes, ${sessionItems.length} sessions`);
+          
+          const attendanceAligned = sessionItems.map((session, i) => {
+            const cls = classes[i];
+            console.log(`  Session ${i}: class=${JSON.stringify(cls)}`);
+            
+            if (cls) {
+              const result: { attendance: "present" | "absent"; grade: number | null } = {
+                attendance: cls.isPresent === true ? "present" : "absent",
+                grade: cls.grade ?? null,
+              };
+              console.log(`    -> attendance record: ${JSON.stringify(result)}`);
+              return result;
+            }
+
+            // fallback to whatever existing data we have for this index
+            const existing = student.activityAttendance?.[i];
+            if (existing && (existing.attendance === "present" || existing.attendance === "absent")) {
+              return existing;
+            }
+
+            const fallback: { attendance: "present" | "absent"; grade: number | null } = { attendance: "present", grade: null };
+            return fallback;
+          });
+
+          console.log(`Final attendance array for ${student.name}:`, attendanceAligned);
+
+          return {
+            ...student,
+            activityAttendance: attendanceAligned,
+          };
+        });
+      }
+
+      const merged = applyColloquiumsToStudents(enhancedStudents, colloquiums);
       setStudents(merged);
     } catch (e: any) {
       console.error(e);
@@ -535,8 +663,9 @@ export function TeacherCourseDetail({
     attendance: "present" | "absent";
     grade: number | null;
   }) => {
+    if (!data) return "present";
     if (data.attendance === "absent") return "absent";
-    if (data.grade !== null) return data.grade.toString();
+    if (data.grade !== null && data.grade !== undefined) return data.grade.toString();
     return "present";
   };
 
