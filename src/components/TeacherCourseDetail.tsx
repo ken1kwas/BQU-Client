@@ -44,8 +44,11 @@ import {
   createColloquium,
   deleteColloquium,
   updateColloquiumGrade,
+  createSeminar,
+  updateSeminarGrade,
   getGroup,
   filterStudents,
+  markStudentAbsence,
 } from "../api";
 
 interface Student {
@@ -57,8 +60,8 @@ interface Student {
   }>;
   colloquium: (number | null)[];
   assignments: (0 | 1 | null)[];
-  // IDs of colloquium records from backend (aligned by index with colloquium[])
   colloquiumIds?: (string | null)[];
+  seminarIds?: (string | null)[];
 }
 
 interface CourseSession {
@@ -66,6 +69,7 @@ interface CourseSession {
   date: string;
   time: string;
   type: "L" | "S";
+  seminarId?: string | null;
 }
 
 const formatSessionDate = (value: any): string => {
@@ -167,47 +171,72 @@ export function TeacherCourseDetail({
   const [sessions, setSessions] = useState<CourseSession[]>([]);
   const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSendingAttendance, setIsSendingAttendance] = useState<boolean>(false);
 
   const applyColloquiumsToStudents = (
     baseStudents: Student[],
     colloquiumsRaw: any[],
   ): Student[] => {
     const byStudent = new Map<string, any[]>();
+    const normalize = (v: any) =>
+      String(v ?? "")
+        .toLowerCase()
+        .trim();
+    const normalizeNoSpaces = (v: any) =>
+      normalize(v).replace(/\s+/g, "");
 
+    for (const c of colloquiumsRaw || []) {
+      const nameKey = normalize(c.studentFullName ?? c.student?.fullName ?? c.student?.name ?? "");
+      const nameKeyNoSpaces = normalizeNoSpaces(c.studentFullName ?? c.student?.fullName ?? "");
+      if (!nameKey && !nameKeyNoSpaces) continue;
+      const list = byStudent.get(nameKey) ?? byStudent.get(nameKeyNoSpaces) ?? [];
+      list.push(c);
+      if (nameKey) byStudent.set(nameKey, list);
+      if (nameKeyNoSpaces && nameKeyNoSpaces !== nameKey) byStudent.set(nameKeyNoSpaces, list);
+    }
     for (const c of colloquiumsRaw || []) {
       const studentId = String(
         c.studentId ?? c.student?.id ?? c.student?.studentId ?? "",
       );
       if (!studentId) continue;
-      const list = byStudent.get(studentId) ?? [];
-      list.push(c);
-      byStudent.set(studentId, list);
+      const existing = byStudent.get(studentId) ?? [];
+      if (!existing.includes(c)) existing.push(c);
+      byStudent.set(studentId, existing);
     }
 
-    // Stable ordering by date if present
     for (const list of byStudent.values()) {
       list.sort((a, b) => {
-        const ad = Date.parse(a.date ?? a.createdAt ?? a.createdOn ?? "") || 0;
-        const bd = Date.parse(b.date ?? b.createdAt ?? b.createdOn ?? "") || 0;
+        const ad = Date.parse(a.date ?? a.dateTime ?? a.createdAt ?? a.createdOn ?? "") || 0;
+        const bd = Date.parse(b.date ?? b.dateTime ?? b.createdAt ?? b.createdOn ?? "") || 0;
         return ad - bd;
       });
     }
 
     return baseStudents.map((s) => {
-      const list = byStudent.get(String(s.id)) ?? [];
-      const colloquium = Array(COLLOQUIUM_COUNT).fill(null) as (
-        | number
-        | null
-      )[];
-      const colloquiumIds = Array(COLLOQUIUM_COUNT).fill(null) as (
-        | string
-        | null
-      )[];
+      const np = (s as any)._nameParts;
+      const nameSurnameOnly = [np?.name, np?.surname].filter(Boolean).join(" ");
+      const list =
+        byStudent.get(String(s.id)) ??
+        byStudent.get(normalize(s.name)) ??
+        byStudent.get(normalizeNoSpaces(s.name)) ??
+        byStudent.get(normalize(nameSurnameOnly)) ??
+        byStudent.get(normalizeNoSpaces(nameSurnameOnly)) ??
+        [];
+      const prevColloquium = s.colloquium ?? Array(COLLOQUIUM_COUNT).fill(null);
+      const prevIds = s.colloquiumIds ?? Array(COLLOQUIUM_COUNT).fill(null);
+      const colloquium = [...prevColloquium] as (number | null)[];
+      const colloquiumIds = [...prevIds] as (string | null)[];
 
       for (let i = 0; i < Math.min(COLLOQUIUM_COUNT, list.length); i++) {
         const item = list[i];
         colloquium[i] = item.grade ?? item.value ?? null;
         colloquiumIds[i] = item.id ?? item.colloquiumId ?? null;
+      }
+      for (let i = 0; i < COLLOQUIUM_COUNT; i++) {
+        if (colloquium[i] === null && prevColloquium[i] != null)
+          colloquium[i] = prevColloquium[i];
+        if (colloquiumIds[i] === null && prevIds[i] != null)
+          colloquiumIds[i] = prevIds[i];
       }
 
       return { ...s, colloquium, colloquiumIds };
@@ -217,33 +246,34 @@ export function TeacherCourseDetail({
   const loadCourseData = async () => {
     setIsLoading(true);
     try {
-      // First, get classes/attendance data
       let classesData: any[] = [];
       let sessionItems: CourseSession[] = [];
-      
+
       try {
-        console.log("Fetching classes for taught subject:", taughtSubjectId);
         const classesResp = await listTaughtSubjectClasses(taughtSubjectId);
-        console.log("Classes response:", classesResp);
         const classesDataWrapped = unwrap<any>(classesResp);
-        console.log("Classes data after unwrap:", classesDataWrapped);
-        
-        const attendancesArray = toArray(classesDataWrapped?.activityAndAttendances ?? classesDataWrapped?.data?.activityAndAttendances ?? []);
-        console.log("Attendances array:", attendancesArray);
-        
+        const attendancesArray = toArray(
+          classesDataWrapped?.activityAndAttendances ??
+            classesDataWrapped?.ActivityAndAttendances ??
+            classesDataWrapped?.data?.activityAndAttendances ??
+            classesDataWrapped?.data?.ActivityAndAttendances ??
+            [],
+        );
+
         if (attendancesArray.length > 0) {
-          // Get first student's classes to build session list (all students have same classes)
           const firstStudent = attendancesArray[0];
-          const classesFromFirst = toArray(firstStudent?.classes ?? []);
-          console.log("Classes from first student:", classesFromFirst);
-          
+          const classesFromFirst = toArray(
+            firstStudent?.classes ?? firstStudent?.Classes ?? [],
+          );
+
           sessionItems = classesFromFirst.map((cls: any, index: number) => ({
-            id: String(cls?.classId ?? index + 1),
-            date: formatSessionDate(cls?.classDate),
-            time: cls?.formattedClassHours ?? "",
-            type: (String(cls?.classType ?? "L")[0].toUpperCase() as "L" | "S"),
+            id: String(cls?.classId ?? cls?.ClassId ?? index + 1),
+            date: formatSessionDate(cls?.classDate ?? cls?.ClassDate),
+            time: cls?.formattedClassHours ?? cls?.FormattedClassHours ?? "",
+            type: String(cls?.classType ?? cls?.ClassType ?? "L")[0].toUpperCase() as "L" | "S",
+            seminarId: cls?.seminarId ?? cls?.SeminarId ?? null,
           }));
-          
+
           classesData = attendancesArray;
         }
       } catch (e) {
@@ -251,14 +281,13 @@ export function TeacherCourseDetail({
         classesData = [];
         sessionItems = [];
       }
-      
-      // If no classes data, fall back to taught subject sessions
+
       if (sessionItems.length === 0) {
         const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
         const taughtSubject = unwrap<any>(taughtSubjectResp);
         sessionItems = mapSessionsFromApi(taughtSubject);
       }
-      
+
       setSessions(sessionItems);
       setSelectedColumn((prev) =>
         prev !== null && (prev < 0 || prev >= sessionItems.length)
@@ -266,14 +295,12 @@ export function TeacherCourseDetail({
           : prev,
       );
 
-      // Try to get course title and hours - but don't fail if it errors
       let taughtSubject: any = {};
       try {
         const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
         taughtSubject = unwrap<any>(taughtSubjectResp);
       } catch (e) {
         console.warn("Could not fetch taught subject details (non-fatal):", e);
-        // Continue with empty taughtSubject - we already have sessions from classes
       }
 
       const nextTitle =
@@ -303,16 +330,17 @@ export function TeacherCourseDetail({
           const groupResp = await getGroup(String(groupId));
           const group = unwrap<any>(groupResp);
           year = group?.year ?? null;
-        } catch {
-          // ignore missing group info
-        }
+        } catch {}
       }
 
       let apiStudents: any[] = [];
       try {
         const taughtStudentsResp =
           await listTaughtSubjectStudents(taughtSubjectId);
-        apiStudents = toArray(unwrap<any>(taughtStudentsResp));
+        const rawStudents = unwrap<any>(taughtStudentsResp);
+        apiStudents = toArray(
+          rawStudents?.student ?? rawStudents?.Student ?? rawStudents ?? [],
+        );
       } catch {
         apiStudents = [];
       }
@@ -323,7 +351,10 @@ export function TeacherCourseDetail({
             String(groupId),
             year !== null && year !== undefined ? Number(year) : undefined,
           );
-          apiStudents = toArray(fallback);
+          const rawFilter = unwrap<any>(fallback);
+          apiStudents = toArray(
+            rawFilter?.students ?? rawFilter?.Students ?? rawFilter ?? [],
+          );
         } catch {
           apiStudents = [];
         }
@@ -332,7 +363,12 @@ export function TeacherCourseDetail({
       const mappedStudents: Student[] = apiStudents.map(
         (s: any, idx: number) => {
           const id =
-            s.id ?? s.studentId ?? s.userId ?? s.user?.id ?? String(idx + 1);
+            s.id ??
+            s.studentId ??
+            s.userName ??
+            s.userId ??
+            s.user?.id ??
+            String(idx + 1);
           const nameFromParts = [s.name, s.middleName, s.surname]
             .filter(Boolean)
             .join(" ")
@@ -406,7 +442,13 @@ export function TeacherCourseDetail({
             colloquium: Array(COLLOQUIUM_COUNT).fill(null),
             assignments: Array(ASSIGNMENTS_COUNT).fill(null),
             colloquiumIds: Array(COLLOQUIUM_COUNT).fill(null),
-          };
+            seminarIds: Array.from({ length: sessionItems.length }, () => null),
+            _nameParts: {
+              name: s.name,
+              surname: s.surname,
+              middleName: s.middleName,
+            },
+          } as Student & { _nameParts?: { name?: string; surname?: string; middleName?: string } };
         },
       );
 
@@ -414,37 +456,54 @@ export function TeacherCourseDetail({
       try {
         const colloquiumsResp =
           await listTaughtSubjectColloquiums(taughtSubjectId);
-        colloquiums = toArray(unwrap<any>(colloquiumsResp));
+        const rawColl = unwrap<any>(colloquiumsResp);
+        colloquiums = toArray(
+          rawColl?.colloquiums ?? rawColl?.Colloquiums ?? rawColl ?? [],
+        );
       } catch {
         colloquiums = [];
       }
 
-      // Apply classes data to students if available
       let enhancedStudents = mappedStudents;
       if (classesData.length > 0) {
         const byKey = new Map<string, any>();
 
         const normalize = (v: any) =>
-          String(v ?? "").toLowerCase().trim();
+          String(v ?? "")
+            .toLowerCase()
+            .trim();
+        const normalizeNoSpaces = (v: any) =>
+          normalize(v).replace(/\s+/g, "");
 
-        // Index classesData by several possible keys: studentId and studentFullName
         for (const data of classesData) {
-          const idKey = normalize(data?.studentId ?? data?.student?.id);
-          const nameKey = normalize(data?.studentFullName ?? data?.student?.fullName ?? data?.student?.name);
+          const idKey = normalize(
+            data?.studentId ?? data?.StudentId ?? data?.student?.id,
+          );
+          const nameKey = normalize(
+            data?.studentFullName ??
+              data?.StudentFullName ??
+              data?.student?.fullName ??
+              data?.student?.name,
+          );
           if (idKey) byKey.set(idKey, data);
           if (nameKey) byKey.set(nameKey, data);
+          const fullName =
+            data?.studentFullName ?? data?.StudentFullName ?? data?.student?.fullName ?? "";
+          if (nameKey) byKey.set(normalizeNoSpaces(fullName), data);
         }
 
-        console.log("Classes index keys:", Array.from(byKey.keys()));
-        console.log("Mapped students:", mappedStudents.map((s) => ({ id: normalize(s.id), name: normalize(s.name) })));
-
         enhancedStudents = mappedStudents.map((student) => {
+          const np = (student as any)._nameParts;
+          const nameSurnameOnly = [np?.name, np?.surname].filter(Boolean).join(" ");
           const candidateKeys = [
             normalize(student.id),
             normalize((student as any).studentId),
             normalize((student as any).userId),
             normalize((student as any).user?.id),
             normalize(student.name),
+            normalize(nameSurnameOnly),
+            normalizeNoSpaces(student.name),
+            normalizeNoSpaces(nameSurnameOnly),
           ].filter(Boolean);
 
           let classesForStudent: any = null;
@@ -456,44 +515,56 @@ export function TeacherCourseDetail({
           }
 
           if (!classesForStudent) {
-            console.log(`No classes found for student ${student.name} (keys: ${candidateKeys.join(",")})`);
             return student;
           }
 
-          const classes = toArray(classesForStudent.classes ?? classesForStudent?.classesList ?? []);
-          console.log(`Found ${classes.length} classes for student ${student.name}`);
+          const classes = toArray(
+            classesForStudent.classes ??
+              classesForStudent?.Classes ??
+              classesForStudent?.classesList ??
+              [],
+          );
 
-          // Build attendance aligned to the `sessions` (sessionItems) length
-          console.log(`Building attendance for ${student.name}: ${classes.length} classes, ${sessionItems.length} sessions`);
-          
           const attendanceAligned = sessionItems.map((session, i) => {
             const cls = classes[i];
-            console.log(`  Session ${i}: class=${JSON.stringify(cls)}`);
-            
+
             if (cls) {
-              const result: { attendance: "present" | "absent"; grade: number | null } = {
-                attendance: cls.isPresent === true ? "present" : "absent",
-                grade: cls.grade ?? null,
+              const isPresent = cls.isPresent ?? cls.IsPresent;
+              const gradeVal = cls.grade ?? cls.Grade;
+              const result: {
+                attendance: "present" | "absent";
+                grade: number | null;
+              } = {
+                attendance: isPresent === false ? "present" : "absent",
+                grade: gradeVal !== undefined && gradeVal !== null ? Number(gradeVal) : null,
               };
-              console.log(`    -> attendance record: ${JSON.stringify(result)}`);
               return result;
             }
 
-            // fallback to whatever existing data we have for this index
             const existing = student.activityAttendance?.[i];
-            if (existing && (existing.attendance === "present" || existing.attendance === "absent")) {
+            if (
+              existing &&
+              (existing.attendance === "present" ||
+                existing.attendance === "absent")
+            ) {
               return existing;
             }
 
-            const fallback: { attendance: "present" | "absent"; grade: number | null } = { attendance: "present", grade: null };
+            const fallback: {
+              attendance: "present" | "absent";
+              grade: number | null;
+            } = { attendance: "present", grade: null };
             return fallback;
           });
 
-          console.log(`Final attendance array for ${student.name}:`, attendanceAligned);
+          const seminarIdsAligned = sessionItems.map(
+            (_, i) => classes[i]?.seminarId ?? classes[i]?.SeminarId ?? null,
+          );
 
           return {
             ...student,
             activityAttendance: attendanceAligned,
+            seminarIds: seminarIdsAligned,
           };
         });
       }
@@ -505,7 +576,6 @@ export function TeacherCourseDetail({
       toast.error(e?.message ?? "Failed to load course data");
       setStudents([]);
       setCourseTitle("");
-      // don't overwrite courseHours on error; keep initialHours if present
       setSessions([]);
     } finally {
       setIsLoading(false);
@@ -516,10 +586,12 @@ export function TeacherCourseDetail({
     try {
       const colloquiumsResp =
         await listTaughtSubjectColloquiums(taughtSubjectId);
-      const colloquiums = toArray(unwrap<any>(colloquiumsResp));
+      const rawColl = unwrap<any>(colloquiumsResp);
+      const colloquiums = toArray(
+        rawColl?.colloquiums ?? rawColl?.Colloquiums ?? rawColl ?? [],
+      );
       setStudents((prev) => applyColloquiumsToStudents(prev, colloquiums));
     } catch (e) {
-      // Non-fatal; keep UI working
       console.error(e);
     }
   };
@@ -529,28 +601,78 @@ export function TeacherCourseDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taughtSubjectId]);
 
-  const updateActivityAttendance = (
+  const updateActivityAttendance = async (
     studentId: string | number,
     sessionIndex: number,
     value: string,
   ) => {
-    setStudents(
-      students.map((student) => {
-        if (String(student.id) === String(studentId)) {
-          const newData = [...student.activityAttendance];
-          if (value === "absent") {
-            newData[sessionIndex] = { attendance: "absent", grade: null };
-          } else if (value === "present") {
-            newData[sessionIndex] = { attendance: "present", grade: null };
-          } else {
-            const grade = parseInt(value);
-            newData[sessionIndex] = { attendance: "present", grade };
-          }
-          return { ...student, activityAttendance: newData };
-        }
-        return student;
-      }),
+    const studentIdStr = String(studentId);
+    const session = sessions[sessionIndex];
+    const isSeminarGrade =
+      session?.type === "S" &&
+      value !== "present" &&
+      value !== "absent" &&
+      !Number.isNaN(parseInt(value, 10));
+
+    const newAttendance = (student: Student) => {
+      const newData = [...student.activityAttendance];
+      if (value === "absent") {
+        newData[sessionIndex] = { attendance: "absent", grade: null };
+      } else if (value === "present") {
+        newData[sessionIndex] = { attendance: "present", grade: null };
+      } else {
+        const grade = parseInt(value, 10);
+        newData[sessionIndex] = { attendance: "present", grade };
+      }
+      return newData;
+    };
+
+    setStudents((prev) =>
+      prev.map((s) =>
+        String(s.id) === studentIdStr
+          ? { ...s, activityAttendance: newAttendance(s) }
+          : s,
+      ),
     );
+
+    if (!isSeminarGrade) return;
+
+    const grade = parseInt(value, 10);
+    if (grade < 0 || grade > 10) return;
+
+    const currentStudent = students.find((s) => String(s.id) === studentIdStr);
+    let seminarId: string | null =
+      currentStudent?.seminarIds?.[sessionIndex] ?? null;
+
+    try {
+      if (seminarId) {
+        await updateSeminarGrade(studentIdStr, seminarId, grade);
+      } else {
+        const createRes = await createSeminar({
+          studentId: studentIdStr,
+          taughtSubjectId,
+        });
+        const createdId =
+          (createRes as any)?.id ??
+          (createRes as any)?.data ??
+          (createRes as any)?.Id ??
+          (createRes as any)?.seminarId;
+        if (typeof createdId === "string" && createdId) {
+          seminarId = createdId;
+          await updateSeminarGrade(studentIdStr, seminarId, grade);
+          setStudents((prev) =>
+            prev.map((s) => {
+              if (String(s.id) !== studentIdStr) return s;
+              const ids = [...(s.seminarIds ?? Array(sessions.length).fill(null))];
+              ids[sessionIndex] = seminarId;
+              return { ...s, seminarIds: ids };
+            }),
+          );
+        }
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save seminar grade");
+    }
   };
 
   const updateColloquium = async (
@@ -563,7 +685,6 @@ export function TeacherCourseDetail({
     const currentColloquiumId =
       currentStudent?.colloquiumIds?.[colloquiumIndex] ?? null;
 
-    // Optimistic UI update
     setStudents((prev) =>
       prev.map((student) => {
         if (String(student.id) === studentIdStr) {
@@ -572,7 +693,6 @@ export function TeacherCourseDetail({
           const newIds = [
             ...(student.colloquiumIds ?? Array(COLLOQUIUM_COUNT).fill(null)),
           ];
-          // keep the old id until refresh (or clear if grade removed)
           newIds[colloquiumIndex] =
             grade === null ? null : newIds[colloquiumIndex];
           return {
@@ -591,14 +711,12 @@ export function TeacherCourseDetail({
           await deleteColloquium(String(currentColloquiumId));
         }
       } else if (currentColloquiumId) {
-        // Update existing colloquium grade
         await updateColloquiumGrade(
           studentIdStr,
           String(currentColloquiumId),
           grade,
         );
       } else {
-        // Create new colloquium record
         await createColloquium({
           taughtSubjectId,
           studentId: studentIdStr,
@@ -611,7 +729,6 @@ export function TeacherCourseDetail({
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "Failed to update colloquium");
-      // Best-effort resync
       await refreshColloquiums();
     }
   };
@@ -626,7 +743,6 @@ export function TeacherCourseDetail({
           const newAssignments = [...student.assignments];
           const current = newAssignments[assignmentIndex];
           if (current === null) {
-            // Cycle: null -> 1 -> 0 -> null
             newAssignments[assignmentIndex] = 1;
           } else if (current === 1) {
             newAssignments[assignmentIndex] = 0;
@@ -665,12 +781,63 @@ export function TeacherCourseDetail({
   }) => {
     if (!data) return "present";
     if (data.attendance === "absent") return "absent";
-    if (data.grade !== null && data.grade !== undefined) return data.grade.toString();
+    if (data.grade !== null && data.grade !== undefined)
+      return data.grade.toString();
     return "present";
   };
 
+  const looksLikeStudentGuid = (id: string | number): boolean => {
+    const s = String(id ?? "");
+    return s.length > 30 && s.includes("-");
+  };
+
+  const sendActivityAttendance = async () => {
+    if (sessions.length === 0 || students.length === 0) {
+      toast.info("No sessions or students to save");
+      return;
+    }
+    const withGuid = students.some((s) => looksLikeStudentGuid(s.id));
+    if (!withGuid) {
+      toast.error(
+        "Saving attendance is not available: the server expects a student ID that is not provided by the current API. Please contact your administrator.",
+      );
+      return;
+    }
+    setIsSendingAttendance(true);
+    let ok = 0;
+    let err = 0;
+    try {
+      for (const student of students) {
+        if (!looksLikeStudentGuid(student.id)) continue;
+        for (let idx = 0; idx < student.activityAttendance.length; idx++) {
+          const cell = student.activityAttendance[idx];
+          if (cell?.attendance !== "absent") continue;
+          const session = sessions[idx];
+          if (!session?.id) continue;
+          try {
+            await markStudentAbsence(
+              String(student.id),
+              String(session.id),
+              taughtSubjectId,
+            );
+            ok += 1;
+          } catch {
+            err += 1;
+          }
+        }
+      }
+      if (ok > 0) toast.success(`Saved ${ok} absence(s)`);
+      if (err > 0) toast.error(`Failed to save ${err} absence(s)`);
+      if (ok === 0 && err === 0) toast.info("No absences to save");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save attendance");
+    } finally {
+      setIsSendingAttendance(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -690,19 +857,23 @@ export function TeacherCourseDetail({
           <Users className="h-5 w-5 text-muted-foreground" />
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">Students</span>
-            <span className="font-medium">{students.length || initialStudentCount || 0}</span>
+            <span className="font-medium">
+              {students.length || initialStudentCount || 0}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-muted-foreground" />
           <div className="flex flex-col">
             <span className="text-sm text-muted-foreground">Hours</span>
-            <span className="font-medium">{courseHours !== undefined ? courseHours : "—"}</span>
+            <span className="font-medium">
+              {courseHours !== undefined ? courseHours : "—"}
+            </span>
           </div>
         </div>
       </div>
 
-      <Tabs defaultValue="activity" className="w-full">
+      <Tabs defaultValue="activity" className="w-full min-w-0 overflow-hidden">
         <TabsList>
           <TabsTrigger value="activity">Activity/Attendance</TabsTrigger>
           <TabsTrigger value="colloquium">Colloquium</TabsTrigger>
@@ -710,23 +881,23 @@ export function TeacherCourseDetail({
         </TabsList>
 
         <TabsContent value="activity" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+          <Card className="w-full min-w-0 overflow-hidden">
+            <CardHeader className="flex-shrink-0 space-y-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <CardTitle>Activity & Attendance Tracking</CardTitle>
                   <CardDescription>
                     Mark attendance and grades for each session
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
                   <Select
                     value={selectedColumn?.toString() || ""}
                     onValueChange={(v: string) =>
                       setSelectedColumn(v ? parseInt(v, 10) : null)
                     }
                   >
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full min-w-[140px] sm:w-[180px]">
                       <SelectValue placeholder="Select a class" />
                     </SelectTrigger>
                     <SelectContent>
@@ -742,7 +913,7 @@ export function TeacherCourseDetail({
                     onValueChange={(value: string) => applyBulkValue(value)}
                     disabled={selectedColumn === null}
                   >
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-full min-w-[120px] sm:w-[140px]">
                       <SelectValue placeholder="Bulk value" />
                     </SelectTrigger>
                     <SelectContent>
@@ -757,14 +928,30 @@ export function TeacherCourseDetail({
                       )}
                     </SelectContent>
                   </Select>
-                  <Button variant="default" size="sm">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={sendActivityAttendance}
+                    disabled={
+                      isSendingAttendance ||
+                      students.length === 0 ||
+                      sessions.length === 0 ||
+                      !students.some((s) => looksLikeStudentGuid(s.id))
+                    }
+                    title={
+                      !students.some((s) => looksLikeStudentGuid(s.id))
+                        ? "Server requires student ID (GUID); not provided by current API."
+                        : undefined
+                    }
+                  >
                     <Send className="h-4 w-4 mr-2" />
-                    Send
+                    {isSendingAttendance ? "Saving…" : "Send"}
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="min-w-0 p-0">
               <div className="relative overflow-x-auto border rounded-md">
                 <div className="inline-block min-w-full align-middle">
                   <div className="overflow-hidden">
@@ -856,12 +1043,19 @@ export function TeacherCourseDetail({
                 <div>
                   <CardTitle>Colloquium Scores</CardTitle>
                   <CardDescription>
-                    Mini exams scored 0-10 (3 per semester)
+                    Mini exams scored 0-10 (3 per semester). Changes save when you select a grade.
                   </CardDescription>
                 </div>
-                <Button variant="default" size="sm">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={async () => {
+                    await refreshColloquiums();
+                    toast.success("Colloquium data refreshed");
+                  }}
+                >
                   <Send className="h-4 w-4 mr-2" />
-                  Send
+                  Refresh
                 </Button>
               </div>
             </CardHeader>
@@ -930,10 +1124,14 @@ export function TeacherCourseDetail({
                 <div>
                   <CardTitle>Assignments</CardTitle>
                   <CardDescription>
-                    10 assignments per semester (click to toggle: ✓ / ✗ / -)
+                    10 assignments per semester (click to toggle: ✓ / ✗ / -). Saved locally only.
                   </CardDescription>
                 </div>
-                <Button variant="default" size="sm">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => toast.info("Assignments are saved locally only")}
+                >
                   <Send className="h-4 w-4 mr-2" />
                   Send
                 </Button>
