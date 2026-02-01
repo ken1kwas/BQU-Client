@@ -135,7 +135,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
             </Avatar>
             <div className="flex-1">
               <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-                <h2>{loading ? "Загрузка…" : fullName}</h2>
+                <h2>{loading ? "Loading..." : fullName}</h2>
                 <Badge variant="default">{info.status}</Badge>
               </div>
               <div className="space-y-1 text-muted-foreground">

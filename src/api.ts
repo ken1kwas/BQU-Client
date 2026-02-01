@@ -460,6 +460,12 @@ export function listTaughtSubjectColloquiums(id: string) {
   );
 }
 
+export function listTaughtSubjectClasses(id: string) {
+  return apiJson<any>(
+    `/api/taught-subjects/${encodeURIComponent(id)}/classes`,
+  );
+}
+
 export function createTaughtSubject(req: {
   code: string;
   title: string;
