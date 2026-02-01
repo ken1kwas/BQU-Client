@@ -23,10 +23,10 @@ function pick(obj: AnyObj | null | undefined, keys: string[]): any {
 
 function unwrapProfile(resp: any, role: "student" | "teacher" | "dean"): AnyObj {
   if (!resp) return {};
-  // Backend envelopes like: { deanProfile: {...}, isSucceeded, ... }
-  if (role === "dean") return resp.deanProfile ?? resp.profile ?? resp;
-  if (role === "teacher") return resp.teacherProfile ?? resp.teacherAcademicInfo ?? resp.profile ?? resp;
-  return resp.studentProfile ?? resp.studentAcademicInfoDto ?? resp.profile ?? resp;
+  const inner = resp.data ?? resp;
+  if (role === "dean") return inner.deanProfile ?? inner.profile ?? inner;
+  if (role === "teacher") return inner.teacherProfile ?? inner.teacherAcademicInfo ?? inner.profile ?? inner;
+  return inner.studentProfile ?? inner.studentAcademicInfoDto ?? inner.profile ?? inner;
 }
 
 function formatDate(value: any): string {

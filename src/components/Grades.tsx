@@ -146,13 +146,14 @@ function normalizeGradeCourse(raw: any, index: number): GradeCourse {
 
 function normalizeGradesResponse(raw: any): GradeCourse[] {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map(normalizeGradeCourse);
-  if (Array.isArray(raw?.courses)) {
-    return raw.courses.map((item: any, idx: number) =>
+  const payload = raw.data !== undefined ? raw.data : raw;
+  if (Array.isArray(payload)) return payload.map(normalizeGradeCourse);
+  if (Array.isArray(payload?.courses)) {
+    return payload.courses.map((item: any, idx: number) =>
       normalizeGradeCourse(item, idx),
     );
   }
-  const list = toArray(raw);
+  const list = toArray(payload);
   return list.map((item: any, idx: number) => normalizeGradeCourse(item, idx));
 }
 
