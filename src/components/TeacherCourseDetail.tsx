@@ -49,6 +49,7 @@ import {
   getGroup,
   filterStudents,
   markStudentAbsence,
+  markIndependentWorkGrade,
 } from "../api";
 
 interface Student {
@@ -62,6 +63,7 @@ interface Student {
   assignments: (0 | 1 | null)[];
   colloquiumIds?: (string | null)[];
   seminarIds?: (string | null)[];
+  assignmentIds?: (string | null)[];
 }
 
 interface CourseSession {
@@ -172,6 +174,7 @@ export function TeacherCourseDetail({
   const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSendingAttendance, setIsSendingAttendance] = useState<boolean>(false);
+  const [isSendingAssignments, setIsSendingAssignments] = useState<boolean>(false);
 
   const applyColloquiumsToStudents = (
     baseStudents: Student[],
@@ -818,7 +821,6 @@ export function TeacherCourseDetail({
             await markStudentAbsence(
               String(student.id),
               String(session.id),
-              taughtSubjectId,
             );
             ok += 1;
           } catch {
@@ -833,6 +835,40 @@ export function TeacherCourseDetail({
       toast.error(e?.message ?? "Failed to save attendance");
     } finally {
       setIsSendingAttendance(false);
+    }
+  };
+
+  const sendAssignments = async () => {
+    setIsSendingAssignments(true);
+    let ok = 0;
+    let err = 0;
+    try {
+      for (const student of students) {
+        if (!looksLikeStudentGuid(student.id)) continue;
+        for (let idx = 0; idx < student.assignments.length; idx++) {
+          const assignment = student.assignments[idx];
+          if (assignment === null) continue;
+          const assignmentId = student.assignmentIds?.[idx];
+          if (!assignmentId) continue;
+          try {
+            await markIndependentWorkGrade(
+              String(student.id),
+              String(assignmentId),
+              assignment === 1,
+            );
+            ok += 1;
+          } catch {
+            err += 1;
+          }
+        }
+      }
+      if (ok > 0) toast.success(`Saved ${ok} assignment(s)`);
+      if (err > 0) toast.error(`Failed to save ${err} assignment(s)`);
+      if (ok === 0 && err === 0) toast.info("No assignments to save");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save assignments");
+    } finally {
+      setIsSendingAssignments(false);
     }
   };
 
@@ -1124,16 +1160,17 @@ export function TeacherCourseDetail({
                 <div>
                   <CardTitle>Assignments</CardTitle>
                   <CardDescription>
-                    10 assignments per semester (click to toggle: ✓ / ✗ / -). Saved locally only.
+                    10 assignments per semester (click to toggle: ✓ / ✗ / -).
                   </CardDescription>
                 </div>
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => toast.info("Assignments are saved locally only")}
+                  onClick={sendAssignments}
+                  disabled={isSendingAssignments}
                 >
                   <Send className="h-4 w-4 mr-2" />
-                  Send
+                  {isSendingAssignments ? "Saving…" : "Send"}
                 </Button>
               </div>
             </CardHeader>

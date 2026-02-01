@@ -247,14 +247,21 @@ export async function getStudentGrades(scope: string) {
 export function markStudentAbsence(
   studentId: string,
   classId: string,
-  taughtSubjectId?: string,
 ) {
-  const qs = taughtSubjectId
-    ? `?taughtSubjectId=${encodeURIComponent(taughtSubjectId)}`
-    : "";
   return apiJson<any>(
-    `/api/students/${encodeURIComponent(studentId)}/classes/${encodeURIComponent(classId)}/mark-absence${qs}`,
+    `/api/students/${encodeURIComponent(studentId)}/classes/${encodeURIComponent(classId)}/mark-absence`,
     { method: "PUT" },
+  );
+}
+
+export function markIndependentWorkGrade(
+  studentId: string,
+  independentWorkId: string,
+  isPassed: boolean,
+) {
+  return apiJson<any>(
+    `/api/students/${encodeURIComponent(studentId)}/independent-works/${encodeURIComponent(independentWorkId)}/grade`,
+    { method: "PUT", json: { isPassed } },
   );
 }
 
