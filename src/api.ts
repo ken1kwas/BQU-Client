@@ -228,6 +228,13 @@ export async function signIn(username: string, password: string) {
   return res;
 }
 
+export function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("jwt");
+  localStorage.removeItem("tokenExpiry");
+}
+
 export async function getStudentDashboard() {
   return apiJson<any>("/api/students/dashboard");
 }

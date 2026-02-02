@@ -20,6 +20,7 @@ import {
   GraduationCap,
   BookOpen,
   Settings,
+  LogOut,
 } from "lucide-react";
 import { Dashboard } from "./components/Dashboard";
 import { Schedule } from "./components/Schedule";
@@ -35,7 +36,7 @@ import { Toaster } from "./components/ui/sonner";
 
 // Import the login page and API helpers
 import LoginPage from "./LoginPage";
-import { getStudentProfile, getTeacherProfile, getDeanProfile } from "./api";
+import { getStudentProfile, getTeacherProfile, getDeanProfile, logout } from "./api";
 
 const DEV_BYPASS_LOGIN = false;
 
@@ -112,6 +113,14 @@ export default function App() {
 
   const handleBackToCourses = () => {
     setSelectedCourse(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setToken(null);
+    setUserRole(undefined);
+    setSelectedCourse(null);
+    setActiveView("dashboard");
   };
 
   // Resolve the user's role from the backend based on the stored
@@ -280,15 +289,15 @@ export default function App() {
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <GraduationCap className="h-6 w-6" />
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col flex-1">
                 <span className="text-base font-semibold">EduLMS</span>
                 <span className="text-sm text-muted-foreground">
                   Learning Management
                 </span>
               </div>
             </div>
-            {handleRoleSwitch && (
-              <div className="mt-4">
+            <div className="mt-4 space-y-2">
+              {handleRoleSwitch && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -304,8 +313,17 @@ export default function App() {
                         : "Dean"}
                   </Badge>
                 </Button>
-              </div>
-            )}
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Çıxış
+              </Button>
+            </div>
           </SidebarHeader>
 
           <SidebarContent>
