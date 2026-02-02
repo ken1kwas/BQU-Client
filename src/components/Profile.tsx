@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Separator } from "./ui/separator";
-import { Mail, Phone, Calendar, IdCard, Building, Award } from "lucide-react";
+import { Mail, Phone, Calendar, IdCard, Building, Award, LogOut } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { getStudentProfile, getTeacherProfile, getDeanProfile } from "../api";
+import { Button } from "./ui/button";
+import { getStudentProfile, getTeacherProfile, getDeanProfile, logout } from "../api";
 
 interface ProfileProps {
   userRole?: "student" | "teacher" | "dean";
@@ -114,13 +115,29 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
     .map((p) => p[0]?.toUpperCase())
     .join("") || "U";
 
+  const handleLogout = () => {
+    logout();
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="mb-2">{isDean ? "Dean Profile" : isTeacher ? "Teacher Profile" : "Student Profile"}</h1>
-        <p className="text-muted-foreground">
-          View and manage your profile information
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="mb-2">{isDean ? "Dean Profile" : isTeacher ? "Teacher Profile" : "Student Profile"}</h1>
+          <p className="text-muted-foreground">
+            View and manage your profile information
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleLogout}
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Çıxış
+        </Button>
       </div>
 
       {error && <p className="text-destructive">{error}</p>}
