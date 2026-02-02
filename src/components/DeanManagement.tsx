@@ -1117,6 +1117,7 @@ export function DeanManagement() {
                           <Input
                             id="course-code"
                             placeholder="e.g., MAT-AN"
+                            maxLength={20}
                             value={courseForm.code || ""}
                             onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
                           />
@@ -1126,6 +1127,7 @@ export function DeanManagement() {
                           <Input
                             id="course-title"
                             placeholder="e.g., Mat. Analiz"
+                            maxLength={100}
                             value={courseForm.title || ""}
                             onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
                           />
@@ -1197,9 +1199,20 @@ export function DeanManagement() {
                           <Input
                             id="course-credits"
                             type="number"
+                            min="0"
                             placeholder="e.g., 5"
                             value={courseForm.credits || ""}
-                            onChange={(e) => setCourseForm({ ...courseForm, credits: parseInt(e.target.value) })}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "") {
+                                setCourseForm({ ...courseForm, credits: undefined });
+                                return;
+                              }
+                              const numValue = parseInt(value, 10);
+                              if (!isNaN(numValue) && numValue >= 0) {
+                                setCourseForm({ ...courseForm, credits: numValue });
+                              }
+                            }}
                           />
                         </div>
                       </div>
@@ -1209,9 +1222,20 @@ export function DeanManagement() {
                           <Input
                             id="course-hours"
                             type="number"
+                            min="0"
                             placeholder="e.g., 60"
                             value={courseForm.hours || ""}
-                            onChange={(e) => setCourseForm({ ...courseForm, hours: parseInt(e.target.value) })}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "") {
+                                setCourseForm({ ...courseForm, hours: undefined });
+                                return;
+                              }
+                              const numValue = parseInt(value, 10);
+                              if (!isNaN(numValue) && numValue >= 0) {
+                                setCourseForm({ ...courseForm, hours: numValue });
+                              }
+                            }}
                           />
                         </div>
                         <div className="space-y-2">
@@ -1456,6 +1480,7 @@ export function DeanManagement() {
                         <Input
                             id="group-code"
                             placeholder="e.g., CS-50"
+                            maxLength={20}
                             value={groupForm.code || groupForm.groupCode || ""}
                             onChange={(e) =>
                                 setGroupForm({ ...groupForm, code: e.target.value, groupCode: e.target.value })
