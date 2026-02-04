@@ -397,13 +397,6 @@ export function DeanManagement() {
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [studentGroupFilter, setStudentGroupFilter] = useState<string>("all");
   const [studentYearFilter, setStudentYearFilter] = useState<string>("all");
-
-  const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
-  const teachersPerPage = 10;
-
-  const [teacherSearchQuery, setTeacherSearchQuery] = useState("");
-  const [teacherPositionFilter, setTeacherPositionFilter] = useState<string>("all");
-
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -657,59 +650,9 @@ export function DeanManagement() {
         });
         toast.success("Course updated successfully");
       } else {
-        if (courseForm.credits === undefined || courseForm.credits === null || courseForm.credits === 0) {
-          toast.error("Credits is required");
-          return;
-        }
-        if (courseForm.hours === undefined || courseForm.hours === null || courseForm.hours === 0) {
-          toast.error("Hours is required");
-          return;
-        }
-        if (courseForm.year === undefined || courseForm.year === null) {
-          toast.error("Year is required");
-          return;
-        }
-        if (courseForm.semester === undefined || courseForm.semester === null) {
-          toast.error("Semester is required");
-          return;
-        }
-
-        const validClassTimes = (courseForm.classTimes || [])
-          .filter((ct: any) => {
-            return ct.start && ct.end && ct.room && ct.room.trim() && ct.day && ct.frequency !== undefined;
-          })
-          .map((ct: any) => {
-            const startTime = ensureHHMMSS(ct.start);
-            const endTime = ensureHHMMSS(ct.end);
-            const day = Number(ct.day);
-            const room = String(ct.room).trim();
-            const frequency = Number(ct.frequency);
-
-            if (!startTime || startTime === "00:00:00" || !endTime || endTime === "00:00:00") {
-              throw new Error("Start and end times are required for class times");
-            }
-            if (!room) {
-              throw new Error("Room is required for class times");
-            }
-            if (!day || day < 1 || day > 7) {
-              throw new Error("Valid day (1-7) is required for class times");
-            }
-            if (!frequency || frequency < 1 || frequency > 3) {
-              throw new Error("Valid frequency (1-3) is required for class times");
-            }
-
-            return {
-              start: startTime,
-              end: endTime,
-              day: day,
-              room: room,
-              frequency: frequency,
-            };
-          });
-
-        const requestPayload = {
-          code: String(courseForm.code).trim(),
-          title: String(courseForm.title).trim(),
+        await createTaughtSubject({
+          code: courseForm.code,
+          title: courseForm.title,
           departmentId: String(courseForm.departmentId),
           teacherId: String(courseForm.teacherId),
           groupId: String(courseForm.groupId),
@@ -753,7 +696,6 @@ export function DeanManagement() {
 
   const handleSaveGroup = async () => {
     try {
-      const groupCode = groupForm.code || groupForm.groupCode;
       if (
         !groupCode ||
         !groupForm.specializationId ||
@@ -1063,7 +1005,7 @@ export function DeanManagement() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="courses" className="space-y-4">
+        <TabsContent value="rooms" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1392,6 +1334,450 @@ export function DeanManagement() {
                       <TableCell>{course.groupCode || "-"}</TableCell>
                       <TableCell>{course.credits}</TableCell>
                       <TableCell>{course.year || "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditCourse(course)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteCourse(course.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="teachers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Group Management</CardTitle>
+                  <CardDescription>
+                    Add, edit, or remove teacher information
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Dialog
+                    open={isTeacherFormatInfoOpen}
+                    onOpenChange={setIsTeacherFormatInfoOpen}
+                  >
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <Info className="h-4 w-4 mr-2" />
+                        Excel Format
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Teacher Excel Format</DialogTitle>
+                        <DialogDescription>
+                          Required columns for bulk teacher import
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Alert>
+                          <FileSpreadsheet className="h-4 w-4" />
+                          <AlertTitle>Required Columns</AlertTitle>
+                          <AlertDescription>
+                            Provide the columns below in this exact order.
+                          </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Name</span>
+                            <span className="text-sm text-muted-foreground">
+                              Abbas
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Surname</span>
+                            <span className="text-sm text-muted-foreground">
+                              Mehdiyev
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">MiddleName</span>
+                            <span className="text-sm text-muted-foreground">
+                              Ali
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">UserName</span>
+                            <span className="text-sm text-muted-foreground">
+                              K2L3MRW
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">DepartmentName</span>
+                            <span className="text-sm text-muted-foreground">
+                              Department of Science
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
+                            <span className="font-medium">Position</span>
+                            <span className="text-sm text-muted-foreground">
+                              1
+                            </span>
+                          </div>
+                        </div>
+                        <Alert>
+                          <Info className="h-4 w-4" />
+                          <AlertTitle>Important Notes</AlertTitle>
+                          <AlertDescription>
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                              <li>The first row must contain column headers</li>
+                              <li>
+                                DepartmentName must reference an existing
+                                department
+                              </li>
+                              <li>
+                                Position should match the backend enum value
+                              </li>
+                              <li>Accepted formats: .xlsx or .xls</li>
+                            </ul>
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsTeacherFormatInfoOpen(false)}
+                        >
+                          Close
+                        </Button>
+                        <Button onClick={downloadTeacherTemplate}>
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          Download Template
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Dialog
+                    open={isTeacherUploadDialogOpen}
+                    onOpenChange={setIsTeacherUploadDialogOpen}
+                  >
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Excel
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Upload Teachers from Excel</DialogTitle>
+                        <DialogDescription>
+                          Import multiple teachers via an Excel spreadsheet
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Alert>
+                          <Info className="h-4 w-4" />
+                          <AlertTitle>Before uploading</AlertTitle>
+                          <AlertDescription>
+                            Ensure your file follows the required column order
+                            or download the template first.
+                          </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-file">
+                            Select Excel File
+                          </Label>
+                          <Input
+                            id="teacher-file"
+                            type="file"
+                            accept=".xlsx,.xls"
+                            onChange={handleTeacherFileUpload}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsTeacherUploadDialogOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teachers.map((teacher) => (
+                    <TableRow key={teacher.id}>
+                      <TableCell className="font-medium">
+                        {teacher.name}
+                      </TableCell>
+                      <TableCell>{teacher.email}</TableCell>
+                      <TableCell>{teacher.department}</TableCell>
+                      <TableCell>{teacher.phone}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditTeacher(teacher)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTeacher(teacher.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="courses" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Course Management</CardTitle>
+                  <CardDescription>
+                    Add, edit, or remove course information
+                  </CardDescription>
+                </div>
+                <Dialog
+                  open={isCourseDialogOpen}
+                  onOpenChange={setIsCourseDialogOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button onClick={handleAddCourse}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Course
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingCourseId ? "Edit Course" : "Add New Course"}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {editingCourseId
+                          ? "Update course information"
+                          : "Enter details for the new course"}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="course-code">Course Code</Label>
+                        <Input
+                          id="course-code"
+                          placeholder="e.g., CS-101"
+                          value={courseForm.code || ""}
+                          onChange={(e) =>
+                            setCourseForm({
+                              ...courseForm,
+                              code: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="course-title">Course Title</Label>
+                        <Input
+                          id="course-title"
+                          placeholder="e.g., Introduction to Programming"
+                          value={courseForm.title || ""}
+                          onChange={(e) =>
+                            setCourseForm({
+                              ...courseForm,
+                              title: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="course-credits">Credits</Label>
+                        <Input
+                          id="course-credits"
+                          type="number"
+                          placeholder="e.g., 3"
+                          value={courseForm.credits || ""}
+                          onChange={(e) =>
+                            setCourseForm({
+                              ...courseForm,
+                              credits: parseInt(e.target.value) || 0,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="course-type">Course Type</Label>
+                        <Select
+                          value={courseForm.type || ""}
+                          onValueChange={(value: string) =>
+                            setCourseForm({ ...courseForm, type: value })
+                          }
+                        >
+                          <SelectTrigger id="course-type">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Lecture">Lecture</SelectItem>
+                            <SelectItem value="Seminar">Seminar</SelectItem>
+                            <SelectItem value="Laboratory">
+                              Laboratory
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="course-department">Department</Label>
+                        <Select
+                          value={courseForm.departmentId || ""}
+                          onValueChange={(value: string) => {
+                            const dept = departments.find(
+                              (d) => d.id.toString() === value,
+                            );
+                            setCourseForm({
+                              ...courseForm,
+                              departmentId: value,
+                              department: dept?.name,
+                            });
+                          }}
+                        >
+                          <SelectTrigger id="course-department">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departments.map((dept) => (
+                              <SelectItem
+                                key={dept.id}
+                                value={dept.id.toString()}
+                              >
+                                {dept.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="course-teacher">Teacher</Label>
+                        <Select
+                          value={courseForm.teacherId?.toString() || ""}
+                          onValueChange={(value: string) =>
+                            setCourseForm({
+                              ...courseForm,
+                              teacherId: parseInt(value),
+                            })
+                          }
+                        >
+                          <SelectTrigger id="course-teacher">
+                            <SelectValue placeholder="Select teacher" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teachers.map((teacher) => (
+                              <SelectItem
+                                key={teacher.id}
+                                value={teacher.id.toString()}
+                              >
+                                {teacher.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="course-group">Group</Label>
+                        <Select
+                          value={courseForm.groupId?.toString() || ""}
+                          onValueChange={(value: string) =>
+                            setCourseForm({
+                              ...courseForm,
+                              groupId: parseInt(value),
+                            })
+                          }
+                        >
+                          <SelectTrigger id="course-group">
+                            <SelectValue placeholder="Select group" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {groups.map((group) => (
+                              <SelectItem
+                                key={group.id}
+                                value={group.id.toString()}
+                              >
+                                {group.code}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCourseDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSaveCourse}>Save</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Teacher</TableHead>
+                    <TableHead>Group</TableHead>
+                    <TableHead>Credits</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {courses.map((course) => (
+                    <TableRow key={course.id}>
+                      <TableCell className="font-medium">
+                        {course.code}
+                      </TableCell>
+                      <TableCell>{course.title}</TableCell>
+                      <TableCell>{course.teacherName || "-"}</TableCell>
+                      <TableCell>{course.groupCode || "-"}</TableCell>
+                      <TableCell>{course.credits}</TableCell>
+                      <TableCell>{course.type}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
