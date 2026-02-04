@@ -899,46 +899,21 @@ export function DeanManagement() {
         toast.success("File uploaded successfully");
       }
 
-      // Обновляем список студентов после импорта
-      // Если GET /api/students не работает (500 ошибка), это проблема бэкенда
-      // Импорт прошел успешно, но список студентов получить не можем
-      // Пытаемся обновить список студентов, но не критично, если не получится
-      let studentsLoaded = false;
       try {
         const resp = await listStudents(1, 100);
         const studentsArray = toArray(resp);
         if (studentsArray.length > 0) {
           const mapped = studentsArray.map(mapStudentFromApi);
           setStudents(mapped);
-          studentsLoaded = true;
-          toast.success(`Import completed! Loaded ${mapped.length} students`);
-        } else {
-          // Список пустой, но импорт прошел успешно
-          toast.success("Import completed successfully! The student list is currently empty or the GET endpoint is not working properly.", {
-            duration: 5000,
-          });
         }
       } catch (listErr: any) {
-        // GET /api/students возвращает 500 ошибку - это проблема бэкенда
-        // Импорт прошел успешно, но получить список студентов не можем
-        // Пробуем альтернативный метод
         try {
           const resp = await filterStudents(undefined, undefined);
           const studentsArray = toArray(resp);
           if (studentsArray.length > 0) {
             setStudents(studentsArray.map(mapStudentFromApi));
-            studentsLoaded = true;
-            toast.success(`Import completed! Loaded ${studentsArray.length} students via filter endpoint`);
-          } else {
-            toast.success("Import completed successfully! However, the GET /api/students endpoint is returning 500 error. Please check backend logs or refresh the page.", {
-              duration: 7000,
-            });
           }
         } catch (filterErr) {
-          // Оба эндпоинта не работают - это проблема бэкенда
-          toast.success("Import completed successfully! However, both GET endpoints (/api/students and /api/students/filter-by) are returning 500 errors. Please check backend logs or refresh the page.", {
-            duration: 7000,
-          });
         }
       }
       setIsUploadDialogOpen(false);
