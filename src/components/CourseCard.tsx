@@ -41,19 +41,28 @@ export function CourseCard({ title, code, time, location, instructor, type, vari
               {topic}
             </div>
           )}
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            {userRole === "student" ? (
-              <>
-                <User className="h-3 w-3 shrink-0" />
-                <span>{instructor}</span>
-              </>
-            ) : (
-              <>
-                <Users className="h-3 w-3 shrink-0" />
-                <span>{group}</span>
-              </>
-            )}
-          </div>
+          {userRole === "teacher" && (
+            <>
+              {group && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Users className="h-3 w-3 shrink-0" />
+                  <span>{group}</span>
+                </div>
+              )}
+              {instructor && instructor !== "Not specified" && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <User className="h-3 w-3 shrink-0" />
+                  <span>{instructor}</span>
+                </div>
+              )}
+            </>
+          )}
+          {userRole === "student" && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <User className="h-3 w-3 shrink-0" />
+              <span>{instructor}</span>
+            </div>
+          )}
           <div className="space-y-1 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3 shrink-0" />
@@ -78,12 +87,10 @@ export function CourseCard({ title, code, time, location, instructor, type, vari
 
   return (
     <div className="p-3 rounded-lg border relative pb-10">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0 flex-wrap">
-            <span className="font-medium truncate">{title}</span>
-          </div>
-          <Badge variant={getTypeBadgeVariant(type)} className="shrink-0 px-4 py-1.5">{getTypeLabel(type)}</Badge>
+      <div className="space-y-2 pr-20">
+        <div className="flex items-start justify-between gap-2">
+          <span className="font-medium overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{title}</span>
+          <Badge variant={getTypeBadgeVariant(type)} className="shrink-0 px-4 py-1.5 text-xs">{getTypeLabel(type)}</Badge>
         </div>
         {topic && (
           <div className="text-sm text-muted-foreground italic">
@@ -99,7 +106,7 @@ export function CourseCard({ title, code, time, location, instructor, type, vari
           ) : (
             <>
               <Users className="h-3 w-3 shrink-0" />
-              <span>{group}</span>
+              <span>{group || instructor}</span>
             </>
           )}
         </div>

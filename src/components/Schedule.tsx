@@ -33,12 +33,12 @@ interface ScheduleEntry {
 
 const formatTimeValue = (value: any): string => {
   if (!value) return "";
-  
+
   const str = String(value).trim();
-  
+
   // If already formatted with AM/PM, return as is
   if (str.includes("AM") || str.includes("PM")) return str;
-  
+
   // Try to parse as ISO datetime string (e.g., "2025-01-25T14:30:00")
   if (str.includes("T")) {
     try {
@@ -54,7 +54,7 @@ const formatTimeValue = (value: any): string => {
       // Fall through to time parsing
     }
   }
-  
+
   // Parse as time string (HH:MM or HH:MM:SS)
   const parts = str.split(":");
   if (parts.length >= 2) {
@@ -65,13 +65,13 @@ const formatTimeValue = (value: any): string => {
     const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
     return `${displayHour}:${minutes} ${ampm}`;
   }
-  
+
   return str;
 };
 
 const toTimeRange = (start: any, end: any): string => {
   if (!start && !end) return "";
-  
+
   const from = formatTimeValue(start);
   const to = formatTimeValue(end);
   if (from && to) return `${from} - ${to}`;
@@ -102,28 +102,39 @@ const titleCase = (value: string): string => {
 };
 
 const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
-  const start =
-    raw?.startTime ?? 
-    raw?.start ?? 
-    raw?.beginTime ?? 
+  let start =
+    raw?.startTime ??
+    raw?.start ??
+    raw?.beginTime ??
     raw?.timeStart ??
     raw?.classStartTime ??
     raw?.sessionStartTime ??
     raw?.periodStart ??
     raw?.startDateTime;
-  const end = 
-    raw?.endTime ?? 
-    raw?.end ?? 
-    raw?.finishTime ?? 
+  let end =
+    raw?.endTime ??
+    raw?.end ??
+    raw?.finishTime ??
     raw?.timeEnd ??
     raw?.classEndTime ??
     raw?.sessionEndTime ??
     raw?.periodEnd ??
     raw?.endDateTime;
 
-  const location = pickString(
+  if (raw?.period && !start) {
+    try {
+      const periodDate = new Date(raw.period);
+      if (!isNaN(periodDate.getTime())) {
+        start = periodDate.toISOString();
+        const endDate = new Date(periodDate);
+        endDate.setMinutes(endDate.getMinutes() + 90);
+        end = endDate.toISOString();
+      }
+    } catch (e) {}
+  }
+
+  let location = pickString(
     raw?.location,
-    raw?.room,
     raw?.roomName,
     raw?.roomCode,
     raw?.roomNumber,
@@ -138,25 +149,63 @@ const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
     raw?.room?.name,
   );
 
+  if (!location && raw?.room && typeof raw.room === "string") {
+    if (raw.room.length > 10) {
+      location = raw.room;
+    } else {
+      location = raw.room;
+    }
+  }
+
   const typeRaw = pickString(
     raw?.type,
     raw?.classType,
     raw?.lessonType,
     raw?.sessionType,
     raw?.format,
-  ).toLowerCase();
+  )
+    .toLowerCase()
+    .trim();
 
-  const id =
-    pickString(
-      raw?.id,
-      raw?.classId,
-      raw?.scheduleId,
-      raw?.sessionId,
-      raw?.entryId,
-    ) || `entry-${index}`;
+  let normalizedType = "lecture";
+  if (
+    typeRaw === "l" ||
+    typeRaw.startsWith("lecture") ||
+    typeRaw.startsWith("лекция")
+  ) {
+    normalizedType = "lecture";
+  } else if (
+    typeRaw === "s" ||
+    typeRaw.startsWith("seminar") ||
+    typeRaw.startsWith("семинар")
+  ) {
+    normalizedType = "seminar";
+  } else if (typeRaw.startsWith("lab") || typeRaw.startsWith("практика")) {
+    normalizedType = "lab";
+  } else if (typeRaw) {
+    normalizedType = typeRaw;
+  }
+
+  let id = pickString(
+    raw?.id,
+    raw?.classId,
+    raw?.scheduleId,
+    raw?.sessionId,
+    raw?.entryId,
+  );
+
+  const periodStr = raw?.period ? String(raw.period) : "";
+  const nameStr = pickString(raw?.name, raw?.title, raw?.courseName) || "";
+  const codeStr = pickString(raw?.code, raw?.courseCode) || "";
+
+  if (!id || (periodStr && id)) {
+    id = `${id || `entry-${index}`}-${periodStr}-${normalizedType}-${nameStr}-${codeStr}`;
+  } else if (periodStr) {
+    id = `${id}-${periodStr}-${normalizedType}`;
+  }
 
   return {
-    id,
+    id: id || `entry-${index}`,
     title: pickString(
       raw?.title,
       raw?.course,
@@ -173,11 +222,12 @@ const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
     ),
     time: pickString(raw?.time, toTimeRange(start, end)) || "",
     location: location || "—",
-    type: typeRaw || "lecture",
+    type: normalizedType,
     instructor: pickString(
       raw?.instructor,
       raw?.teacher,
       raw?.teacherName,
+      raw?.professor,
       raw?.lecturer,
       raw?.mentor,
     ),
@@ -198,13 +248,34 @@ const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
   };
 };
 
-const toScheduleEntries = (raw: any): ScheduleEntry[] =>
-  toArray(raw)
+const toScheduleEntries = (raw: any): ScheduleEntry[] => {
+  const entries = toArray(raw)
     .map((item, index) => toScheduleEntry(item, index))
     .filter(
       (entry) =>
         entry.title || entry.code || entry.time || entry.location !== "—",
     );
+
+  const seenKeys = new Set<string>();
+  const seenContentKeys = new Set<string>();
+
+  return entries.filter((entry) => {
+    const uniqueKey = `${entry.id}-${entry.time}-${entry.type}-${entry.title}-${entry.code}-${entry.location}`;
+    const contentKey = `${entry.time}-${entry.type}-${entry.title}-${entry.code}-${entry.location}-${entry.instructor}-${entry.group}`;
+
+    if (seenKeys.has(uniqueKey)) {
+      return false;
+    }
+
+    if (seenContentKeys.has(contentKey)) {
+      return false;
+    }
+
+    seenKeys.add(uniqueKey);
+    seenContentKeys.add(contentKey);
+    return true;
+  });
+};
 
 const toScheduleDay = (raw: any, index: number): ScheduleDay => {
   const classesRaw =
@@ -228,6 +299,83 @@ const toScheduleDay = (raw: any, index: number): ScheduleDay => {
 };
 
 const toWeekSchedule = (raw: any): ScheduleDay[] => {
+  if (raw?.teacherScheduleDto) {
+    raw = raw.teacherScheduleDto;
+  }
+
+  if (raw?.classes && Array.isArray(raw.classes)) {
+    const classesByDay = new Map<string, any[]>();
+    const dayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    for (const item of raw.classes) {
+      if (!item?.period) continue;
+      try {
+        const classDate = new Date(item.period);
+        const dayIndex = classDate.getDay();
+        const dayName = dayNames[dayIndex];
+
+        if (!classesByDay.has(dayName)) {
+          classesByDay.set(dayName, []);
+        }
+        classesByDay.get(dayName)!.push(item);
+      } catch {
+        continue;
+      }
+    }
+
+    const scheduleDays: ScheduleDay[] = [];
+    const today = new Date();
+    const currentWeekStart = new Date(today);
+    currentWeekStart.setDate(today.getDate() - today.getDay());
+
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(currentWeekStart);
+      dayDate.setDate(currentWeekStart.getDate() + i);
+      const dayName = dayNames[i];
+      const dayClasses = classesByDay.get(dayName) || [];
+
+      if (dayClasses.length > 0 || i === today.getDay()) {
+        const entries = toScheduleEntries(dayClasses);
+
+        entries.sort((a, b) => {
+          if (!a.time || !b.time) return 0;
+          return a.time.localeCompare(b.time);
+        });
+
+        scheduleDays.push({
+          day: dayName,
+          date: `${dayNamesShort[i]}, ${months[dayDate.getMonth()]} ${dayDate.getDate()}`,
+          classes: entries,
+        });
+      }
+    }
+
+    return scheduleDays.filter((day) => day.classes.length > 0);
+  }
+
   const candidates = [raw?.week, raw?.days, raw?.schedule, raw?.items, raw];
 
   for (const candidate of candidates) {
@@ -256,11 +404,61 @@ const toWeekSchedule = (raw: any): ScheduleDay[] => {
 };
 
 const toTodaySchedule = (raw: any): ScheduleEntry[] => {
-  const candidates = [raw, raw?.today, raw?.classes, raw?.items, raw?.schedule];
-  for (const candidate of candidates) {
-    const entries = toScheduleEntries(candidate);
-    if (entries.length > 0) return entries;
+  if (raw?.teacherScheduleDto) {
+    raw = raw.teacherScheduleDto;
   }
+
+  let classes = raw?.classes;
+  if (!classes && raw?.today) {
+    classes = raw;
+  }
+
+  if (Array.isArray(classes) && classes.length > 0) {
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDate = today.getDate();
+
+    const todayClasses = classes.filter((item: any) => {
+      if (!item?.period) return false;
+      try {
+        const classDate = new Date(item.period);
+        const classYear = classDate.getFullYear();
+        const classMonth = classDate.getMonth();
+        const classDay = classDate.getDate();
+
+        const isToday =
+          classYear === todayYear &&
+          classMonth === todayMonth &&
+          classDay === todayDate;
+
+        return isToday;
+      } catch {
+        return false;
+      }
+    });
+
+    const seenPeriods = new Set<string>();
+    const uniqueTodayClasses = todayClasses.filter((item: any) => {
+      if (!item?.period) return false;
+      const periodKey = `${item.period}-${item.name}-${item.code}-${item.classType}`;
+      if (seenPeriods.has(periodKey)) {
+        return false;
+      }
+      seenPeriods.add(periodKey);
+      return true;
+    });
+
+    const entries = toScheduleEntries(uniqueTodayClasses);
+
+    entries.sort((a, b) => {
+      if (!a.time || !b.time) return 0;
+      return a.time.localeCompare(b.time);
+    });
+
+    return entries;
+  }
+
   return [];
 };
 
@@ -300,8 +498,29 @@ interface ScheduleProps {
 
 const formatTodayDate = (): string => {
   const today = new Date();
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const dayName = days[today.getDay()];
   const month = months[today.getMonth()];
   const day = today.getDate();
@@ -332,16 +551,32 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
 
         if (!mounted) return;
 
-        setTodaySchedule(
-          Array.isArray(todayRaw)
-            ? toScheduleEntries(todayRaw)
-            : toTodaySchedule(todayRaw),
-        );
-        setWeekSchedule(
-          Array.isArray(weekRaw)
-            ? weekRaw.map((item, index) => toScheduleDay(item, index))
-            : toWeekSchedule(weekRaw),
-        );
+        let processedToday = todayRaw;
+        if (todayRaw?.teacherScheduleDto) {
+          processedToday = todayRaw.teacherScheduleDto;
+        } else if (todayRaw?.data?.teacherScheduleDto) {
+          processedToday = todayRaw.data.teacherScheduleDto;
+        } else if (todayRaw?.data) {
+          processedToday = todayRaw.data;
+        }
+
+        const todayEntries = toTodaySchedule(processedToday);
+        setTodaySchedule(todayEntries);
+
+        let processedWeek = weekRaw;
+        if (weekRaw?.teacherScheduleDto) {
+          processedWeek = weekRaw.teacherScheduleDto;
+        } else if (weekRaw?.data?.teacherScheduleDto) {
+          processedWeek = weekRaw.data.teacherScheduleDto;
+        } else if (weekRaw?.data) {
+          processedWeek = weekRaw.data;
+        }
+
+        const weekEntries = Array.isArray(processedWeek)
+          ? toWeekSchedule({ classes: processedWeek })
+          : toWeekSchedule(processedWeek);
+
+        setWeekSchedule(weekEntries);
       } catch (err: any) {
         if (mounted) setError(err.message || "Не удалось загрузить расписание");
       } finally {
@@ -437,9 +672,9 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                         No classes scheduled
                       </p>
                     ) : (
-                      day.classes.map((classItem) => (
+                      day.classes.map((classItem, idx) => (
                         <CourseCard
-                          key={classItem.id}
+                          key={`${day.day}-${classItem.id}-${idx}-${classItem.time}-${classItem.type}`}
                           title={classItem.title}
                           code={classItem.code}
                           time={classItem.time}

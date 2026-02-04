@@ -261,14 +261,44 @@ export function markStudentAbsence(
   );
 }
 
+export function createIndependentWork(
+  studentId: string,
+  taughtSubjectId: string,
+  dueDate: string, 
+) {
+  return apiJson<any>(
+    `/api/independent-works`,
+    { 
+      method: "POST", 
+      json: { 
+        studentId, 
+        taughtSubjectId, 
+        dueDate 
+      } 
+    },
+  );
+}
+
+export async function getIndependentWorkByStudentAndSubject(
+  studentId: string,
+  taughtSubjectId: string,
+) {
+  const raw = await apiJson<any>(
+    `/api/students/${encodeURIComponent(studentId)}/taught-subjects/${encodeURIComponent(taughtSubjectId)}/independent-works`,
+    { method: "GET" },
+  );
+  return unwrapApiResult(raw);
+}
+
 export function markIndependentWorkGrade(
   studentId: string,
   independentWorkId: string,
   isPassed: boolean,
 ) {
+  const q = new URLSearchParams({ isPassed: String(isPassed) });
   return apiJson<any>(
-    `/api/students/${encodeURIComponent(studentId)}/independent-works/${encodeURIComponent(independentWorkId)}/grade`,
-    { method: "PUT", json: { isPassed } },
+    `/api/students/${encodeURIComponent(studentId)}/independent-works/${encodeURIComponent(independentWorkId)}/grade?${q}`,
+    { method: "PUT" },
   );
 }
 
@@ -558,7 +588,10 @@ export function createColloquium(req: {
 
 // -------------------- SEMINARS --------------------
 export function createSeminar(req: { studentId: string; taughtSubjectId: string }) {
-  return apiJson<any>("/api/seminars", { method: "POST", json: req });
+  return apiJson<any>(
+    `/api/seminars/${encodeURIComponent(req.studentId)}/${encodeURIComponent(req.taughtSubjectId)}`,
+    { method: "POST" }
+  );
 }
 
 export function updateSeminarGrade(
@@ -566,9 +599,8 @@ export function updateSeminarGrade(
   seminarId: string,
   grade: number,
 ) {
-  const q = new URLSearchParams({ grade: String(grade) });
   return apiJson<any>(
-    `/api/students/${encodeURIComponent(studentId)}/seminars/${encodeURIComponent(seminarId)}/grade?${q}`,
+    `/api/students/${encodeURIComponent(studentId)}/seminars/${encodeURIComponent(seminarId)}/grade/${encodeURIComponent(grade)}?isPassed=${encodeURIComponent(grade)}`,
     { method: "PUT" },
   );
 }

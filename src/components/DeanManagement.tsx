@@ -841,8 +841,23 @@ export function DeanManagement() {
         toast.success("File uploaded successfully");
       }
 
-      const resp = await listStudents(1, 100);
-      setStudents(toArray(resp).map(mapStudentFromApi));
+      try {
+        const resp = await listStudents(1, 100);
+        const studentsArray = toArray(resp);
+        if (studentsArray.length > 0) {
+          const mapped = studentsArray.map(mapStudentFromApi);
+          setStudents(mapped);
+        }
+      } catch (listErr: any) {
+        try {
+          const resp = await filterStudents(undefined, undefined);
+          const studentsArray = toArray(resp);
+          if (studentsArray.length > 0) {
+            setStudents(studentsArray.map(mapStudentFromApi));
+          }
+        } catch (filterErr) {
+        }
+      }
       setIsUploadDialogOpen(false);
       event.target.value = "";
     } catch (error: any) {
