@@ -5,13 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { Button } from "./ui/button";
-import {
-  Clock,
-  MapPin,
-  Users2,
-  User,
-} from "lucide-react";
+import { Clock, MapPin, Users2, User } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { Label } from "./ui/label";
 import {
@@ -22,7 +16,13 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { listRooms, listGroups, listTaughtSubjects, getGroupSchedule, toArray } from "../api";
+import {
+  listRooms,
+  listGroups,
+  listTaughtSubjects,
+  getGroupSchedule,
+  toArray,
+} from "../api";
 
 interface ScheduleEntry {
   id: number;
@@ -49,12 +49,39 @@ const daysOfWeek = [
   "Saturday",
 ];
 
+const normalizeClassType = (value: any): string => {
+  if (value === undefined || value === null) return "lecture";
+  const raw = String(value).trim().toLowerCase();
+  if (!raw) return "lecture";
+
+  if (raw === "l" || raw.startsWith("lecture") || raw.startsWith("лекц")) {
+    return "lecture";
+  }
+  if (raw === "s" || raw.startsWith("seminar") || raw.startsWith("семин")) {
+    return "seminar";
+  }
+  if (
+    raw.startsWith("lab") ||
+    raw.startsWith("prac") ||
+    raw.startsWith("практ") ||
+    raw.startsWith("лабо")
+  ) {
+    return "lab";
+  }
+
+  return raw;
+};
+
+const getClassTypeLabel = (type: string): string => {
+  const normalized = normalizeClassType(type);
+  if (normalized === "lecture") return "Lecture";
+  if (normalized === "seminar") return "Seminar";
+  if (normalized === "lab") return "Lab";
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
 
 export function DeanSchedule() {
-  // Schedule entries remain local until backend endpoints exist.
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
-
-  // Dynamic lists for courses, rooms and groups loaded from the API.
   const [courses, setCourses] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
@@ -74,18 +101,17 @@ export function DeanSchedule() {
           listTaughtSubjects(1, 100),
         ]);
 
-        const roomItems = toArray(roomsResp).map(
-          (r: any) => ({
-            id: r.id,
-            name: r.roomName ?? r.name ?? "",
-          }),
-        );
+        const roomItems = toArray(roomsResp).map((r: any) => ({
+          id: r.id,
+          name: r.roomName ?? r.name ?? "",
+        }));
         const groupItems = toArray(groupsResp)
           .map((g: any) => {
             // Используем ту же логику, что и в DeanManagement
             const groupCode = g.groupCode ?? g.code ?? "";
             return {
-              id: g.id ?? g.groupId ?? g.groupID ?? g.Id ?? `group-${groupCode}`,
+              id:
+                g.id ?? g.groupId ?? g.groupID ?? g.Id ?? `group-${groupCode}`,
               code: groupCode,
               groupCode: groupCode, // Дублируем для совместимости
               year: g.year ?? g.yearOfAdmission ?? 0,
@@ -109,21 +135,17 @@ export function DeanSchedule() {
         setRooms(roomItems);
         setGroups(groupItems);
         setCourses(courseItems);
-        console.log("Loaded groups:", groupItems);
-        // Set initial selected group to first group
         if (groupItems.length > 0 && groupItems[0].code) {
           setSelectedGroup(groupItems[0].code);
-          console.log("Set initial group to:", groupItems[0].code);
-        } else {
-          console.warn("No groups loaded or first group has no code");
         }
-      } catch (err) {
-        console.error("Error fetching lists:", err);
+      } catch {
+        setRooms([]);
+        setGroups([]);
+        setCourses([]);
       }
     };
     fetchLists();
   }, []);
-
 
   const getEntriesForDay = (day: string) => {
     return scheduleEntries
@@ -140,7 +162,6 @@ export function DeanSchedule() {
     const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
     return `${displayHour}:${minutes} ${ampm}`;
   };
-
 
   // Function to safely get initial group
   useEffect(() => {
@@ -162,122 +183,201 @@ export function DeanSchedule() {
     const fetchSchedule = async () => {
       try {
         // Находим группу по коду, чтобы получить её ID
-        const group = groups.find((g) => (g.code || g.groupCode) === selectedGroup);
+        const group = groups.find(
+          (g) => (g.code || g.groupCode) === selectedGroup,
+        );
         if (!group || !group.id) {
-          console.warn("Group not found or has no ID:", selectedGroup);
           setScheduleEntries([]);
           return;
         }
 
-        console.log("Fetching schedule for group:", group.id, selectedGroup);
         const scheduleResp = await getGroupSchedule(group.id.toString());
-        console.log("Schedule response:", scheduleResp);
 
         let scheduleArray: any[] = [];
         if (scheduleResp?.groupSchedule?.classes) {
-          scheduleArray = Array.isArray(scheduleResp.groupSchedule.classes) 
-            ? scheduleResp.groupSchedule.classes 
+          scheduleArray = Array.isArray(scheduleResp.groupSchedule.classes)
+            ? scheduleResp.groupSchedule.classes
             : [];
         } else if (scheduleResp?.classes) {
-          scheduleArray = Array.isArray(scheduleResp.classes) ? scheduleResp.classes : [];
+          scheduleArray = Array.isArray(scheduleResp.classes)
+            ? scheduleResp.classes
+            : [];
         } else {
           scheduleArray = toArray(scheduleResp);
         }
 
-        console.log("Extracted schedule array:", scheduleArray);
+        const entries: ScheduleEntry[] = scheduleArray.map(
+          (item: any, index: number) => {
+            const courseName =
+              item.name ??
+              item.courseName ??
+              item.title ??
+              item.course?.title ??
+              item.course?.name ??
+              "";
+            const courseCode =
+              item.code ?? item.courseCode ?? item.course?.code ?? "";
 
-        const entries: ScheduleEntry[] = scheduleArray.map((item: any, index: number) => {
-          const courseName = item.name ?? item.courseName ?? item.title ?? item.course?.title ?? item.course?.name ?? "";
-          const courseCode = item.code ?? item.courseCode ?? item.course?.code ?? "";
-
-          let teacherName = item.professor ?? item.teacherName ?? "";
-          if (!teacherName && item.teacher) {
-            const teacherFullName = `${item.teacher.name ?? ""} ${item.teacher.surname ?? ""}`.trim();
-            teacherName = teacherFullName || "";
-          }
-
-          const room = item.room ?? {};
-          let roomName = item.roomName ?? item.room?.name ?? item.room?.roomName ?? "";
-          const rawRoomId = item.roomId ?? (typeof item.room === "number" || typeof item.room === "string" ? item.room : item.room?.id);
-          if ((!roomName || roomName.trim() === "") && rawRoomId != null && Array.isArray(rooms) && rooms.length > 0) {
-            const found = rooms.find((r: any) => {
-              if (r.id != null && rawRoomId != null && (r.id === rawRoomId || r.id === Number(rawRoomId))) return true;
-              const candidateName = (r.name ?? r.roomName ?? "").toString();
-              if (candidateName && (candidateName === rawRoomId || candidateName === String(rawRoomId))) return true;
-              return false;
-            });
-            if (found) roomName = found.name ?? found.roomName ?? "";
-          }
-          roomName = roomName || item.location || item.locationName || item.auditorium || item.auditoriumName || "";
-          const roomId = rawRoomId ?? item.room?.id ?? item.roomId ?? "";
-
-          let startTime = "";
-          let endTime = "";
-          let dayOfWeek = "Monday";
-          
-          if (item.period) {
-            try {
-              const periodDate = new Date(item.period);
-              if (!isNaN(periodDate.getTime())) {
-                const dayNum = periodDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-                const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                dayOfWeek = dayNames[dayNum] ?? "Monday";
-
-                const hours = periodDate.getHours().toString().padStart(2, "0");
-                const minutes = periodDate.getMinutes().toString().padStart(2, "0");
-                const seconds = periodDate.getSeconds().toString().padStart(2, "0");
-                startTime = `${hours}:${minutes}:${seconds}`;
-
-                const endDate = new Date(periodDate);
-                endDate.setMinutes(endDate.getMinutes() + 90);
-                const endHours = endDate.getHours().toString().padStart(2, "0");
-                const endMinutes = endDate.getMinutes().toString().padStart(2, "0");
-                const endSeconds = endDate.getSeconds().toString().padStart(2, "0");
-                endTime = `${endHours}:${endMinutes}:${endSeconds}`;
-              }
-            } catch (e) {
-              console.warn("Error parsing period:", item.period, e);
+            let teacherName = item.professor ?? item.teacherName ?? "";
+            if (!teacherName && item.teacher) {
+              const teacherFullName =
+                `${item.teacher.name ?? ""} ${item.teacher.surname ?? ""}`.trim();
+              teacherName = teacherFullName || "";
             }
-          }
 
-          if (!startTime) {
-            startTime = item.start ?? item.startTime ?? item.classStartTime ?? item.sessionStartTime ?? "";
-          }
-          if (!endTime) {
-            endTime = item.end ?? item.endTime ?? item.classEndTime ?? item.sessionEndTime ?? "";
-          }
-          if (dayOfWeek === "Monday" && !item.period) {
-            const dayNum = item.day ?? item.dayOfWeek ?? item.dayNumber ?? 0;
-            const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-            dayOfWeek = typeof dayNum === "number" && dayNum >= 0 && dayNum <= 6 
-              ? dayNames[dayNum] 
-              : item.dayOfWeek ?? item.dayName ?? "Monday";
-          }
+            const room = item.room ?? {};
+            let roomName =
+              item.roomName ?? item.room?.name ?? item.room?.roomName ?? "";
+            const rawRoomId =
+              item.roomId ??
+              (typeof item.room === "number" || typeof item.room === "string"
+                ? item.room
+                : item.room?.id);
+            if (
+              (!roomName || roomName.trim() === "") &&
+              rawRoomId != null &&
+              Array.isArray(rooms) &&
+              rooms.length > 0
+            ) {
+              const found = rooms.find((r: any) => {
+                if (
+                  r.id != null &&
+                  rawRoomId != null &&
+                  (r.id === rawRoomId || r.id === Number(rawRoomId))
+                )
+                  return true;
+                const candidateName = (r.name ?? r.roomName ?? "").toString();
+                if (
+                  candidateName &&
+                  (candidateName === rawRoomId ||
+                    candidateName === String(rawRoomId))
+                )
+                  return true;
+                return false;
+              });
+              if (found) roomName = found.name ?? found.roomName ?? "";
+            }
+            roomName =
+              roomName ||
+              item.location ||
+              item.locationName ||
+              item.auditorium ||
+              item.auditoriumName ||
+              "";
+            const roomId = rawRoomId ?? item.room?.id ?? item.roomId ?? "";
 
-          // Тип занятия
-          const type = item.classType ?? item.type ?? item.course?.type ?? "lecture";
+            let startTime = "";
+            let endTime = "";
+            let dayOfWeek = "Monday";
 
-          return {
-            id: item.id ?? item.classId ?? item.scheduleId ?? index,
-            courseId: item.courseId ?? item.taughtSubjectId ?? item.course?.id ?? 0,
-            courseName,
-            courseCode,
-            teacherName,
-            roomId,
-            roomName,
-            groupCode: selectedGroup,
-            dayOfWeek,
-            startTime: typeof startTime === "string" ? startTime : "",
-            endTime: typeof endTime === "string" ? endTime : "",
-            type: type.toLowerCase(),
-            topic: item.topic ?? item.title ?? undefined,
-          };
-        });
+            if (item.period) {
+              try {
+                const periodDate = new Date(item.period);
+                if (!isNaN(periodDate.getTime())) {
+                  const dayNum = periodDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                  const dayNames = [
+                    "Sunday",
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                  ];
+                  dayOfWeek = dayNames[dayNum] ?? "Monday";
 
-        console.log("Mapped schedule entries:", entries);
+                  const hours = periodDate
+                    .getHours()
+                    .toString()
+                    .padStart(2, "0");
+                  const minutes = periodDate
+                    .getMinutes()
+                    .toString()
+                    .padStart(2, "0");
+                  const seconds = periodDate
+                    .getSeconds()
+                    .toString()
+                    .padStart(2, "0");
+                  startTime = `${hours}:${minutes}:${seconds}`;
+
+                  const endDate = new Date(periodDate);
+                  endDate.setMinutes(endDate.getMinutes() + 90);
+                  const endHours = endDate
+                    .getHours()
+                    .toString()
+                    .padStart(2, "0");
+                  const endMinutes = endDate
+                    .getMinutes()
+                    .toString()
+                    .padStart(2, "0");
+                  const endSeconds = endDate
+                    .getSeconds()
+                    .toString()
+                    .padStart(2, "0");
+                  endTime = `${endHours}:${endMinutes}:${endSeconds}`;
+                }
+              } catch {}
+            }
+
+            if (!startTime) {
+              startTime =
+                item.start ??
+                item.startTime ??
+                item.classStartTime ??
+                item.sessionStartTime ??
+                "";
+            }
+            if (!endTime) {
+              endTime =
+                item.end ??
+                item.endTime ??
+                item.classEndTime ??
+                item.sessionEndTime ??
+                "";
+            }
+            if (dayOfWeek === "Monday" && !item.period) {
+              const dayNum = item.day ?? item.dayOfWeek ?? item.dayNumber ?? 0;
+              const dayNames = [
+                "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+              ];
+              dayOfWeek =
+                typeof dayNum === "number" && dayNum >= 0 && dayNum <= 6
+                  ? dayNames[dayNum]
+                  : (item.dayOfWeek ?? item.dayName ?? "Monday");
+            }
+
+            // Тип занятия
+            const type = normalizeClassType(
+              item.classType ?? item.type ?? item.course?.type ?? "lecture",
+            );
+
+            return {
+              id: item.id ?? item.classId ?? item.scheduleId ?? index,
+              courseId:
+                item.courseId ?? item.taughtSubjectId ?? item.course?.id ?? 0,
+              courseName,
+              courseCode,
+              teacherName,
+              roomId,
+              roomName,
+              groupCode: selectedGroup,
+              dayOfWeek,
+              startTime: typeof startTime === "string" ? startTime : "",
+              endTime: typeof endTime === "string" ? endTime : "",
+              type,
+              topic: item.topic ?? item.title ?? undefined,
+            };
+          },
+        );
+
         setScheduleEntries(entries);
-      } catch (err) {
-        console.error("Error fetching schedule:", err);
+      } catch {
         setScheduleEntries([]);
       }
     };
@@ -294,160 +394,164 @@ export function DeanSchedule() {
         </p>
       </div>
 
-
       <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Weekly Schedule for {selectedGroup || "..."}</CardTitle>
-                  <CardDescription>
-                    View schedule organized by day of week
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="group-select" className="text-sm">
-                    Group:
-                  </Label>
-                  <Select
-                    value={selectedGroup}
-                    onValueChange={(value: string) => {
-                      console.log("Group selected:", value);
-                      setSelectedGroup(value);
-                    }}
-                    disabled={groups.length === 0}
-                  >
-                    <SelectTrigger id="group-select" className="w-[180px]">
-                      <SelectValue placeholder={groups.length === 0 ? "Loading groups..." : "Select group"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {groups.length === 0 ? (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                          No groups available
-                        </div>
-                      ) : (
-                        groups
-                          .filter((group) => group.code && group.code.trim() !== "")
-                          .map((group, index) => {
-                            const groupCode = group.code || group.groupCode || "";
-                            const groupId = group.id ?? `group-${index}`;
-                            // Убеждаемся, что value не пустое
-                            if (!groupCode || groupCode.trim() === "") {
-                              return null;
-                            }
-                            return (
-                              <SelectItem key={groupId} value={groupCode}>
-                                {groupCode}
-                              </SelectItem>
-                            );
-                          })
-                          .filter(Boolean) // Убираем null значения
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>
+                  Weekly Schedule for {selectedGroup || "..."}
+                </CardTitle>
+                <CardDescription>
+                  View schedule organized by day of week
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {daysOfWeek.map((day) => (
-                  <Card
-                    key={day}
-                    className={
-                      day === todayName ? "border-primary bg-primary/5" : ""
-                    }
-                  >
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center justify-between">
-                        {day}
-                        {day === todayName && (
-                          <Badge variant="default" className="text-xs">
-                            Today
-                          </Badge>
-                        )}
-                        {day !== todayName && (
-                          <Badge variant="secondary">
-                            {getEntriesForDay(day).length}
-                          </Badge>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {getEntriesForDay(day).length === 0 ? (
-                        <p className="text-sm text-muted-foreground py-4 text-center">
-                          No classes scheduled
-                        </p>
-                      ) : (
-                        getEntriesForDay(day).map((entry) => (
-                          <div
-                            key={entry.id}
-                            className="p-3 rounded-lg border relative pb-10"
-                          >
-                            <div className="space-y-2 pr-20">
-                              <div className="flex items-start gap-2">
-                                <span
-                                  className="font-medium overflow-hidden"
-                                  style={{
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: "vertical",
-                                  }}
-                                >
-                                  {entry.courseName}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="group-select" className="text-sm">
+                  Group:
+                </Label>
+                <Select
+                  value={selectedGroup}
+                  onValueChange={(value: string) => {
+                    setSelectedGroup(value);
+                  }}
+                  disabled={groups.length === 0}
+                >
+                  <SelectTrigger id="group-select" className="w-[180px]">
+                    <SelectValue
+                      placeholder={
+                        groups.length === 0
+                          ? "Loading groups..."
+                          : "Select group"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groups.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No groups available
+                      </div>
+                    ) : (
+                      groups
+                        .filter(
+                          (group) => group.code && group.code.trim() !== "",
+                        )
+                        .map((group, index) => {
+                          const groupCode = group.code || group.groupCode || "";
+                          const groupId = group.id ?? `group-${index}`;
+                          // Убеждаемся, что value не пустое
+                          if (!groupCode || groupCode.trim() === "") {
+                            return null;
+                          }
+                          return (
+                            <SelectItem key={groupId} value={groupCode}>
+                              {groupCode}
+                            </SelectItem>
+                          );
+                        })
+                        .filter(Boolean) // Убираем null значения
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {daysOfWeek.map((day) => (
+                <Card
+                  key={day}
+                  className={
+                    day === todayName ? "border-primary bg-primary/5" : ""
+                  }
+                >
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center justify-between">
+                      {day}
+                      {day === todayName && (
+                        <Badge variant="default" className="text-xs">
+                          Today
+                        </Badge>
+                      )}
+                      {day !== todayName && (
+                        <Badge variant="secondary">
+                          {getEntriesForDay(day).length}
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {getEntriesForDay(day).length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">
+                        No classes scheduled
+                      </p>
+                    ) : (
+                      getEntriesForDay(day).map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="p-3 rounded-lg border relative pb-10"
+                        >
+                          <div className="space-y-2 pr-20">
+                            <div className="flex items-start gap-2">
+                              <span
+                                className="font-medium overflow-hidden"
+                                style={{
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                }}
+                              >
+                                {entry.courseName}
+                              </span>
+                            </div>
+                            {entry.topic && (
+                              <div className="text-sm text-muted-foreground italic">
+                                {entry.topic}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <User className="h-3 w-3 shrink-0" />
+                              <span>{entry.teacherName}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Users2 className="h-3 w-3 shrink-0" />
+                              <span>{entry.groupCode}</span>
+                            </div>
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 shrink-0" />
+                                <span>
+                                  {formatTime(entry.startTime)} -{" "}
+                                  {formatTime(entry.endTime)}
                                 </span>
                               </div>
-                              {entry.topic && (
-                                <div className="text-sm text-muted-foreground italic">
-                                  {entry.topic}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <User className="h-3 w-3 shrink-0" />
-                                <span>{entry.teacherName}</span>
-                              </div> 
-                              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <Users2 className="h-3 w-3 shrink-0" />
-                                <span>{entry.groupCode}</span>
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                <span>{entry.roomName}</span>
                               </div>
-                              <div className="space-y-1 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3 shrink-0" />
-                                  <span>
-                                    {formatTime(entry.startTime)} -{" "}
-                                    {formatTime(entry.endTime)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3 shrink-0" />
-                                  <span>{entry.roomName}</span>
-                                </div>
-                              </div>
-                              <Badge
-                                variant="secondary"
-                                className="absolute top-3 right-3 text-xs"
-                              >
-                                {entry.type === "lecture"
-                                  ? "Lecture"
-                                  : entry.type === "seminar"
-                                    ? "Seminar"
-                                    : "Lab"}
-                              </Badge>
-                              <Badge
-                                variant="outline"
-                                className="absolute bottom-3 left-3 text-xs"
-                              >
-                                {entry.courseCode}
-                              </Badge>
                             </div>
+                            <Badge
+                              variant="secondary"
+                              className="absolute top-3 right-3 text-xs"
+                            >
+                              {getClassTypeLabel(entry.type)}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="absolute bottom-3 left-3 text-xs"
+                            >
+                              {entry.courseCode}
+                            </Badge>
                           </div>
-                        ))
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

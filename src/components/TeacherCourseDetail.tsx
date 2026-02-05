@@ -18,7 +18,7 @@ import {
   Send,
   Minus,
 } from "lucide-react";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
   Select,
@@ -41,6 +41,7 @@ import {
   listTaughtSubjectStudents,
   listTaughtSubjectColloquiums,
   listTaughtSubjectClasses,
+  listTaughtSubjectIndependentWorks,
   createColloquium,
   deleteColloquium,
   updateColloquiumGrade,
@@ -177,9 +178,14 @@ export function TeacherCourseDetail({
   const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
   const [bulkValue, setBulkValue] = useState<string>(""); // Контролируемое значение для bulk select
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isSendingAttendance, setIsSendingAttendance] = useState<boolean>(false);
-  const [isSendingAssignments, setIsSendingAssignments] = useState<boolean>(false);
+  const [isSendingAttendance, setIsSendingAttendance] =
+    useState<boolean>(false);
+  const [isSendingAssignments, setIsSendingAssignments] =
+    useState<boolean>(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState<boolean>(false); // Flag to prevent infinite loops during bulk update
+  const attendanceSnapshotRef = useRef<Map<string, ("present" | "absent")[]>>(
+    new Map(),
+  );
 
   const applyColloquiumsToStudents = (
     baseStudents: Student[],
@@ -190,17 +196,22 @@ export function TeacherCourseDetail({
       String(v ?? "")
         .toLowerCase()
         .trim();
-    const normalizeNoSpaces = (v: any) =>
-      normalize(v).replace(/\s+/g, "");
+    const normalizeNoSpaces = (v: any) => normalize(v).replace(/\s+/g, "");
 
     for (const c of colloquiumsRaw || []) {
-      const nameKey = normalize(c.studentFullName ?? c.student?.fullName ?? c.student?.name ?? "");
-      const nameKeyNoSpaces = normalizeNoSpaces(c.studentFullName ?? c.student?.fullName ?? "");
+      const nameKey = normalize(
+        c.studentFullName ?? c.student?.fullName ?? c.student?.name ?? "",
+      );
+      const nameKeyNoSpaces = normalizeNoSpaces(
+        c.studentFullName ?? c.student?.fullName ?? "",
+      );
       if (!nameKey && !nameKeyNoSpaces) continue;
-      const list = byStudent.get(nameKey) ?? byStudent.get(nameKeyNoSpaces) ?? [];
+      const list =
+        byStudent.get(nameKey) ?? byStudent.get(nameKeyNoSpaces) ?? [];
       list.push(c);
       if (nameKey) byStudent.set(nameKey, list);
-      if (nameKeyNoSpaces && nameKeyNoSpaces !== nameKey) byStudent.set(nameKeyNoSpaces, list);
+      if (nameKeyNoSpaces && nameKeyNoSpaces !== nameKey)
+        byStudent.set(nameKeyNoSpaces, list);
     }
     for (const c of colloquiumsRaw || []) {
       const studentId = String(
@@ -214,8 +225,14 @@ export function TeacherCourseDetail({
 
     for (const list of byStudent.values()) {
       list.sort((a, b) => {
-        const ad = Date.parse(a.date ?? a.dateTime ?? a.createdAt ?? a.createdOn ?? "") || 0;
-        const bd = Date.parse(b.date ?? b.dateTime ?? b.createdAt ?? b.createdOn ?? "") || 0;
+        const ad =
+          Date.parse(
+            a.date ?? a.dateTime ?? a.createdAt ?? a.createdOn ?? "",
+          ) || 0;
+        const bd =
+          Date.parse(
+            b.date ?? b.dateTime ?? b.createdAt ?? b.createdOn ?? "",
+          ) || 0;
         return ad - bd;
       });
     }
@@ -260,17 +277,22 @@ export function TeacherCourseDetail({
       String(v ?? "")
         .toLowerCase()
         .trim();
-    const normalizeNoSpaces = (v: any) =>
-      normalize(v).replace(/\s+/g, "");
+    const normalizeNoSpaces = (v: any) => normalize(v).replace(/\s+/g, "");
 
     for (const iw of independentWorksRaw || []) {
-      const nameKey = normalize(iw.studentFullName ?? iw.student?.fullName ?? iw.student?.name ?? "");
-      const nameKeyNoSpaces = normalizeNoSpaces(iw.studentFullName ?? iw.student?.fullName ?? "");
+      const nameKey = normalize(
+        iw.studentFullName ?? iw.student?.fullName ?? iw.student?.name ?? "",
+      );
+      const nameKeyNoSpaces = normalizeNoSpaces(
+        iw.studentFullName ?? iw.student?.fullName ?? "",
+      );
       if (!nameKey && !nameKeyNoSpaces) continue;
-      const list = byStudent.get(nameKey) ?? byStudent.get(nameKeyNoSpaces) ?? [];
+      const list =
+        byStudent.get(nameKey) ?? byStudent.get(nameKeyNoSpaces) ?? [];
       list.push(iw);
       if (nameKey) byStudent.set(nameKey, list);
-      if (nameKeyNoSpaces && nameKeyNoSpaces !== nameKey) byStudent.set(nameKeyNoSpaces, list);
+      if (nameKeyNoSpaces && nameKeyNoSpaces !== nameKey)
+        byStudent.set(nameKeyNoSpaces, list);
     }
     for (const iw of independentWorksRaw || []) {
       const studentId = String(
@@ -284,8 +306,14 @@ export function TeacherCourseDetail({
 
     for (const list of byStudent.values()) {
       list.sort((a, b) => {
-        const ad = Date.parse(a.date ?? a.dateTime ?? a.createdAt ?? a.createdOn ?? "") || 0;
-        const bd = Date.parse(b.date ?? b.dateTime ?? b.createdAt ?? b.createdOn ?? "") || 0;
+        const ad =
+          Date.parse(
+            a.date ?? a.dateTime ?? a.createdAt ?? a.createdOn ?? "",
+          ) || 0;
+        const bd =
+          Date.parse(
+            b.date ?? b.dateTime ?? b.createdAt ?? b.createdOn ?? "",
+          ) || 0;
         return ad - bd;
       });
     }
@@ -300,21 +328,25 @@ export function TeacherCourseDetail({
         byStudent.get(normalize(nameSurnameOnly)) ??
         byStudent.get(normalizeNoSpaces(nameSurnameOnly)) ??
         [];
-      const prevAssignments = s.assignments ?? Array(ASSIGNMENTS_COUNT).fill(null);
+      const prevAssignments =
+        s.assignments ?? Array(ASSIGNMENTS_COUNT).fill(null);
       const prevIds = s.assignmentIds ?? Array(ASSIGNMENTS_COUNT).fill(null);
       const assignments = [...prevAssignments] as (0 | 1 | null)[];
       const assignmentIds = [...prevIds] as (string | null)[];
 
       if (list.length > 0) {
         const item = list[0];
-        const independentWorkId = item.id ?? item.Id ?? item.independentWorkId ?? null;
+        const independentWorkId =
+          item.id ?? item.Id ?? item.independentWorkId ?? null;
         if (independentWorkId) {
           for (let i = 0; i < ASSIGNMENTS_COUNT; i++) {
             assignmentIds[i] = independentWorkId;
           }
           const isPassed = item.isPassed ?? item.IsPassed;
-          if (isPassed !== undefined && isPassed !== null) {
-            assignments[0] = isPassed ? 1 : 0;
+          if (isPassed === true) {
+            assignments[0] = 1;
+          } else if (isPassed === false) {
+            assignments[0] = null;
           }
         }
       }
@@ -356,7 +388,9 @@ export function TeacherCourseDetail({
             id: String(cls?.classId ?? cls?.ClassId ?? index + 1),
             date: formatSessionDate(cls?.classDate ?? cls?.ClassDate),
             time: cls?.formattedClassHours ?? cls?.FormattedClassHours ?? "",
-            type: String(cls?.classType ?? cls?.ClassType ?? "L")[0].toUpperCase() as "L" | "S",
+            type: String(
+              cls?.classType ?? cls?.ClassType ?? "L",
+            )[0].toUpperCase() as "L" | "S",
             seminarId: cls?.seminarId ?? cls?.SeminarId ?? null,
           }));
 
@@ -375,7 +409,10 @@ export function TeacherCourseDetail({
           sessionItems = mapSessionsFromApi(taughtSubject);
         } catch (e) {
           // Endpoint requires Dean role, but we're Teacher - this is expected
-          console.warn("Could not fetch taught subject for sessions (non-fatal):", e);
+          console.warn(
+            "Could not fetch taught subject for sessions (non-fatal):",
+            e,
+          );
           // Keep empty sessionItems - will be handled by other logic
         }
       }
@@ -396,14 +433,15 @@ export function TeacherCourseDetail({
         // Endpoint requires Dean role, but we're Teacher - this is expected
         // Try to get data from GetStudentsAndAttendances response instead
         console.warn("Could not fetch taught subject details (non-fatal):", e);
-        
+
         // Extract taught subject info from classesData if available
         if (classesData.length > 0) {
           // Try to get subject info from first student's data
           const firstStudent = classesData[0];
           if (firstStudent) {
             taughtSubject = {
-              subjectTitle: firstStudent?.subjectTitle ?? firstStudent?.SubjectTitle,
+              subjectTitle:
+                firstStudent?.subjectTitle ?? firstStudent?.SubjectTitle,
               title: firstStudent?.subjectTitle ?? firstStudent?.SubjectTitle,
               hours: firstStudent?.hours ?? firstStudent?.Hours,
               groupId: firstStudent?.groupId ?? firstStudent?.GroupId,
@@ -478,7 +516,7 @@ export function TeacherCourseDetail({
             s.user?.id ??
             s.userName ??
             String(idx + 1);
-          
+
           const idStr = String(id ?? "");
           const isGuidLike = idStr.length > 30 && idStr.includes("-");
           const userId = s.userId ?? s.user?.id ?? (isGuidLike ? id : null);
@@ -515,13 +553,15 @@ export function TeacherCourseDetail({
               const direct = records[sessionIndex];
               const fallback = byId.get(session.id);
               const source = direct ?? fallback ?? {};
+              const defaultAttendance =
+                session.type === "S" ? "absent" : "present";
               const attendanceValue = String(
                 source?.attendance ??
                   source?.status ??
                   source?.present ??
-                  "present",
+                  defaultAttendance,
               ).toLowerCase();
-              const attendance: "present" | "absent" = [
+              let attendance: "present" | "absent" = [
                 "absent",
                 "a",
                 "false",
@@ -535,6 +575,13 @@ export function TeacherCourseDetail({
                 gradeValue === null || gradeValue === undefined
                   ? null
                   : Number(gradeValue);
+              if (
+                session.type === "S" &&
+                grade !== null &&
+                !Number.isNaN(grade)
+              ) {
+                attendance = "present";
+              }
               return {
                 attendance,
                 grade: grade !== null && !Number.isNaN(grade) ? grade : null,
@@ -548,8 +595,9 @@ export function TeacherCourseDetail({
             activityAttendance:
               sessionAttendance.length > 0
                 ? sessionAttendance
-                : Array.from({ length: sessionItems.length }, () => ({
-                    attendance: "present" as const,
+                : Array.from({ length: sessionItems.length }, (_, idx) => ({
+                    attendance:
+                      sessionItems[idx]?.type === "S" ? "absent" : "present",
                     grade: null as number | null,
                   })),
             colloquium: Array(COLLOQUIUM_COUNT).fill(null),
@@ -562,7 +610,14 @@ export function TeacherCourseDetail({
               middleName: s.middleName,
             },
             userId: userId,
-          } as Student & { _nameParts?: { name?: string; surname?: string; middleName?: string }; userId?: string | null };
+          } as Student & {
+            _nameParts?: {
+              name?: string;
+              surname?: string;
+              middleName?: string;
+            };
+            userId?: string | null;
+          };
         },
       );
 
@@ -580,58 +635,53 @@ export function TeacherCourseDetail({
 
       let independentWorks: any[] = [];
       try {
-        const independentWorksPromises = mappedStudents.map(async (student) => {
-          if (!looksLikeStudentGuid(student.id)) return null;
-          
-          let actualStudentId: string = String(student.id);
-          if (!looksLikeStudentGuid(actualStudentId)) {
-            if (student.userId && looksLikeStudentGuid(student.userId)) {
-              actualStudentId = student.userId;
-            } else if ((student as any).user?.id && looksLikeStudentGuid((student as any).user.id)) {
-              actualStudentId = (student as any).user.id;
-            } else {
-              return null;
-            }
-          }
+        const independentWorksResp =
+          await listTaughtSubjectIndependentWorks(taughtSubjectId);
+        const rawWorks = unwrap<any>(independentWorksResp);
+        const worksArray = toArray(
+          rawWorks?.independentWorks ??
+            rawWorks?.IndependentWorks ??
+            rawWorks?.getIndependentWorkDto ??
+            rawWorks ??
+            [],
+        );
 
-          try {
-            const getRes = await getIndependentWorkByStudentAndSubject(
-              actualStudentId,
-              taughtSubjectId,
+        independentWorks = worksArray
+          .map((work: any) => {
+            const studentId = String(
+              work?.studentId ??
+                work?.StudentId ??
+                work?.student?.id ??
+                work?.student?.StudentId ??
+                "",
             );
-            const independentWorksList = 
-              getRes?.GetIndependentWorkDto ??
-              getRes?.getIndependentWorkDto ??
-              getRes?.data?.GetIndependentWorkDto ??
-              getRes?.data?.getIndependentWorkDto ??
-              [];
-            
-            const works = toArray(independentWorksList);
-            if (works.length > 0) {
-              const work = works[0];
-              return {
-                studentId: String(student.id),
-                independentWork: {
-                  id: work.id ?? work.Id ?? null,
-                  isPassed: work.isPassed ?? work.IsPassed ?? null,
-                  date: work.date ?? work.Date ?? null,
-                },
-              };
-            }
-          } catch (e) {
-            return null;
-          }
-          return null;
-        });
-
-        const independentWorksResults = await Promise.all(independentWorksPromises);
-        independentWorks = independentWorksResults
-          .filter((result): result is { studentId: string; independentWork: any } => result !== null)
-          .map((result) => ({
-            ...result.independentWork,
-            studentId: result.studentId,
-            studentFullName: mappedStudents.find(s => String(s.id) === result.studentId)?.name ?? "",
-          }));
+            if (!studentId) return null;
+            const matchedStudent = mappedStudents.find(
+              (s) => String(s.id) === studentId,
+            );
+            const rawIsPassed = work?.isPassed ?? work?.IsPassed;
+            return {
+              id: work?.id ?? work?.Id ?? work?.independentWorkId ?? null,
+              studentId,
+              studentFullName: matchedStudent?.name ?? "",
+              isPassed:
+                rawIsPassed === null || rawIsPassed === undefined
+                  ? null
+                  : Boolean(rawIsPassed),
+              date: work?.date ?? work?.Date ?? null,
+            };
+          })
+          .filter(
+            (
+              entry,
+            ): entry is {
+              id: string | null;
+              studentId: string;
+              studentFullName: string;
+              isPassed: any;
+              date: any;
+            } => entry !== null,
+          );
       } catch (e) {
         console.warn("Failed to load independent works:", e);
         independentWorks = [];
@@ -645,8 +695,7 @@ export function TeacherCourseDetail({
           String(v ?? "")
             .toLowerCase()
             .trim();
-        const normalizeNoSpaces = (v: any) =>
-          normalize(v).replace(/\s+/g, "");
+        const normalizeNoSpaces = (v: any) => normalize(v).replace(/\s+/g, "");
 
         for (const data of classesData) {
           const idKey = normalize(
@@ -661,13 +710,18 @@ export function TeacherCourseDetail({
           if (idKey) byKey.set(idKey, data);
           if (nameKey) byKey.set(nameKey, data);
           const fullName =
-            data?.studentFullName ?? data?.StudentFullName ?? data?.student?.fullName ?? "";
+            data?.studentFullName ??
+            data?.StudentFullName ??
+            data?.student?.fullName ??
+            "";
           if (nameKey) byKey.set(normalizeNoSpaces(fullName), data);
         }
 
         enhancedStudents = mappedStudents.map((student) => {
           const np = (student as any)._nameParts;
-          const nameSurnameOnly = [np?.name, np?.surname].filter(Boolean).join(" ");
+          const nameSurnameOnly = [np?.name, np?.surname]
+            .filter(Boolean)
+            .join(" ");
           const candidateKeys = [
             normalize(student.id),
             normalize((student as any).studentId),
@@ -702,15 +756,50 @@ export function TeacherCourseDetail({
             const cls = classes[i];
 
             if (cls) {
-              const isPresent = cls.isPresent ?? cls.IsPresent;
+              const absentRaw = cls.isAbsent ?? cls.IsAbsent;
+              const presentRaw = cls.isPresent ?? cls.IsPresent;
+              let attendanceState: "present" | "absent" =
+                session.type === "S" ? "absent" : "present";
+
+              if (typeof absentRaw === "boolean") {
+                attendanceState = absentRaw ? "absent" : "present";
+              } else if (typeof absentRaw === "number") {
+                attendanceState = absentRaw > 0 ? "absent" : "present";
+              } else if (typeof absentRaw === "string") {
+                const normalized = absentRaw.trim().toLowerCase();
+                if (["true", "1", "absent", "a"].includes(normalized)) {
+                  attendanceState = "absent";
+                } else if (
+                  ["false", "0", "present", "p"].includes(normalized)
+                ) {
+                  attendanceState = "present";
+                }
+              } else if (typeof presentRaw === "boolean") {
+                attendanceState = presentRaw ? "present" : "absent";
+              } else if (typeof presentRaw === "number") {
+                attendanceState = presentRaw > 0 ? "present" : "absent";
+              } else if (typeof presentRaw === "string") {
+                const normalized = presentRaw.trim().toLowerCase();
+                if (["true", "1", "present", "p"].includes(normalized)) {
+                  attendanceState = "present";
+                } else if (["false", "0", "absent", "a"].includes(normalized)) {
+                  attendanceState = "absent";
+                }
+              }
               const gradeVal = cls.grade ?? cls.Grade;
               const result: {
                 attendance: "present" | "absent";
                 grade: number | null;
               } = {
-                attendance: isPresent === false ? "present" : "absent",
-                grade: gradeVal !== undefined && gradeVal !== null ? Number(gradeVal) : null,
+                attendance: attendanceState,
+                grade:
+                  gradeVal !== undefined && gradeVal !== null
+                    ? Number(gradeVal)
+                    : null,
               };
+              if (session.type === "S" && result.grade !== null) {
+                result.attendance = "present";
+              }
               return result;
             }
 
@@ -726,7 +815,10 @@ export function TeacherCourseDetail({
             const fallback: {
               attendance: "present" | "absent";
               grade: number | null;
-            } = { attendance: "present", grade: null };
+            } = {
+              attendance: session.type === "S" ? "absent" : "present",
+              grade: null,
+            };
             return fallback;
           });
 
@@ -742,8 +834,20 @@ export function TeacherCourseDetail({
         });
       }
 
-      const mergedWithColloquiums = applyColloquiumsToStudents(enhancedStudents, colloquiums);
-      const merged = applyIndependentWorksToStudents(mergedWithColloquiums, independentWorks);
+      const mergedWithColloquiums = applyColloquiumsToStudents(
+        enhancedStudents,
+        colloquiums,
+      );
+      const merged = applyIndependentWorksToStudents(
+        mergedWithColloquiums,
+        independentWorks,
+      );
+      attendanceSnapshotRef.current = new Map(
+        merged.map((student) => [
+          String(student.id),
+          student.activityAttendance.map((entry) => entry.attendance),
+        ]),
+      );
       setStudents(merged);
     } catch (e: any) {
       console.error(e);
@@ -788,6 +892,18 @@ export function TeacherCourseDetail({
       value !== "absent" &&
       !Number.isNaN(parseInt(value, 10));
 
+    const commitSnapshot = (nextAttendance: "present" | "absent") => {
+      const current = attendanceSnapshotRef.current.get(studentIdStr);
+      const base = current ? [...current] : [];
+      while (base.length < sessions.length) {
+        const defaultValue =
+          sessions[base.length]?.type === "S" ? "absent" : "present";
+        base.push(defaultValue);
+      }
+      base[sessionIndex] = nextAttendance;
+      attendanceSnapshotRef.current.set(studentIdStr, base);
+    };
+
     const newAttendance = (student: Student) => {
       const newData = [...student.activityAttendance];
       if (value === "absent") {
@@ -801,12 +917,29 @@ export function TeacherCourseDetail({
       return newData;
     };
 
-
-    let originalAttendance: { attendance: "present" | "absent"; grade: number | null } | undefined;
-    const currentStudentBeforeUpdate = students.find((s) => String(s.id) === studentIdStr);
+    let originalAttendance:
+      | { attendance: "present" | "absent"; grade: number | null }
+      | undefined;
+    const currentStudentBeforeUpdate = students.find(
+      (s) => String(s.id) === studentIdStr,
+    );
     if (currentStudentBeforeUpdate) {
-      originalAttendance = currentStudentBeforeUpdate.activityAttendance[sessionIndex];
+      originalAttendance =
+        currentStudentBeforeUpdate.activityAttendance[sessionIndex];
     }
+
+    const revertAttendance = () => {
+      if (!originalAttendance) return;
+      const snapshot = originalAttendance;
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (String(s.id) !== studentIdStr) return s;
+          const newData = [...s.activityAttendance];
+          newData[sessionIndex] = snapshot;
+          return { ...s, activityAttendance: newData };
+        }),
+      );
+    };
 
     if (!skipStateUpdate && !isBulkUpdating) {
       setStudents((prev) =>
@@ -820,50 +953,54 @@ export function TeacherCourseDetail({
 
     // Handle attendance updates (present/absent) - not just seminar grades
     if (value === "present" || value === "absent") {
-      const currentStudent = students.find((s) => String(s.id) === studentIdStr);
+      const currentStudent = students.find(
+        (s) => String(s.id) === studentIdStr,
+      );
       if (!currentStudent) {
         console.error("Student not found for attendance update");
         return;
       }
 
-      const currentAttendance = currentStudentBeforeUpdate?.activityAttendance[sessionIndex];
-      const needsToggle = 
+      const currentAttendance =
+        currentStudentBeforeUpdate?.activityAttendance[sessionIndex];
+      const needsToggle =
         (value === "absent" && currentAttendance?.attendance !== "absent") ||
         (value === "present" && currentAttendance?.attendance === "absent");
 
       if (needsToggle && session?.id) {
         try {
           let actualStudentId: string = String(currentStudent.id);
-          
+
           if (looksLikeStudentGuid(actualStudentId)) {
-          } else if (currentStudent.userId && looksLikeStudentGuid(currentStudent.userId)) {
+          } else if (
+            currentStudent.userId &&
+            looksLikeStudentGuid(currentStudent.userId)
+          ) {
             actualStudentId = currentStudent.userId;
-          } else if ((currentStudent as any).user?.id && looksLikeStudentGuid((currentStudent as any).user.id)) {
+          } else if (
+            (currentStudent as any).user?.id &&
+            looksLikeStudentGuid((currentStudent as any).user.id)
+          ) {
             actualStudentId = (currentStudent as any).user.id;
           } else {
-            console.warn("Cannot update attendance: Student ID format is invalid");
+            console.warn(
+              "Cannot update attendance: Student ID format is invalid",
+            );
             return;
           }
 
           if (looksLikeStudentGuid(actualStudentId)) {
             await markStudentAbsence(actualStudentId, session.id);
+            commitSnapshot(value === "absent" ? "absent" : "present");
           }
         } catch (e: any) {
           console.error("Error updating attendance:", e);
-          const errorMessage = e?.message ?? e?.response?.data?.message ?? "Failed to update attendance";
+          const errorMessage =
+            e?.message ??
+            e?.response?.data?.message ??
+            "Failed to update attendance";
           toast.error(errorMessage);
-          
-          // Revert state on error
-          if (originalAttendance) {
-            setStudents((prev) =>
-              prev.map((s) => {
-                if (String(s.id) !== studentIdStr) return s;
-                const newData = [...s.activityAttendance];
-                newData[sessionIndex] = originalAttendance;
-                return { ...s, activityAttendance: newData };
-              }),
-            );
-          }
+          revertAttendance();
         }
       }
       return; // Don't proceed to seminar grade logic for present/absent
@@ -875,7 +1012,7 @@ export function TeacherCourseDetail({
     if (grade < 0 || grade > 10) return;
 
     let seminarId: string | null = null;
-    
+
     setStudents((prev) => {
       const found = prev.find((s) => String(s.id) === studentIdStr);
       if (found) {
@@ -892,26 +1029,57 @@ export function TeacherCourseDetail({
         throw new Error("Taught Subject ID is required");
       }
 
-      const currentStudent = students.find((s) => String(s.id) === studentIdStr);
+      const currentStudent = students.find(
+        (s) => String(s.id) === studentIdStr,
+      );
       if (!currentStudent) {
         throw new Error("Student not found");
       }
 
       let actualStudentId: string = String(currentStudent.id);
-      
+
       if (looksLikeStudentGuid(actualStudentId)) {
-      } else if (currentStudent.userId && looksLikeStudentGuid(currentStudent.userId)) {
+      } else if (
+        currentStudent.userId &&
+        looksLikeStudentGuid(currentStudent.userId)
+      ) {
         actualStudentId = currentStudent.userId;
-      } else if ((currentStudent as any).user?.id && looksLikeStudentGuid((currentStudent as any).user.id)) {
+      } else if (
+        (currentStudent as any).user?.id &&
+        looksLikeStudentGuid((currentStudent as any).user.id)
+      ) {
         actualStudentId = (currentStudent as any).user.id;
       } else {
-        toast.error("Cannot save seminar grade: Student ID format is invalid. Please contact your administrator.");
+        toast.error(
+          "Cannot save seminar grade: Student ID format is invalid. Please contact your administrator.",
+        );
         return;
       }
 
       if (!looksLikeStudentGuid(actualStudentId)) {
-        toast.error("Cannot save seminar grade: Student ID format is invalid. Please contact your administrator.");
+        toast.error(
+          "Cannot save seminar grade: Student ID format is invalid. Please contact your administrator.",
+        );
         return;
+      }
+
+      if (originalAttendance?.attendance === "absent" && session?.id) {
+        try {
+          await markStudentAbsence(actualStudentId, session.id);
+          commitSnapshot("present");
+        } catch (toggleError: any) {
+          console.error(
+            "Error updating attendance before seminar grade:",
+            toggleError,
+          );
+          const errorMessage =
+            toggleError?.message ??
+            toggleError?.response?.data?.message ??
+            "Failed to update attendance";
+          toast.error(errorMessage);
+          revertAttendance();
+          return;
+        }
       }
 
       if (seminarId) {
@@ -921,7 +1089,7 @@ export function TeacherCourseDetail({
           studentId: actualStudentId.trim(),
           taughtSubjectId: taughtSubjectId.trim(),
         };
-        
+
         const createRes = await createSeminar(seminarData);
         const createdId =
           (createRes as any)?.id ??
@@ -935,30 +1103,27 @@ export function TeacherCourseDetail({
           setStudents((prev) =>
             prev.map((s) => {
               if (String(s.id) !== studentIdStr) return s;
-              const ids = [...(s.seminarIds ?? Array(sessions.length).fill(null))];
+              const ids = [
+                ...(s.seminarIds ?? Array(sessions.length).fill(null)),
+              ];
               ids[sessionIndex] = seminarId;
               return { ...s, seminarIds: ids };
             }),
           );
         } else {
-          throw new Error("Failed to create seminar: no ID returned from server");
+          throw new Error(
+            "Failed to create seminar: no ID returned from server",
+          );
         }
       }
     } catch (e: any) {
       console.error("Error saving seminar grade:", e);
-      const errorMessage = e?.message ?? e?.response?.data?.message ?? "Failed to save seminar grade";
+      const errorMessage =
+        e?.message ??
+        e?.response?.data?.message ??
+        "Failed to save seminar grade";
       toast.error(errorMessage);
-      
-      if (originalAttendance) {
-        setStudents((prev) =>
-          prev.map((s) => {
-            if (String(s.id) !== studentIdStr) return s;
-            const newData = [...s.activityAttendance];
-            newData[sessionIndex] = originalAttendance;
-            return { ...s, activityAttendance: newData };
-          }),
-        );
-      }
+      revertAttendance();
     }
   };
 
@@ -1043,82 +1208,100 @@ export function TeacherCourseDetail({
     );
   };
 
-  const applyBulkValue = useCallback(async (value: string) => {
-    if (selectedColumn === null || !value) return;
+  const applyBulkValue = useCallback(
+    async (value: string) => {
+      if (selectedColumn === null || !value) return;
 
-    const session = sessions[selectedColumn];
-    const isSeminarGrade =
-      session?.type === "S" &&
-      value !== "present" &&
-      value !== "absent" &&
-      !Number.isNaN(parseInt(value, 10));
+      const session = sessions[selectedColumn];
+      const isSeminarGrade =
+        session?.type === "S" &&
+        value !== "present" &&
+        value !== "absent" &&
+        !Number.isNaN(parseInt(value, 10));
 
-    // Update UI state immediately for better UX
-    // Use functional update to get current students state
-    let studentsToUpdate: Student[] = [];
-    setStudents((prevStudents) => {
-      const updated = prevStudents.map((student) => {
-        const newData = [...student.activityAttendance];
-        if (value === "absent") {
-          newData[selectedColumn] = { attendance: "absent", grade: null };
-        } else if (value === "present") {
-          newData[selectedColumn] = { attendance: "present", grade: null };
-        } else {
-          const grade = parseInt(value);
-          newData[selectedColumn] = { attendance: "present", grade };
+      // Update UI state immediately for better UX
+      // Use functional update to get current students state
+      let studentsToUpdate: Student[] = [];
+      setStudents((prevStudents) => {
+        const updated = prevStudents.map((student) => {
+          const newData = [...student.activityAttendance];
+          if (value === "absent") {
+            newData[selectedColumn] = { attendance: "absent", grade: null };
+          } else if (value === "present") {
+            newData[selectedColumn] = { attendance: "present", grade: null };
+          } else {
+            const grade = parseInt(value);
+            newData[selectedColumn] = { attendance: "present", grade };
+          }
+          return { ...student, activityAttendance: newData };
+        });
+
+        // For seminar grades, collect students that need API updates
+        if (isSeminarGrade) {
+          const grade = parseInt(value, 10);
+          if (grade >= 0 && grade <= 10) {
+            studentsToUpdate = prevStudents.filter((s) => {
+              // Only update students that don't already have this grade
+              const currentValue = s.activityAttendance[selectedColumn];
+              return (
+                !currentValue ||
+                currentValue.grade !== grade ||
+                currentValue.attendance !== "present"
+              );
+            });
+          }
         }
-        return { ...student, activityAttendance: newData };
+
+        return updated;
       });
-      
-      // For seminar grades, collect students that need API updates
-      if (isSeminarGrade) {
+
+      setBulkValue("");
+
+      // For seminar grades, call updateActivityAttendance for each student sequentially
+      // This prevents infinite loops by ensuring each API call completes before the next one
+      // Use a flag to prevent Select components from triggering onValueChange during bulk update
+      if (isSeminarGrade && studentsToUpdate.length > 0) {
         const grade = parseInt(value, 10);
         if (grade >= 0 && grade <= 10) {
-          studentsToUpdate = prevStudents.filter((s) => {
-            // Only update students that don't already have this grade
-            const currentValue = s.activityAttendance[selectedColumn];
-            return !currentValue || 
-                   currentValue.grade !== grade || 
-                   currentValue.attendance !== "present";
-          });
-        }
-      }
-      
-      return updated;
-    });
-    
-    setBulkValue("");
-
-    // For seminar grades, call updateActivityAttendance for each student sequentially
-    // This prevents infinite loops by ensuring each API call completes before the next one
-    // Use a flag to prevent Select components from triggering onValueChange during bulk update
-    if (isSeminarGrade && studentsToUpdate.length > 0) {
-      const grade = parseInt(value, 10);
-      if (grade >= 0 && grade <= 10) {
-        setIsBulkUpdating(true); // Set flag to prevent state updates from triggering Select onValueChange
-        try {
-          // Update each student sequentially to prevent race conditions and infinite loops
-          for (const student of studentsToUpdate) {
-            try {
-              // Skip state update since we already updated it above
-              await updateActivityAttendance(student.id, selectedColumn, value, true);
-            } catch (error) {
-              console.error(`Failed to update grade for student ${student.id}:`, error);
-              // Continue with next student even if one fails
+          setIsBulkUpdating(true); // Set flag to prevent state updates from triggering Select onValueChange
+          try {
+            // Update each student sequentially to prevent race conditions and infinite loops
+            for (const student of studentsToUpdate) {
+              try {
+                // Skip state update since we already updated it above
+                await updateActivityAttendance(
+                  student.id,
+                  selectedColumn,
+                  value,
+                  true,
+                );
+              } catch (error) {
+                console.error(
+                  `Failed to update grade for student ${student.id}:`,
+                  error,
+                );
+                // Continue with next student even if one fails
+              }
             }
+          } finally {
+            setIsBulkUpdating(false); // Reset flag after all updates complete
           }
-        } finally {
-          setIsBulkUpdating(false); // Reset flag after all updates complete
         }
       }
-    }
-  }, [selectedColumn, sessions]);
+    },
+    [selectedColumn, sessions],
+  );
 
-  const getActivityValue = (data: {
-    attendance: "present" | "absent";
-    grade: number | null;
-  }) => {
-    if (!data) return "present";
+  const getActivityValue = (
+    data:
+      | {
+          attendance: "present" | "absent";
+          grade: number | null;
+        }
+      | undefined,
+    session?: CourseSession,
+  ) => {
+    if (!data) return session?.type === "S" ? "absent" : "present";
     if (data.attendance === "absent") return "absent";
     if (data.grade !== null && data.grade !== undefined)
       return data.grade.toString();
@@ -1146,27 +1329,71 @@ export function TeacherCourseDetail({
     let ok = 0;
     let err = 0;
     try {
+      const pending: Array<{
+        student: Student;
+        sessionIndex: number;
+        desired: "present" | "absent";
+      }> = [];
+
       for (const student of students) {
         if (!looksLikeStudentGuid(student.id)) continue;
+        const snapshot =
+          attendanceSnapshotRef.current.get(String(student.id)) ?? [];
         for (let idx = 0; idx < student.activityAttendance.length; idx++) {
           const cell = student.activityAttendance[idx];
-          if (cell?.attendance !== "absent") continue;
-          const session = sessions[idx];
-          if (!session?.id) continue;
-          try {
-            await markStudentAbsence(
-              String(student.id),
-              String(session.id),
-            );
-            ok += 1;
-          } catch {
-            err += 1;
+          const desired = cell?.attendance ?? "present";
+          const previous =
+            snapshot[idx] ??
+            (sessions[idx]?.type === "S" ? "absent" : "present");
+          if (desired !== previous) {
+            pending.push({ student, sessionIndex: idx, desired });
           }
         }
       }
-      if (ok > 0) toast.success(`Saved ${ok} absence(s)`);
-      if (err > 0) toast.error(`Failed to save ${err} absence(s)`);
-      if (ok === 0 && err === 0) toast.info("No absences to save");
+
+      if (pending.length === 0) {
+        toast.info("No attendance changes to send");
+        return;
+      }
+
+      for (const item of pending) {
+        const { student, sessionIndex, desired } = item;
+        const session = sessions[sessionIndex];
+        if (!session?.id) continue;
+        let actualStudentId: string = String(student.id);
+        if (!looksLikeStudentGuid(actualStudentId)) {
+          if (student.userId && looksLikeStudentGuid(student.userId)) {
+            actualStudentId = student.userId;
+          } else if (
+            (student as any).user?.id &&
+            looksLikeStudentGuid((student as any).user.id)
+          ) {
+            actualStudentId = (student as any).user.id;
+          } else {
+            continue;
+          }
+        }
+
+        try {
+          await markStudentAbsence(actualStudentId, String(session.id));
+          ok += 1;
+          const snapshot =
+            attendanceSnapshotRef.current.get(String(student.id)) ?? [];
+          const updated = [...snapshot];
+          while (updated.length < sessions.length) {
+            const defaultValue =
+              sessions[updated.length]?.type === "S" ? "absent" : "present";
+            updated.push(defaultValue);
+          }
+          updated[sessionIndex] = desired;
+          attendanceSnapshotRef.current.set(String(student.id), updated);
+        } catch {
+          err += 1;
+        }
+      }
+      if (ok > 0) toast.success(`Saved ${ok} change(s)`);
+      if (err > 0) toast.error(`Failed to save ${err} change(s)`);
+      if (ok === 0 && err === 0) toast.info("No attendance changes to send");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save attendance");
     } finally {
@@ -1185,22 +1412,27 @@ export function TeacherCourseDetail({
       const dueDateISO = dueDate.toISOString();
 
       const studentIndependentWorkIds = new Map<string, string>();
-      
+
       for (const student of students) {
         if (!looksLikeStudentGuid(student.id)) continue;
-        
+
         let actualStudentId: string = String(student.id);
         if (!looksLikeStudentGuid(actualStudentId)) {
           if (student.userId && looksLikeStudentGuid(student.userId)) {
             actualStudentId = student.userId;
-          } else if ((student as any).user?.id && looksLikeStudentGuid((student as any).user.id)) {
+          } else if (
+            (student as any).user?.id &&
+            looksLikeStudentGuid((student as any).user.id)
+          ) {
             actualStudentId = (student as any).user.id;
           } else {
             continue;
           }
         }
 
-        const existingId = student.assignmentIds?.find(id => id !== null && id !== undefined);
+        const existingId = student.assignmentIds?.find(
+          (id) => id !== null && id !== undefined,
+        );
         if (existingId) {
           studentIndependentWorkIds.set(String(student.id), existingId);
           continue;
@@ -1212,49 +1444,73 @@ export function TeacherCourseDetail({
             taughtSubjectId,
             dueDateISO,
           );
-          
+
           const unwrapped = unwrap<any>(createRes);
-          const isSucceeded = unwrapped?.isSucceeded ?? unwrapped?.IsSucceeded ?? false;
-          const responseMessage = unwrapped?.responseMessage ?? unwrapped?.ResponseMessage ?? "";
-          
+          const isSucceeded =
+            unwrapped?.isSucceeded ?? unwrapped?.IsSucceeded ?? false;
+          const responseMessage =
+            unwrapped?.responseMessage ?? unwrapped?.ResponseMessage ?? "";
+
           if (isSucceeded) {
-            const createdId = unwrapped?.id ?? unwrapped?.Id ?? unwrapped?.data?.id ?? unwrapped?.data?.Id;
+            const createdId =
+              unwrapped?.id ??
+              unwrapped?.Id ??
+              unwrapped?.data?.id ??
+              unwrapped?.data?.Id;
             if (typeof createdId === "string" && createdId) {
               studentIndependentWorkIds.set(String(student.id), createdId);
             }
-          } else if (responseMessage.includes("already exist") || responseMessage.includes("already exists")) {
+          } else if (
+            responseMessage.includes("already exist") ||
+            responseMessage.includes("already exists")
+          ) {
             try {
               const getRes = await getIndependentWorkByStudentAndSubject(
                 actualStudentId,
                 taughtSubjectId,
               );
-              const independentWorksList = 
+              const independentWorksList =
                 getRes?.GetIndependentWorkDto ??
                 getRes?.getIndependentWorkDto ??
                 getRes?.data?.GetIndependentWorkDto ??
                 getRes?.data?.getIndependentWorkDto ??
                 [];
-              
+
               const independentWorks = toArray(independentWorksList);
-              
+
               if (independentWorks.length > 0) {
-                const existingId = independentWorks[0]?.id ?? independentWorks[0]?.Id ?? null;
+                const existingId =
+                  independentWorks[0]?.id ?? independentWorks[0]?.Id ?? null;
                 if (typeof existingId === "string" && existingId) {
                   studentIndependentWorkIds.set(String(student.id), existingId);
                 } else {
-                  console.warn(`Independent work exists for ${student.name}, but ID is not available in response:`, independentWorks[0]);
+                  console.warn(
+                    `Independent work exists for ${student.name}, but ID is not available in response:`,
+                    independentWorks[0],
+                  );
                 }
               } else {
-                console.warn(`Independent work exists for ${student.name}, but GET endpoint returned empty list. Response:`, getRes);
+                console.warn(
+                  `Independent work exists for ${student.name}, but GET endpoint returned empty list. Response:`,
+                  getRes,
+                );
               }
             } catch (getError: any) {
-              console.error(`Failed to get existing independent work for student ${student.name}:`, getError);
+              console.error(
+                `Failed to get existing independent work for student ${student.name}:`,
+                getError,
+              );
             }
           } else {
-            console.error(`Failed to create independent work for student ${student.name}: ${responseMessage}`);
+            console.error(
+              `Failed to create independent work for student ${student.name}: ${responseMessage}`,
+            );
           }
         } catch (createError: any) {
-          console.error(`Failed to create independent work for student ${student.name}:`, createError);
+          console.error(
+            `Failed to create independent work for student ${student.name}:`,
+            createError,
+          );
         }
       }
 
@@ -1271,19 +1527,24 @@ export function TeacherCourseDetail({
 
       for (const student of students) {
         if (!looksLikeStudentGuid(student.id)) continue;
-        
+
         let actualStudentId: string = String(student.id);
         if (!looksLikeStudentGuid(actualStudentId)) {
           if (student.userId && looksLikeStudentGuid(student.userId)) {
             actualStudentId = student.userId;
-          } else if ((student as any).user?.id && looksLikeStudentGuid((student as any).user.id)) {
+          } else if (
+            (student as any).user?.id &&
+            looksLikeStudentGuid((student as any).user.id)
+          ) {
             actualStudentId = (student as any).user.id;
           } else {
             continue;
           }
         }
 
-        const independentWorkId = studentIndependentWorkIds.get(String(student.id));
+        const independentWorkId = studentIndependentWorkIds.get(
+          String(student.id),
+        );
         if (!independentWorkId) {
           continue;
         }
@@ -1291,7 +1552,7 @@ export function TeacherCourseDetail({
         let hasAnyPassed = false;
         let hasAnyFailed = false;
         let hasAnyValue = false;
-        
+
         for (let idx = 0; idx < student.assignments.length; idx++) {
           const assignment = student.assignments[idx];
           if (assignment === 1) {
@@ -1311,9 +1572,20 @@ export function TeacherCourseDetail({
               independentWorkId,
               isPassed,
             );
+            setStudents((prev) =>
+              prev.map((s) => {
+                if (String(s.id) !== String(student.id)) return s;
+                const updatedAssignments = [...s.assignments];
+                updatedAssignments[0] = isPassed ? 1 : null;
+                return { ...s, assignments: updatedAssignments };
+              }),
+            );
             ok += 1;
           } catch (error: any) {
-            console.error(`Failed to grade independent work for student ${student.name}:`, error);
+            console.error(
+              `Failed to grade independent work for student ${student.name}:`,
+              error,
+            );
             err += 1;
           }
         }
@@ -1479,50 +1751,51 @@ export function TeacherCourseDetail({
                               <TableCell className="sticky left-0 bg-background z-30 font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                 {student.name}
                               </TableCell>
-                            {sessions.map((session, idx) => (
-                              <TableCell
-                                key={session.id}
-                                className={`text-center ${selectedColumn === idx ? "bg-accent/50" : ""}`}
-                              >
-                                <Select
-                                  value={getActivityValue(
-                                    student.activityAttendance[idx],
-                                  )}
-                                  onValueChange={(value: string) =>
-                                    updateActivityAttendance(
-                                      student.id,
-                                      idx,
-                                      value,
-                                    )
-                                  }
+                              {sessions.map((session, idx) => (
+                                <TableCell
+                                  key={session.id}
+                                  className={`text-center ${selectedColumn === idx ? "bg-accent/50" : ""}`}
                                 >
-                                  <SelectTrigger className="w-[100px] mx-auto">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="present">
-                                      Present
-                                    </SelectItem>
-                                    <SelectItem value="absent">
-                                      Absent
-                                    </SelectItem>
-                                    {session.type === "S" &&
-                                      Array.from(
-                                        { length: 10 },
-                                        (_, i) => i + 1,
-                                      ).map((grade) => (
-                                        <SelectItem
-                                          key={grade}
-                                          value={grade.toString()}
-                                        >
-                                          {grade}
-                                        </SelectItem>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                            ))}
-                          </TableRow>
+                                  <Select
+                                    value={getActivityValue(
+                                      student.activityAttendance[idx],
+                                      session,
+                                    )}
+                                    onValueChange={(value: string) =>
+                                      updateActivityAttendance(
+                                        student.id,
+                                        idx,
+                                        value,
+                                      )
+                                    }
+                                  >
+                                    <SelectTrigger className="w-[100px] mx-auto">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="present">
+                                        Present
+                                      </SelectItem>
+                                      <SelectItem value="absent">
+                                        Absent
+                                      </SelectItem>
+                                      {session.type === "S" &&
+                                        Array.from(
+                                          { length: 10 },
+                                          (_, i) => i + 1,
+                                        ).map((grade) => (
+                                          <SelectItem
+                                            key={grade}
+                                            value={grade.toString()}
+                                          >
+                                            {grade}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                              ))}
+                            </TableRow>
                           );
                         })}
                       </TableBody>
@@ -1541,7 +1814,8 @@ export function TeacherCourseDetail({
                 <div>
                   <CardTitle>Colloquium Scores</CardTitle>
                   <CardDescription>
-                    Mini exams scored 0-10 (3 per semester). Changes save when you select a grade.
+                    Mini exams scored 0-10 (3 per semester). Changes save when
+                    you select a grade.
                   </CardDescription>
                 </div>
                 <Button
