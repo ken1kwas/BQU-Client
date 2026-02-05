@@ -186,6 +186,9 @@ export function TeacherCourseDetail({
   const attendanceSnapshotRef = useRef<Map<string, ("present" | "absent")[]>>(
     new Map(),
   );
+  const assignmentsSnapshotRef = useRef<Map<string, (0 | 1 | null)[]>>(
+    new Map(),
+  );
 
   const applyColloquiumsToStudents = (
     baseStudents: Student[],
@@ -335,18 +338,20 @@ export function TeacherCourseDetail({
       const assignmentIds = [...prevIds] as (string | null)[];
 
       if (list.length > 0) {
-        const item = list[0];
-        const independentWorkId =
-          item.id ?? item.Id ?? item.independentWorkId ?? null;
-        if (independentWorkId) {
-          for (let i = 0; i < ASSIGNMENTS_COUNT; i++) {
+        for (let i = 0; i < Math.min(list.length, ASSIGNMENTS_COUNT); i++) {
+          const item = list[i];
+          const independentWorkId =
+            item.id ?? item.Id ?? item.independentWorkId ?? null;
+          if (independentWorkId) {
             assignmentIds[i] = independentWorkId;
-          }
-          const isPassed = item.isPassed ?? item.IsPassed;
-          if (isPassed === true) {
-            assignments[0] = 1;
-          } else if (isPassed === false) {
-            assignments[0] = null;
+            const isPassed = item.isPassed ?? item.IsPassed;
+            if (isPassed === true) {
+              assignments[i] = 1;
+            } else if (isPassed === false) {
+              assignments[i] = 0;
+            } else {
+              assignments[i] = null;
+            }
           }
         }
       }
@@ -553,8 +558,7 @@ export function TeacherCourseDetail({
               const direct = records[sessionIndex];
               const fallback = byId.get(session.id);
               const source = direct ?? fallback ?? {};
-              const defaultAttendance =
-                session.type === "S" ? "absent" : "present";
+              const defaultAttendance = "absent";
               const attendanceValue = String(
                 source?.attendance ??
                   source?.status ??
@@ -596,8 +600,7 @@ export function TeacherCourseDetail({
               sessionAttendance.length > 0
                 ? sessionAttendance
                 : Array.from({ length: sessionItems.length }, (_, idx) => ({
-                    attendance:
-                      sessionItems[idx]?.type === "S" ? "absent" : "present",
+                    attendance: "absent",
                     grade: null as number | null,
                   })),
             colloquium: Array(COLLOQUIUM_COUNT).fill(null),
@@ -758,8 +761,9 @@ export function TeacherCourseDetail({
             if (cls) {
               const absentRaw = cls.isAbsent ?? cls.IsAbsent;
               const presentRaw = cls.isPresent ?? cls.IsPresent;
-              let attendanceState: "present" | "absent" =
-                session.type === "S" ? "absent" : "present";
+              const gradeVal = cls.grade ?? cls.Grade;
+              
+              let attendanceState: "present" | "absent" = "absent";
 
               if (typeof absentRaw === "boolean") {
                 attendanceState = absentRaw ? "absent" : "present";
@@ -786,7 +790,7 @@ export function TeacherCourseDetail({
                   attendanceState = "absent";
                 }
               }
-              const gradeVal = cls.grade ?? cls.Grade;
+              
               const result: {
                 attendance: "present" | "absent";
                 grade: number | null;
@@ -797,7 +801,10 @@ export function TeacherCourseDetail({
                     ? Number(gradeVal)
                     : null,
               };
-              if (session.type === "S" && result.grade !== null) {
+              
+              // If there's a grade > 0 (1-10), student must be present
+              // Grade 0 with null isPresent should remain absent
+              if (session.type === "S" && result.grade !== null && !Number.isNaN(result.grade) && result.grade > 0) {
                 result.attendance = "present";
               }
               return result;
@@ -816,7 +823,7 @@ export function TeacherCourseDetail({
               attendance: "present" | "absent";
               grade: number | null;
             } = {
-              attendance: session.type === "S" ? "absent" : "present",
+              attendance: "absent",
               grade: null,
             };
             return fallback;
@@ -846,6 +853,12 @@ export function TeacherCourseDetail({
         merged.map((student) => [
           String(student.id),
           student.activityAttendance.map((entry) => entry.attendance),
+        ]),
+      );
+      assignmentsSnapshotRef.current = new Map(
+        merged.map((student) => [
+          String(student.id),
+          [...student.assignments],
         ]),
       );
       setStudents(merged);
@@ -896,8 +909,7 @@ export function TeacherCourseDetail({
       const current = attendanceSnapshotRef.current.get(studentIdStr);
       const base = current ? [...current] : [];
       while (base.length < sessions.length) {
-        const defaultValue =
-          sessions[base.length]?.type === "S" ? "absent" : "present";
+        const defaultValue = "absent";
         base.push(defaultValue);
       }
       base[sessionIndex] = nextAttendance;
@@ -1084,6 +1096,8 @@ export function TeacherCourseDetail({
 
       if (seminarId) {
         await updateSeminarGrade(actualStudentId, seminarId, grade);
+        // Update snapshot to reflect that attendance is now "present" due to grade
+        commitSnapshot("present");
       } else {
         const seminarData = {
           studentId: actualStudentId.trim(),
@@ -1100,6 +1114,8 @@ export function TeacherCourseDetail({
         if (typeof createdId === "string" && createdId) {
           seminarId = createdId;
           await updateSeminarGrade(actualStudentId, seminarId, grade);
+          // Update snapshot to reflect that attendance is now "present" due to grade
+          commitSnapshot("present");
           setStudents((prev) =>
             prev.map((s) => {
               if (String(s.id) !== studentIdStr) return s;
@@ -1301,10 +1317,15 @@ export function TeacherCourseDetail({
       | undefined,
     session?: CourseSession,
   ) => {
-    if (!data) return session?.type === "S" ? "absent" : "present";
+    if (!data) return "absent";
     if (data.attendance === "absent") return "absent";
-    if (data.grade !== null && data.grade !== undefined)
+    if (data.grade !== null && data.grade !== undefined) {
+      // If grade is 0, show attendance state instead of "0"
+      if (data.grade === 0) {
+        return data.attendance;
+      }
       return data.grade.toString();
+    }
     return "present";
   };
 
@@ -1341,10 +1362,8 @@ export function TeacherCourseDetail({
           attendanceSnapshotRef.current.get(String(student.id)) ?? [];
         for (let idx = 0; idx < student.activityAttendance.length; idx++) {
           const cell = student.activityAttendance[idx];
-          const desired = cell?.attendance ?? "present";
-          const previous =
-            snapshot[idx] ??
-            (sessions[idx]?.type === "S" ? "absent" : "present");
+          const desired = cell?.attendance ?? "absent";
+          const previous = snapshot[idx] ?? "absent";
           if (desired !== previous) {
             pending.push({ student, sessionIndex: idx, desired });
           }
@@ -1381,8 +1400,7 @@ export function TeacherCourseDetail({
             attendanceSnapshotRef.current.get(String(student.id)) ?? [];
           const updated = [...snapshot];
           while (updated.length < sessions.length) {
-            const defaultValue =
-              sessions[updated.length]?.type === "S" ? "absent" : "present";
+            const defaultValue = "absent";
             updated.push(defaultValue);
           }
           updated[sessionIndex] = desired;
@@ -1405,14 +1423,14 @@ export function TeacherCourseDetail({
     setIsSendingAssignments(true);
     let ok = 0;
     let err = 0;
+
     try {
       // Calculate due date (30 days from now) for new independent works
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 30);
       const dueDateISO = dueDate.toISOString();
 
-      const studentIndependentWorkIds = new Map<string, string>();
-
+      // We'll iterate through all students and check for changes against the snapshot
       for (const student of students) {
         if (!looksLikeStudentGuid(student.id)) continue;
 
@@ -1430,170 +1448,88 @@ export function TeacherCourseDetail({
           }
         }
 
-        const existingId = student.assignmentIds?.find(
-          (id) => id !== null && id !== undefined,
-        );
-        if (existingId) {
-          studentIndependentWorkIds.set(String(student.id), existingId);
-          continue;
-        }
+        const snapshot = assignmentsSnapshotRef.current.get(String(student.id)) ||
+          Array(ASSIGNMENTS_COUNT).fill(null);
+        
+        const currentAssignments = student.assignments;
+        const assignmentIds = [...(student.assignmentIds || Array(ASSIGNMENTS_COUNT).fill(null))];
 
-        try {
-          const createRes = await createIndependentWork(
-            actualStudentId,
-            taughtSubjectId,
-            dueDateISO,
-          );
+        // Process each of the 10 assignments
+        for (let i = 0; i < ASSIGNMENTS_COUNT; i++) {
+          const currentValue = currentAssignments[i];
+          const previousValue = snapshot[i];
 
-          const unwrapped = unwrap<any>(createRes);
-          const isSucceeded =
-            unwrapped?.isSucceeded ?? unwrapped?.IsSucceeded ?? false;
-          const responseMessage =
-            unwrapped?.responseMessage ?? unwrapped?.ResponseMessage ?? "";
+          // Skip if no change
+          if (currentValue === previousValue) continue;
 
-          if (isSucceeded) {
-            const createdId =
-              unwrapped?.id ??
-              unwrapped?.Id ??
-              unwrapped?.data?.id ??
-              unwrapped?.data?.Id;
-            if (typeof createdId === "string" && createdId) {
-              studentIndependentWorkIds.set(String(student.id), createdId);
-            }
-          } else if (
-            responseMessage.includes("already exist") ||
-            responseMessage.includes("already exists")
-          ) {
+          let independentWorkId = assignmentIds[i];
+
+          // If no independent work ID exists for this slot, create one
+          if (!independentWorkId) {
             try {
-              const getRes = await getIndependentWorkByStudentAndSubject(
+              const createRes = await createIndependentWork(
                 actualStudentId,
                 taughtSubjectId,
+                dueDateISO,
               );
-              const independentWorksList =
-                getRes?.GetIndependentWorkDto ??
-                getRes?.getIndependentWorkDto ??
-                getRes?.data?.GetIndependentWorkDto ??
-                getRes?.data?.getIndependentWorkDto ??
-                [];
 
-              const independentWorks = toArray(independentWorksList);
+              const unwrapped = unwrap<any>(createRes);
+              const isSucceeded =
+                unwrapped?.isSucceeded ?? unwrapped?.IsSucceeded ?? false;
 
-              if (independentWorks.length > 0) {
-                const existingId =
-                  independentWorks[0]?.id ?? independentWorks[0]?.Id ?? null;
-                if (typeof existingId === "string" && existingId) {
-                  studentIndependentWorkIds.set(String(student.id), existingId);
-                } else {
-                  console.warn(
-                    `Independent work exists for ${student.name}, but ID is not available in response:`,
-                    independentWorks[0],
-                  );
+              if (isSucceeded) {
+                independentWorkId =
+                  unwrapped?.id ??
+                  unwrapped?.Id ??
+                  unwrapped?.data?.id ??
+                  unwrapped?.data?.Id;
+                
+                if (independentWorkId) {
+                  assignmentIds[i] = independentWorkId;
+                  // Update the student's assignmentIds in state so next save attempt for this student has it
+                  setStudents(prev => prev.map(s => {
+                    if (String(s.id) !== String(student.id)) return s;
+                    const newIds = [...(s.assignmentIds || Array(ASSIGNMENTS_COUNT).fill(null))];
+                    newIds[i] = independentWorkId;
+                    return { ...s, assignmentIds: newIds };
+                  }));
                 }
-              } else {
-                console.warn(
-                  `Independent work exists for ${student.name}, but GET endpoint returned empty list. Response:`,
-                  getRes,
-                );
               }
-            } catch (getError: any) {
-              console.error(
-                `Failed to get existing independent work for student ${student.name}:`,
-                getError,
-              );
+            } catch (createError) {
+              console.error(`Failed to create independent work for student ${student.name} slot ${i + 1}:`, createError);
+              continue; // Cannot grade without ID
             }
-          } else {
-            console.error(
-              `Failed to create independent work for student ${student.name}: ${responseMessage}`,
-            );
           }
-        } catch (createError: any) {
-          console.error(
-            `Failed to create independent work for student ${student.name}:`,
-            createError,
-          );
-        }
-      }
 
-      setStudents((prev) =>
-        prev.map((s) => {
-          const independentWorkId = studentIndependentWorkIds.get(String(s.id));
           if (independentWorkId) {
-            const ids = Array(ASSIGNMENTS_COUNT).fill(independentWorkId);
-            return { ...s, assignmentIds: ids };
-          }
-          return s;
-        }),
-      );
+            try {
+              // Convert 1/0/null to true/false/null
+              const isPassed = currentValue === 1 ? true : currentValue === 0 ? false : null;
+              
+              await markIndependentWorkGrade(
+                actualStudentId,
+                independentWorkId,
+                isPassed,
+              );
 
-      for (const student of students) {
-        if (!looksLikeStudentGuid(student.id)) continue;
-
-        let actualStudentId: string = String(student.id);
-        if (!looksLikeStudentGuid(actualStudentId)) {
-          if (student.userId && looksLikeStudentGuid(student.userId)) {
-            actualStudentId = student.userId;
-          } else if (
-            (student as any).user?.id &&
-            looksLikeStudentGuid((student as any).user.id)
-          ) {
-            actualStudentId = (student as any).user.id;
-          } else {
-            continue;
+              // Update snapshot immediately on success
+              snapshot[i] = currentValue;
+              ok += 1;
+            } catch (error) {
+              console.error(`Failed to grade independent work for student ${student.name} slot ${i + 1}:`, error);
+              err += 1;
+            }
           }
         }
-
-        const independentWorkId = studentIndependentWorkIds.get(
-          String(student.id),
-        );
-        if (!independentWorkId) {
-          continue;
-        }
-
-        let hasAnyPassed = false;
-        let hasAnyFailed = false;
-        let hasAnyValue = false;
-
-        for (let idx = 0; idx < student.assignments.length; idx++) {
-          const assignment = student.assignments[idx];
-          if (assignment === 1) {
-            hasAnyPassed = true;
-            hasAnyValue = true;
-          } else if (assignment === 0) {
-            hasAnyFailed = true;
-            hasAnyValue = true;
-          }
-        }
-
-        if (hasAnyValue) {
-          try {
-            const isPassed = hasAnyPassed;
-            await markIndependentWorkGrade(
-              actualStudentId,
-              independentWorkId,
-              isPassed,
-            );
-            setStudents((prev) =>
-              prev.map((s) => {
-                if (String(s.id) !== String(student.id)) return s;
-                const updatedAssignments = [...s.assignments];
-                updatedAssignments[0] = isPassed ? 1 : null;
-                return { ...s, assignments: updatedAssignments };
-              }),
-            );
-            ok += 1;
-          } catch (error: any) {
-            console.error(
-              `Failed to grade independent work for student ${student.name}:`,
-              error,
-            );
-            err += 1;
-          }
-        }
+        
+        // Update the snapshot reference for this student
+        assignmentsSnapshotRef.current.set(String(student.id), [...snapshot]);
       }
 
-      if (ok > 0) toast.success(`Saved ${ok} assignment(s)`);
+      if (ok > 0) toast.success(`Successfully saved ${ok} assignment(s)`);
       if (err > 0) toast.error(`Failed to save ${err} assignment(s)`);
-      if (ok === 0 && err === 0) toast.info("No assignments to save");
+      if (ok === 0 && err === 0) toast.info("No changes to save");
+
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save assignments");
     } finally {
@@ -1652,7 +1588,7 @@ export function TeacherCourseDetail({
                 <div className="min-w-0">
                   <CardTitle>Activity & Attendance Tracking</CardTitle>
                   <CardDescription>
-                    Mark attendance and grades for each session
+                    Mark attendance and grades for each session. Grades save automatically.
                   </CardDescription>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
@@ -1687,7 +1623,7 @@ export function TeacherCourseDetail({
                     <SelectContent>
                       <SelectItem value="present">Present</SelectItem>
                       <SelectItem value="absent">Absent</SelectItem>
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map(
+                      {Array.from({ length: 11 }, (_, i) => i).map(
                         (grade) => (
                           <SelectItem key={grade} value={grade.toString()}>
                             {grade}
@@ -1710,11 +1646,11 @@ export function TeacherCourseDetail({
                     title={
                       !students.some((s) => looksLikeStudentGuid(s.id))
                         ? "Server requires student ID (GUID); not provided by current API."
-                        : undefined
+                        : "Save attendance changes (grades are saved automatically)"
                     }
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {isSendingAttendance ? "Saving…" : "Send"}
+                    {isSendingAttendance ? "Saving…" : "Save Attendance"}
                   </Button>
                 </div>
               </div>
@@ -1781,8 +1717,8 @@ export function TeacherCourseDetail({
                                       </SelectItem>
                                       {session.type === "S" &&
                                         Array.from(
-                                          { length: 10 },
-                                          (_, i) => i + 1,
+                                          { length: 11 },
+                                          (_, i) => i,
                                         ).map((grade) => (
                                           <SelectItem
                                             key={grade}
