@@ -527,6 +527,48 @@ const formatTodayDate = (): string => {
   return `${dayName}, ${month} ${day}`;
 };
 
+const unwrapSchedulePayload = (raw: any): any => {
+  const visited = new Set<any>();
+  let current = raw;
+
+  while (
+    current &&
+    typeof current === "object" &&
+    !Array.isArray(current) &&
+    !Array.isArray(current.classes) &&
+    !visited.has(current)
+  ) {
+    visited.add(current);
+
+    const nextCandidate =
+      current.teacherScheduleDto ??
+      current.teacherSchedule ??
+      current.studentSchedule ??
+      current.studentScheduleDto ??
+      current.data ??
+      current.result ??
+      current.value ??
+      null;
+
+    if (nextCandidate) {
+      current = nextCandidate;
+      continue;
+    }
+
+    break;
+  }
+
+  if (Array.isArray(current)) {
+    return { classes: current };
+  }
+
+  if (current && Array.isArray(current.classes)) {
+    return { classes: current.classes };
+  }
+
+  return current;
+};
+
 export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
   const [todaySchedule, setTodaySchedule] = useState<ScheduleEntry[]>([]);
   const [weekSchedule, setWeekSchedule] = useState<ScheduleDay[]>([]);
@@ -551,30 +593,13 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
 
         if (!mounted) return;
 
-        let processedToday = todayRaw;
-        if (todayRaw?.teacherScheduleDto) {
-          processedToday = todayRaw.teacherScheduleDto;
-        } else if (todayRaw?.data?.teacherScheduleDto) {
-          processedToday = todayRaw.data.teacherScheduleDto;
-        } else if (todayRaw?.data) {
-          processedToday = todayRaw.data;
-        }
+        const processedToday = unwrapSchedulePayload(todayRaw);
 
         const todayEntries = toTodaySchedule(processedToday);
         setTodaySchedule(todayEntries);
 
-        let processedWeek = weekRaw;
-        if (weekRaw?.teacherScheduleDto) {
-          processedWeek = weekRaw.teacherScheduleDto;
-        } else if (weekRaw?.data?.teacherScheduleDto) {
-          processedWeek = weekRaw.data.teacherScheduleDto;
-        } else if (weekRaw?.data) {
-          processedWeek = weekRaw.data;
-        }
-
-        const weekEntries = Array.isArray(processedWeek)
-          ? toWeekSchedule({ classes: processedWeek })
-          : toWeekSchedule(processedWeek);
+        const processedWeek = unwrapSchedulePayload(weekRaw);
+        const weekEntries = toWeekSchedule(processedWeek);
 
         setWeekSchedule(weekEntries);
       } catch (err: any) {

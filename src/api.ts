@@ -264,17 +264,17 @@ export function markStudentAbsence(
 export function createIndependentWork(
   studentId: string,
   taughtSubjectId: string,
-  dueDate: string, 
+  dueDate: string,
 ) {
   return apiJson<any>(
     `/api/independent-works`,
-    { 
-      method: "POST", 
-      json: { 
-        studentId, 
-        taughtSubjectId, 
-        dueDate 
-      } 
+    {
+      method: "POST",
+      json: {
+        studentId,
+        taughtSubjectId,
+        dueDate
+      }
     },
   );
 }
@@ -293,13 +293,16 @@ export async function getIndependentWorkByStudentAndSubject(
 export function markIndependentWorkGrade(
   studentId: string,
   independentWorkId: string,
-  isPassed: boolean,
+  isPassed: boolean | null,
 ) {
-  const q = new URLSearchParams({ isPassed: String(isPassed) });
-  return apiJson<any>(
-    `/api/students/${encodeURIComponent(studentId)}/independent-works/${encodeURIComponent(independentWorkId)}/grade?${q}`,
-    { method: "PUT" },
-  );
+  const q = new URLSearchParams();
+  // Only add isPassed parameter if it's not null (neutral state)
+  if (isPassed !== null) {
+    q.set("isPassed", String(isPassed));
+  }
+  const queryString = q.toString();
+  const url = `/api/students/${encodeURIComponent(studentId)}/independent-works/${encodeURIComponent(independentWorkId)}/grade${queryString ? `?${queryString}` : ''}`;
+  return apiJson<any>(url, { method: "PUT" });
 }
 
 export async function getStudentProfile() {
