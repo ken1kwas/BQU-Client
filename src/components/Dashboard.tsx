@@ -7,7 +7,13 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { AlertCircle, CheckCircle, XCircle, FileText, CalendarDays } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  FileText,
+  CalendarDays,
+} from "lucide-react";
 import { CourseCard } from "./CourseCard";
 import { getStudentDashboard, getStudentProfile } from "../api";
 
@@ -32,12 +38,13 @@ interface DashboardNotification {
 
 export function Dashboard() {
   const [courses, setCourses] = useState<DashboardCourse[]>([]);
-  const [notifications, setNotifications] = useState<DashboardNotification[]>([]);
+  const [notifications, setNotifications] = useState<DashboardNotification[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [studentName, setStudentName] = useState<string>("");
 
-  // Get student name from profile
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -91,7 +98,8 @@ export function Dashboard() {
           setCourses(data);
         } else {
           if (Array.isArray(data.todayClasses)) setCourses(data.todayClasses);
-          if (Array.isArray(data.notifications)) setNotifications(data.notifications);
+          if (Array.isArray(data.notifications))
+            setNotifications(data.notifications);
         }
       } catch (err: any) {
         if (!mounted) return;
@@ -178,17 +186,24 @@ export function Dashboard() {
                     break;
                 }
                 return (
-                  <div key={notification.id} className="flex items-start gap-3 p-3 rounded-lg border">
+                  <div
+                    key={notification.id}
+                    className="flex items-start gap-3 p-3 rounded-lg border"
+                  >
                     <div className="flex-shrink-0 mt-1">
                       <Icon className={`h-4 w-4 ${color}`} />
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
                         <p className="font-medium">{notification.course}</p>
-                        {notification.code && <Badge variant="outline">{notification.code}</Badge>}
+                        {notification.code && (
+                          <Badge variant="outline">{notification.code}</Badge>
+                        )}
                       </div>
                       <p className="text-sm">{notification.message}</p>
-                      <p className="text-xs text-muted-foreground">{notification.timestamp}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {notification.timestamp}
+                      </p>
                     </div>
                   </div>
                 );
