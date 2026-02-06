@@ -76,6 +76,7 @@ interface CourseSession {
   time: string;
   type: "L" | "S";
   seminarId?: string | null;
+  rawDate?: string | Date | null; // Original date from API for creating independent works
 }
 
 const formatSessionDate = (value: any): string => {
@@ -128,15 +129,15 @@ const mapSessionsFromApi = (source: any): CourseSession[] => {
           item?.type ?? item?.sessionType ?? item?.kind ?? item?.format ?? "L",
         ).toLowerCase();
         const type = typeRaw.startsWith("s") ? "S" : "L";
+        const rawDate = item?.date ?? item?.sessionDate ?? item?.heldOn ?? item?.startDate;
         return {
           id: String(
             item?.id ?? item?.sessionId ?? item?.scheduleId ?? index + 1,
           ),
-          date: formatSessionDate(
-            item?.date ?? item?.sessionDate ?? item?.heldOn ?? item?.startDate,
-          ),
+          date: formatSessionDate(rawDate),
           time: formatSessionTime(start, end),
           type,
+          rawDate: rawDate ?? null,
         };
       });
     }
@@ -397,6 +398,7 @@ export function TeacherCourseDetail({
               cls?.classType ?? cls?.ClassType ?? "L",
             )[0].toUpperCase() as "L" | "S",
             seminarId: cls?.seminarId ?? cls?.SeminarId ?? null,
+            rawDate: cls?.classDate ?? cls?.ClassDate ?? null,
           }));
 
           classesData = attendancesArray;
@@ -412,12 +414,18 @@ export function TeacherCourseDetail({
           const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
           const taughtSubject = unwrap<any>(taughtSubjectResp);
           sessionItems = mapSessionsFromApi(taughtSubject);
-        } catch (e) {
+        } catch (e: any) {
           // Endpoint requires Dean role, but we're Teacher - this is expected
-          console.warn(
-            "Could not fetch taught subject for sessions (non-fatal):",
-            e,
-          );
+          // Only log if it's not a 403 (Forbidden), as 403 is expected for Teacher role
+          const isForbidden = e?.message?.includes("403") || 
+                             e?.message?.includes("Forbidden") ||
+                             e?.status === 403;
+          if (!isForbidden) {
+            console.warn(
+              "Could not fetch taught subject for sessions (non-fatal):",
+              e,
+            );
+          }
           // Keep empty sessionItems - will be handled by other logic
         }
       }
@@ -434,10 +442,16 @@ export function TeacherCourseDetail({
       try {
         const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
         taughtSubject = unwrap<any>(taughtSubjectResp);
-      } catch (e) {
+      } catch (e: any) {
         // Endpoint requires Dean role, but we're Teacher - this is expected
+        // Only log if it's not a 403 (Forbidden), as 403 is expected for Teacher role
+        const isForbidden = e?.message?.includes("403") || 
+                           e?.message?.includes("Forbidden") ||
+                           e?.status === 403;
+        if (!isForbidden) {
+          console.warn("Could not fetch taught subject details (non-fatal):", e);
+        }
         // Try to get data from GetStudentsAndAttendances response instead
-        console.warn("Could not fetch taught subject details (non-fatal):", e);
 
         // Extract taught subject info from classesData if available
         if (classesData.length > 0) {
@@ -1425,10 +1439,30 @@ export function TeacherCourseDetail({
     let err = 0;
 
     try {
-      // Calculate due date (30 days from now) for new independent works
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 30);
-      const dueDateISO = dueDate.toISOString();
+      // Prepare dates for each of the 10 assignment slots
+      // Try to use dates from sessions if available, otherwise use base date + offset
+      const getDueDateForSlot = (slotIndex: number): string => {
+        // If we have sessions with raw dates, use them
+        if (sessions.length > slotIndex && sessions[slotIndex]?.rawDate) {
+          try {
+            const rawDate = sessions[slotIndex].rawDate;
+            const sessionDate = rawDate instanceof Date ? rawDate : new Date(rawDate);
+            if (!isNaN(sessionDate.getTime())) {
+              // Use session date + 7 days as due date (to ensure it's in the future)
+              sessionDate.setDate(sessionDate.getDate() + 7);
+              return sessionDate.toISOString();
+            }
+          } catch (e) {
+            // If parsing fails, fall through to default logic
+            console.warn(`Failed to parse session date for slot ${slotIndex}:`, e);
+          }
+        }
+        
+        // Default: base date (30 days from now) + offset for each slot (7 days between slots)
+        const baseDate = new Date();
+        baseDate.setDate(baseDate.getDate() + 30 + (slotIndex * 7));
+        return baseDate.toISOString();
+      };
 
       // We'll iterate through all students and check for changes against the snapshot
       for (const student of students) {
@@ -1467,6 +1501,9 @@ export function TeacherCourseDetail({
           // If no independent work ID exists for this slot, create one
           if (!independentWorkId) {
             try {
+              // Use different due date for each slot
+              const dueDateISO = getDueDateForSlot(i);
+              
               const createRes = await createIndependentWork(
                 actualStudentId,
                 taughtSubjectId,
@@ -1493,10 +1530,95 @@ export function TeacherCourseDetail({
                     newIds[i] = independentWorkId;
                     return { ...s, assignmentIds: newIds };
                   }));
+                } else {
+                  // Creation succeeded but no ID returned
+                  const errorMsg = unwrapped?.responseMessage ?? unwrapped?.ResponseMessage ?? 
+                    unwrapped?.message ?? unwrapped?.Message ?? 
+                    "Created but no ID returned";
+                  console.error(`Created independent work but no ID returned for student ${student.name} slot ${i + 1}:`, errorMsg);
+                  err += 1;
+                  continue; // Cannot grade without ID
+                }
+              } else {
+                // Creation failed - check if it's a "already exists" error (409 Conflict)
+                const statusCode = unwrapped?.statusCode ?? unwrapped?.StatusCode;
+                const errorMsg = unwrapped?.responseMessage ?? unwrapped?.ResponseMessage ?? 
+                  unwrapped?.message ?? unwrapped?.Message ?? 
+                  unwrapped?.error ?? unwrapped?.Error ??
+                  (statusCode ? `Status: ${statusCode}` : null) ??
+                  (createRes ? JSON.stringify(createRes) : "Unknown error");
+                
+                // If it's a 409 Conflict (already exists), try to fetch existing independent works
+                if (statusCode === 409 || errorMsg.toLowerCase().includes("already exist")) {
+                  try {
+                    console.warn(`Independent work already exists for student ${student.name}, fetching existing...`);
+                    const existingWorksResp = await getIndependentWorkByStudentAndSubject(
+                      actualStudentId,
+                      taughtSubjectId,
+                    );
+                    const existingWorksUnwrapped = unwrap<any>(existingWorksResp);
+                    const worksArray = toArray(
+                      existingWorksUnwrapped?.getIndependentWorkDto ??
+                        existingWorksUnwrapped?.GetIndependentWorkDto ??
+                        existingWorksUnwrapped?.independentWorks ??
+                        existingWorksUnwrapped?.IndependentWorks ??
+                        existingWorksUnwrapped ??
+                        [],
+                    );
+                    
+                    // Sort by date to match the slot order
+                    worksArray.sort((a: any, b: any) => {
+                      const ad = Date.parse(a?.date ?? a?.Date ?? "") || 0;
+                      const bd = Date.parse(b?.date ?? b?.Date ?? "") || 0;
+                      return ad - bd;
+                    });
+                    
+                    // Use the work at index i if available
+                    if (worksArray.length > i) {
+                      const existingWork = worksArray[i];
+                      independentWorkId = existingWork?.id ?? existingWork?.Id ?? null;
+                      if (independentWorkId) {
+                        assignmentIds[i] = independentWorkId;
+                        // Update the student's assignmentIds in state
+                        setStudents(prev => prev.map(s => {
+                          if (String(s.id) !== String(student.id)) return s;
+                          const newIds = [...(s.assignmentIds || Array(ASSIGNMENTS_COUNT).fill(null))];
+                          newIds[i] = independentWorkId;
+                          return { ...s, assignmentIds: newIds };
+                        }));
+                        console.log(`Using existing independent work ID ${independentWorkId} for student ${student.name} slot ${i + 1}`);
+                        // Don't increment err, as we successfully found an existing work
+                      } else {
+                        console.error(`Existing work found but no ID for student ${student.name} slot ${i + 1}`);
+                        err += 1;
+                        continue;
+                      }
+                    } else {
+                      // Not enough existing works for this slot
+                      console.warn(`Not enough existing independent works for student ${student.name} slot ${i + 1} (have ${worksArray.length}, need slot ${i + 1})`);
+                      err += 1;
+                      continue;
+                    }
+                  } catch (fetchError) {
+                    console.error(`Failed to fetch existing independent works for student ${student.name} slot ${i + 1}:`, fetchError);
+                    err += 1;
+                    continue;
+                  }
+                } else {
+                  // Other error
+                  console.error(`Failed to create independent work for student ${student.name} slot ${i + 1}:`, errorMsg, unwrapped);
+                  err += 1;
+                  continue; // Cannot grade without ID
                 }
               }
-            } catch (createError) {
-              console.error(`Failed to create independent work for student ${student.name} slot ${i + 1}:`, createError);
+            } catch (createError: any) {
+              // Extract error message from exception
+              const errorMsg = createError?.message ?? 
+                createError?.error ?? 
+                (typeof createError === 'string' ? createError : JSON.stringify(createError)) ??
+                "Unknown error";
+              console.error(`Failed to create independent work for student ${student.name} slot ${i + 1}:`, errorMsg, createError);
+              err += 1;
               continue; // Cannot grade without ID
             }
           }
@@ -1526,9 +1648,17 @@ export function TeacherCourseDetail({
         assignmentsSnapshotRef.current.set(String(student.id), [...snapshot]);
       }
 
-      if (ok > 0) toast.success(`Successfully saved ${ok} assignment(s)`);
-      if (err > 0) toast.error(`Failed to save ${err} assignment(s)`);
-      if (ok === 0 && err === 0) toast.info("No changes to save");
+      // Show appropriate toast message based on results
+      if (ok === 0 && err === 0) {
+        toast.info("No changes to save");
+      } else if (err === 0) {
+        toast.success(`Successfully saved ${ok} assignment(s)`);
+      } else if (ok === 0) {
+        toast.error(`Failed to save ${err} assignment(s)`);
+      } else {
+        // Both successes and errors - show combined message
+        toast.error(`Saved ${ok} assignment(s), but ${err} failed`);
+      }
 
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save assignments");
