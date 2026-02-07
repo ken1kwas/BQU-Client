@@ -5,9 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { ScrollArea } from "./ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   ArrowLeft,
@@ -48,7 +46,6 @@ import {
   createSeminar,
   updateSeminarGrade,
   markStudentAbsence,
-  createIndependentWork,
   getIndependentWorkByStudentAndSubject,
   getGroup,
   filterStudents,
@@ -76,7 +73,6 @@ interface CourseSession {
   time: string;
   type: "L" | "S";
   seminarId?: string | null;
-  rawDate?: string | Date | null; // Original date from API for creating independent works
 }
 
 const formatSessionDate = (value: any): string => {
@@ -129,15 +125,15 @@ const mapSessionsFromApi = (source: any): CourseSession[] => {
           item?.type ?? item?.sessionType ?? item?.kind ?? item?.format ?? "L",
         ).toLowerCase();
         const type = typeRaw.startsWith("s") ? "S" : "L";
-        const rawDate = item?.date ?? item?.sessionDate ?? item?.heldOn ?? item?.startDate;
         return {
           id: String(
             item?.id ?? item?.sessionId ?? item?.scheduleId ?? index + 1,
           ),
-          date: formatSessionDate(rawDate),
+          date: formatSessionDate(
+            item?.date ?? item?.sessionDate ?? item?.heldOn ?? item?.startDate,
+          ),
           time: formatSessionTime(start, end),
           type,
-          rawDate: rawDate ?? null,
         };
       });
     }
@@ -168,6 +164,17 @@ export function TeacherCourseDetail({
   initialStudentCount?: number;
   initialHours?: number;
 }) {
+  const pendingAssignmentChanges = useRef<
+    Map<
+      string,
+      {
+        studentId: string;
+        assignmentIndex: number;
+        independentWorkId: string | null;
+        isPassed: boolean | null;
+      }
+    >
+  >(new Map());
   const taughtSubjectId = String(courseId);
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -276,28 +283,22 @@ export function TeacherCourseDetail({
     baseStudents: Student[],
     independentWorksRaw: any[],
   ): Student[] => {
-    const byStudent = new Map<string, any[]>();
-    const normalize = (v: any) =>
-      String(v ?? "")
-        .toLowerCase()
-        .trim();
-    const normalizeNoSpaces = (v: any) => normalize(v).replace(/\s+/g, "");
+    console.log("=== APPLY INDEPENDENT WORKS ===");
+    console.log("Total works to apply:", independentWorksRaw.length);
+    console.log("Total students:", baseStudents.length);
 
-    for (const iw of independentWorksRaw || []) {
-      const nameKey = normalize(
-        iw.studentFullName ?? iw.student?.fullName ?? iw.student?.name ?? "",
-      );
-      const nameKeyNoSpaces = normalizeNoSpaces(
-        iw.studentFullName ?? iw.student?.fullName ?? "",
-      );
-      if (!nameKey && !nameKeyNoSpaces) continue;
-      const list =
-        byStudent.get(nameKey) ?? byStudent.get(nameKeyNoSpaces) ?? [];
-      list.push(iw);
-      if (nameKey) byStudent.set(nameKey, list);
-      if (nameKeyNoSpaces && nameKeyNoSpaces !== nameKey)
-        byStudent.set(nameKeyNoSpaces, list);
-    }
+    // Log all student IDs
+    console.log("Student IDs in baseStudents:");
+    baseStudents.forEach((s) => console.log(`  - ${s.name}: ${s.id}`));
+
+    // Log all work student IDs
+    console.log("Student IDs in independent works:");
+    independentWorksRaw.forEach((w) =>
+      console.log(`  - ${w.studentId} (number: ${w.number})`),
+    );
+
+    const byStudent = new Map<string, any[]>();
+
     for (const iw of independentWorksRaw || []) {
       const studentId = String(
         iw.studentId ?? iw.student?.id ?? iw.student?.studentId ?? "",
@@ -308,65 +309,57 @@ export function TeacherCourseDetail({
       byStudent.set(studentId, existing);
     }
 
-    for (const list of byStudent.values()) {
-      list.sort((a, b) => {
-        const ad =
-          Date.parse(
-            a.date ?? a.dateTime ?? a.createdAt ?? a.createdOn ?? "",
-          ) || 0;
-        const bd =
-          Date.parse(
-            b.date ?? b.dateTime ?? b.createdAt ?? b.createdOn ?? "",
-          ) || 0;
-        return ad - bd;
-      });
-    }
+    console.log("Grouped by student (Map keys):", Array.from(byStudent.keys()));
 
     return baseStudents.map((s) => {
-      const np = (s as any)._nameParts;
-      const nameSurnameOnly = [np?.name, np?.surname].filter(Boolean).join(" ");
-      const list =
-        byStudent.get(String(s.id)) ??
-        byStudent.get(normalize(s.name)) ??
-        byStudent.get(normalizeNoSpaces(s.name)) ??
-        byStudent.get(normalize(nameSurnameOnly)) ??
-        byStudent.get(normalizeNoSpaces(nameSurnameOnly)) ??
-        [];
+      const studentIdStr = String(s.id);
+      const list = byStudent.get(studentIdStr) ?? [];
+
+      console.log(`\nStudent: ${s.name}`);
+      console.log(`  ID: ${studentIdStr}`);
+      console.log(`  Found ${list.length} independent works`);
+
       const prevAssignments =
         s.assignments ?? Array(ASSIGNMENTS_COUNT).fill(null);
       const prevIds = s.assignmentIds ?? Array(ASSIGNMENTS_COUNT).fill(null);
       const assignments = [...prevAssignments] as (0 | 1 | null)[];
       const assignmentIds = [...prevIds] as (string | null)[];
 
-      if (list.length > 0) {
-        for (let i = 0; i < Math.min(list.length, ASSIGNMENTS_COUNT); i++) {
-          const item = list[i];
-          const independentWorkId =
-            item.id ?? item.Id ?? item.independentWorkId ?? null;
-          if (independentWorkId) {
-            assignmentIds[i] = independentWorkId;
+      for (const item of list) {
+        const number = item.number ?? item.Number;
+        const independentWorkId =
+          item.id ?? item.Id ?? item.independentWorkId ?? null;
+
+        if (number !== null && number !== undefined && independentWorkId) {
+          const index = Number(number) - 1;
+
+          if (index >= 0 && index < ASSIGNMENTS_COUNT) {
+            assignmentIds[index] = independentWorkId;
             const isPassed = item.isPassed ?? item.IsPassed;
+
             if (isPassed === true) {
-              assignments[i] = 1;
+              assignments[index] = 1;
             } else if (isPassed === false) {
-              assignments[i] = 0;
+              assignments[index] = 0;
             } else {
-              assignments[i] = null;
+              assignments[index] = null;
             }
+
+            console.log(
+              `    ✓ Mapped work to slot ${number}: ID=${independentWorkId}`,
+            );
           }
         }
       }
-      for (let i = 0; i < ASSIGNMENTS_COUNT; i++) {
-        if (assignments[i] === null && prevAssignments[i] != null)
-          assignments[i] = prevAssignments[i];
-        if (assignmentIds[i] === null && prevIds[i] != null)
-          assignmentIds[i] = prevIds[i];
-      }
+
+      console.log(
+        `  Final IDs:`,
+        assignmentIds.filter((id) => id !== null),
+      );
 
       return { ...s, assignments, assignmentIds };
     });
   };
-
   const loadCourseData = async () => {
     setIsLoading(true);
     try {
@@ -398,7 +391,6 @@ export function TeacherCourseDetail({
               cls?.classType ?? cls?.ClassType ?? "L",
             )[0].toUpperCase() as "L" | "S",
             seminarId: cls?.seminarId ?? cls?.SeminarId ?? null,
-            rawDate: cls?.classDate ?? cls?.ClassDate ?? null,
           }));
 
           classesData = attendancesArray;
@@ -414,18 +406,12 @@ export function TeacherCourseDetail({
           const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
           const taughtSubject = unwrap<any>(taughtSubjectResp);
           sessionItems = mapSessionsFromApi(taughtSubject);
-        } catch (e: any) {
+        } catch (e) {
           // Endpoint requires Dean role, but we're Teacher - this is expected
-          // Only log if it's not a 403 (Forbidden), as 403 is expected for Teacher role
-          const isForbidden = e?.message?.includes("403") || 
-                             e?.message?.includes("Forbidden") ||
-                             e?.status === 403;
-          if (!isForbidden) {
-            console.warn(
-              "Could not fetch taught subject for sessions (non-fatal):",
-              e,
-            );
-          }
+          console.warn(
+            "Could not fetch taught subject for sessions (non-fatal):",
+            e,
+          );
           // Keep empty sessionItems - will be handled by other logic
         }
       }
@@ -442,16 +428,10 @@ export function TeacherCourseDetail({
       try {
         const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
         taughtSubject = unwrap<any>(taughtSubjectResp);
-      } catch (e: any) {
+      } catch (e) {
         // Endpoint requires Dean role, but we're Teacher - this is expected
-        // Only log if it's not a 403 (Forbidden), as 403 is expected for Teacher role
-        const isForbidden = e?.message?.includes("403") || 
-                           e?.message?.includes("Forbidden") ||
-                           e?.status === 403;
-        if (!isForbidden) {
-          console.warn("Could not fetch taught subject details (non-fatal):", e);
-        }
         // Try to get data from GetStudentsAndAttendances response instead
+        console.warn("Could not fetch taught subject details (non-fatal):", e);
 
         // Extract taught subject info from classesData if available
         if (classesData.length > 0) {
@@ -655,6 +635,11 @@ export function TeacherCourseDetail({
         const independentWorksResp =
           await listTaughtSubjectIndependentWorks(taughtSubjectId);
         const rawWorks = unwrap<any>(independentWorksResp);
+
+        console.log("=== RAW INDEPENDENT WORKS RESPONSE ===");
+        console.log("Full response:", independentWorksResp);
+        console.log("Unwrapped:", rawWorks);
+
         const worksArray = toArray(
           rawWorks?.independentWorks ??
             rawWorks?.IndependentWorks ??
@@ -663,42 +648,12 @@ export function TeacherCourseDetail({
             [],
         );
 
-        independentWorks = worksArray
-          .map((work: any) => {
-            const studentId = String(
-              work?.studentId ??
-                work?.StudentId ??
-                work?.student?.id ??
-                work?.student?.StudentId ??
-                "",
-            );
-            if (!studentId) return null;
-            const matchedStudent = mappedStudents.find(
-              (s) => String(s.id) === studentId,
-            );
-            const rawIsPassed = work?.isPassed ?? work?.IsPassed;
-            return {
-              id: work?.id ?? work?.Id ?? work?.independentWorkId ?? null,
-              studentId,
-              studentFullName: matchedStudent?.name ?? "",
-              isPassed:
-                rawIsPassed === null || rawIsPassed === undefined
-                  ? null
-                  : Boolean(rawIsPassed),
-              date: work?.date ?? work?.Date ?? null,
-            };
-          })
-          .filter(
-            (
-              entry,
-            ): entry is {
-              id: string | null;
-              studentId: string;
-              studentFullName: string;
-              isPassed: any;
-              date: any;
-            } => entry !== null,
-          );
+        console.log("Works array after toArray:", worksArray);
+
+        // Just use the raw works directly!
+        independentWorks = worksArray;
+
+        console.log("Final independentWorks array:", independentWorks);
       } catch (e) {
         console.warn("Failed to load independent works:", e);
         independentWorks = [];
@@ -776,7 +731,7 @@ export function TeacherCourseDetail({
               const absentRaw = cls.isAbsent ?? cls.IsAbsent;
               const presentRaw = cls.isPresent ?? cls.IsPresent;
               const gradeVal = cls.grade ?? cls.Grade;
-              
+
               let attendanceState: "present" | "absent" = "absent";
 
               if (typeof absentRaw === "boolean") {
@@ -804,7 +759,7 @@ export function TeacherCourseDetail({
                   attendanceState = "absent";
                 }
               }
-              
+
               const result: {
                 attendance: "present" | "absent";
                 grade: number | null;
@@ -815,10 +770,15 @@ export function TeacherCourseDetail({
                     ? Number(gradeVal)
                     : null,
               };
-              
+
               // If there's a grade > 0 (1-10), student must be present
               // Grade 0 with null isPresent should remain absent
-              if (session.type === "S" && result.grade !== null && !Number.isNaN(result.grade) && result.grade > 0) {
+              if (
+                session.type === "S" &&
+                result.grade !== null &&
+                !Number.isNaN(result.grade) &&
+                result.grade > 0
+              ) {
                 result.attendance = "present";
               }
               return result;
@@ -863,6 +823,19 @@ export function TeacherCourseDetail({
         mergedWithColloquiums,
         independentWorks,
       );
+
+      // DEBUG: Check what we're about to set
+      console.log("=== FINAL MERGED STUDENTS ===");
+      merged.forEach((student) => {
+        const hasAnyIds = student.assignmentIds?.some((id) => id !== null);
+        if (hasAnyIds) {
+          console.log(`${student.name}:`, {
+            assignmentIds: student.assignmentIds,
+            assignments: student.assignments,
+          });
+        }
+      });
+
       attendanceSnapshotRef.current = new Map(
         merged.map((student) => [
           String(student.id),
@@ -870,10 +843,7 @@ export function TeacherCourseDetail({
         ]),
       );
       assignmentsSnapshotRef.current = new Map(
-        merged.map((student) => [
-          String(student.id),
-          [...student.assignments],
-        ]),
+        merged.map((student) => [String(student.id), [...student.assignments]]),
       );
       setStudents(merged);
     } catch (e: any) {
@@ -1219,18 +1189,41 @@ export function TeacherCourseDetail({
     studentId: string | number,
     assignmentIndex: number,
   ) => {
-    setStudents(
-      students.map((student) => {
+    setStudents((prevStudents) =>
+      prevStudents.map((student) => {
         if (String(student.id) === String(studentId)) {
           const newAssignments = [...student.assignments];
           const current = newAssignments[assignmentIndex];
+
+          // Cycle through: null -> 1 -> 0 -> null
+          let newValue: 0 | 1 | null;
           if (current === null) {
-            newAssignments[assignmentIndex] = 1;
+            newValue = 1;
           } else if (current === 1) {
-            newAssignments[assignmentIndex] = 0;
+            newValue = 0;
           } else {
-            newAssignments[assignmentIndex] = null;
+            newValue = null;
           }
+
+          newAssignments[assignmentIndex] = newValue;
+
+          // Track this change
+          const independentWorkId = student.assignmentIds?.[assignmentIndex];
+          const isPassed =
+            newValue === 1 ? true : newValue === 0 ? false : null;
+
+          // Create a unique key for tracking this change
+          // Format: "studentId:assignmentIndex" or use the independentWorkId if it exists
+          const changeKey =
+            independentWorkId || `${student.id}:${assignmentIndex}`;
+
+          pendingAssignmentChanges.current.set(changeKey, {
+            studentId: String(student.id),
+            assignmentIndex,
+            independentWorkId: independentWorkId || null,
+            isPassed,
+          });
+
           return { ...student, assignments: newAssignments };
         }
         return student;
@@ -1425,7 +1418,6 @@ export function TeacherCourseDetail({
       }
       if (ok > 0) toast.success(`Saved ${ok} change(s)`);
       if (err > 0) toast.error(`Failed to save ${err} change(s)`);
-      if (ok === 0 && err === 0) toast.info("No attendance changes to send");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save attendance");
     } finally {
@@ -1435,231 +1427,40 @@ export function TeacherCourseDetail({
 
   const sendAssignments = async () => {
     setIsSendingAssignments(true);
-    let ok = 0;
-    let err = 0;
+
+    const changes = Array.from(pendingAssignmentChanges.current.values());
+
+    if (changes.length === 0) {
+      toast.info("No changes to save");
+      setIsSendingAssignments(false);
+      return;
+    }
 
     try {
-      // Prepare dates for each of the 10 assignment slots
-      // Try to use dates from sessions if available, otherwise use base date + offset
-      const getDueDateForSlot = (slotIndex: number): string => {
-        // If we have sessions with raw dates, use them
-        if (sessions.length > slotIndex && sessions[slotIndex]?.rawDate) {
-          try {
-            const rawDate = sessions[slotIndex].rawDate;
-            const sessionDate = rawDate instanceof Date ? rawDate : new Date(rawDate);
-            if (!isNaN(sessionDate.getTime())) {
-              // Use session date + 7 days as due date (to ensure it's in the future)
-              sessionDate.setDate(sessionDate.getDate() + 7);
-              return sessionDate.toISOString();
-            }
-          } catch (e) {
-            // If parsing fails, fall through to default logic
-            console.warn(`Failed to parse session date for slot ${slotIndex}:`, e);
-          }
-        }
-        
-        // Default: base date (30 days from now) + offset for each slot (7 days between slots)
-        const baseDate = new Date();
-        baseDate.setDate(baseDate.getDate() + 30 + (slotIndex * 7));
-        return baseDate.toISOString();
-      };
+      // Filter out only changes that have independentWorkId
+      const changesWithIds = changes
+        .filter((change) => change.independentWorkId !== null)
+        .map((change) => ({
+          independentWorkId: change.independentWorkId!,
+          isPassed: change.isPassed,
+        }));
 
-      // We'll iterate through all students and check for changes against the snapshot
-      for (const student of students) {
-        if (!looksLikeStudentGuid(student.id)) continue;
-
-        let actualStudentId: string = String(student.id);
-        if (!looksLikeStudentGuid(actualStudentId)) {
-          if (student.userId && looksLikeStudentGuid(student.userId)) {
-            actualStudentId = student.userId;
-          } else if (
-            (student as any).user?.id &&
-            looksLikeStudentGuid((student as any).user.id)
-          ) {
-            actualStudentId = (student as any).user.id;
-          } else {
-            continue;
-          }
-        }
-
-        const snapshot = assignmentsSnapshotRef.current.get(String(student.id)) ||
-          Array(ASSIGNMENTS_COUNT).fill(null);
-        
-        const currentAssignments = student.assignments;
-        const assignmentIds = [...(student.assignmentIds || Array(ASSIGNMENTS_COUNT).fill(null))];
-
-        // Process each of the 10 assignments
-        for (let i = 0; i < ASSIGNMENTS_COUNT; i++) {
-          const currentValue = currentAssignments[i];
-          const previousValue = snapshot[i];
-
-          // Skip if no change
-          if (currentValue === previousValue) continue;
-
-          let independentWorkId = assignmentIds[i];
-
-          // If no independent work ID exists for this slot, create one
-          if (!independentWorkId) {
-            try {
-              // Use different due date for each slot
-              const dueDateISO = getDueDateForSlot(i);
-              
-              const createRes = await createIndependentWork(
-                actualStudentId,
-                taughtSubjectId,
-                dueDateISO,
-              );
-
-              const unwrapped = unwrap<any>(createRes);
-              const isSucceeded =
-                unwrapped?.isSucceeded ?? unwrapped?.IsSucceeded ?? false;
-
-              if (isSucceeded) {
-                independentWorkId =
-                  unwrapped?.id ??
-                  unwrapped?.Id ??
-                  unwrapped?.data?.id ??
-                  unwrapped?.data?.Id;
-                
-                if (independentWorkId) {
-                  assignmentIds[i] = independentWorkId;
-                  // Update the student's assignmentIds in state so next save attempt for this student has it
-                  setStudents(prev => prev.map(s => {
-                    if (String(s.id) !== String(student.id)) return s;
-                    const newIds = [...(s.assignmentIds || Array(ASSIGNMENTS_COUNT).fill(null))];
-                    newIds[i] = independentWorkId;
-                    return { ...s, assignmentIds: newIds };
-                  }));
-                } else {
-                  // Creation succeeded but no ID returned
-                  const errorMsg = unwrapped?.responseMessage ?? unwrapped?.ResponseMessage ?? 
-                    unwrapped?.message ?? unwrapped?.Message ?? 
-                    "Created but no ID returned";
-                  console.error(`Created independent work but no ID returned for student ${student.name} slot ${i + 1}:`, errorMsg);
-                  err += 1;
-                  continue; // Cannot grade without ID
-                }
-              } else {
-                // Creation failed - check if it's a "already exists" error (409 Conflict)
-                const statusCode = unwrapped?.statusCode ?? unwrapped?.StatusCode;
-                const errorMsg = unwrapped?.responseMessage ?? unwrapped?.ResponseMessage ?? 
-                  unwrapped?.message ?? unwrapped?.Message ?? 
-                  unwrapped?.error ?? unwrapped?.Error ??
-                  (statusCode ? `Status: ${statusCode}` : null) ??
-                  (createRes ? JSON.stringify(createRes) : "Unknown error");
-                
-                // If it's a 409 Conflict (already exists), try to fetch existing independent works
-                if (statusCode === 409 || errorMsg.toLowerCase().includes("already exist")) {
-                  try {
-                    console.warn(`Independent work already exists for student ${student.name}, fetching existing...`);
-                    const existingWorksResp = await getIndependentWorkByStudentAndSubject(
-                      actualStudentId,
-                      taughtSubjectId,
-                    );
-                    const existingWorksUnwrapped = unwrap<any>(existingWorksResp);
-                    const worksArray = toArray(
-                      existingWorksUnwrapped?.getIndependentWorkDto ??
-                        existingWorksUnwrapped?.GetIndependentWorkDto ??
-                        existingWorksUnwrapped?.independentWorks ??
-                        existingWorksUnwrapped?.IndependentWorks ??
-                        existingWorksUnwrapped ??
-                        [],
-                    );
-                    
-                    // Sort by date to match the slot order
-                    worksArray.sort((a: any, b: any) => {
-                      const ad = Date.parse(a?.date ?? a?.Date ?? "") || 0;
-                      const bd = Date.parse(b?.date ?? b?.Date ?? "") || 0;
-                      return ad - bd;
-                    });
-                    
-                    // Use the work at index i if available
-                    if (worksArray.length > i) {
-                      const existingWork = worksArray[i];
-                      independentWorkId = existingWork?.id ?? existingWork?.Id ?? null;
-                      if (independentWorkId) {
-                        assignmentIds[i] = independentWorkId;
-                        // Update the student's assignmentIds in state
-                        setStudents(prev => prev.map(s => {
-                          if (String(s.id) !== String(student.id)) return s;
-                          const newIds = [...(s.assignmentIds || Array(ASSIGNMENTS_COUNT).fill(null))];
-                          newIds[i] = independentWorkId;
-                          return { ...s, assignmentIds: newIds };
-                        }));
-                        console.log(`Using existing independent work ID ${independentWorkId} for student ${student.name} slot ${i + 1}`);
-                        // Don't increment err, as we successfully found an existing work
-                      } else {
-                        console.error(`Existing work found but no ID for student ${student.name} slot ${i + 1}`);
-                        err += 1;
-                        continue;
-                      }
-                    } else {
-                      // Not enough existing works for this slot
-                      console.warn(`Not enough existing independent works for student ${student.name} slot ${i + 1} (have ${worksArray.length}, need slot ${i + 1})`);
-                      err += 1;
-                      continue;
-                    }
-                  } catch (fetchError) {
-                    console.error(`Failed to fetch existing independent works for student ${student.name} slot ${i + 1}:`, fetchError);
-                    err += 1;
-                    continue;
-                  }
-                } else {
-                  // Other error
-                  console.error(`Failed to create independent work for student ${student.name} slot ${i + 1}:`, errorMsg, unwrapped);
-                  err += 1;
-                  continue; // Cannot grade without ID
-                }
-              }
-            } catch (createError: any) {
-              // Extract error message from exception
-              const errorMsg = createError?.message ?? 
-                createError?.error ?? 
-                (typeof createError === 'string' ? createError : JSON.stringify(createError)) ??
-                "Unknown error";
-              console.error(`Failed to create independent work for student ${student.name} slot ${i + 1}:`, errorMsg, createError);
-              err += 1;
-              continue; // Cannot grade without ID
-            }
-          }
-
-          if (independentWorkId) {
-            try {
-              // Convert 1/0/null to true/false/null
-              const isPassed = currentValue === 1 ? true : currentValue === 0 ? false : null;
-              
-              await markIndependentWorkGrade(
-                actualStudentId,
-                independentWorkId,
-                isPassed,
-              );
-
-              // Update snapshot immediately on success
-              snapshot[i] = currentValue;
-              ok += 1;
-            } catch (error) {
-              console.error(`Failed to grade independent work for student ${student.name} slot ${i + 1}:`, error);
-              err += 1;
-            }
-          }
-        }
-        
-        // Update the snapshot reference for this student
-        assignmentsSnapshotRef.current.set(String(student.id), [...snapshot]);
+      if (changesWithIds.length === 0) {
+        toast.error("No independent work IDs found. Please refresh the page.");
+        setIsSendingAssignments(false);
+        return;
       }
 
-      // Show appropriate toast message based on results
-      if (ok === 0 && err === 0) {
-        toast.info("No changes to save");
-      } else if (err === 0) {
-        toast.success(`Successfully saved ${ok} assignment(s)`);
-      } else if (ok === 0) {
-        toast.error(`Failed to save ${err} assignment(s)`);
-      } else {
-        // Both successes and errors - show combined message
-        toast.error(`Saved ${ok} assignment(s), but ${err} failed`);
-      }
+      console.log("Sending to API:", changesWithIds);
 
+      await markIndependentWorkGrade(changesWithIds);
+
+      toast.success(
+        `Successfully saved ${changesWithIds.length} assignment(s)`,
+      );
+
+      // Clear pending changes after successful save
+      pendingAssignmentChanges.current.clear();
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save assignments");
     } finally {
@@ -1718,7 +1519,8 @@ export function TeacherCourseDetail({
                 <div className="min-w-0">
                   <CardTitle>Activity & Attendance Tracking</CardTitle>
                   <CardDescription>
-                    Mark attendance and grades for each session. Grades save automatically.
+                    Mark attendance and grades for each session. Grades save
+                    automatically.
                   </CardDescription>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
@@ -1753,13 +1555,11 @@ export function TeacherCourseDetail({
                     <SelectContent>
                       <SelectItem value="present">Present</SelectItem>
                       <SelectItem value="absent">Absent</SelectItem>
-                      {Array.from({ length: 11 }, (_, i) => i).map(
-                        (grade) => (
-                          <SelectItem key={grade} value={grade.toString()}>
-                            {grade}
-                          </SelectItem>
-                        ),
-                      )}
+                      {Array.from({ length: 11 }, (_, i) => i).map((grade) => (
+                        <SelectItem key={grade} value={grade.toString()}>
+                          {grade}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Button
