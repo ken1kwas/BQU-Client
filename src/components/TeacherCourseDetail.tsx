@@ -283,20 +283,6 @@ export function TeacherCourseDetail({
     baseStudents: Student[],
     independentWorksRaw: any[],
   ): Student[] => {
-    console.log("=== APPLY INDEPENDENT WORKS ===");
-    console.log("Total works to apply:", independentWorksRaw.length);
-    console.log("Total students:", baseStudents.length);
-
-    // Log all student IDs
-    console.log("Student IDs in baseStudents:");
-    baseStudents.forEach((s) => console.log(`  - ${s.name}: ${s.id}`));
-
-    // Log all work student IDs
-    console.log("Student IDs in independent works:");
-    independentWorksRaw.forEach((w) =>
-      console.log(`  - ${w.studentId} (number: ${w.number})`),
-    );
-
     const byStudent = new Map<string, any[]>();
 
     for (const iw of independentWorksRaw || []) {
@@ -309,15 +295,9 @@ export function TeacherCourseDetail({
       byStudent.set(studentId, existing);
     }
 
-    console.log("Grouped by student (Map keys):", Array.from(byStudent.keys()));
-
     return baseStudents.map((s) => {
       const studentIdStr = String(s.id);
       const list = byStudent.get(studentIdStr) ?? [];
-
-      console.log(`\nStudent: ${s.name}`);
-      console.log(`  ID: ${studentIdStr}`);
-      console.log(`  Found ${list.length} independent works`);
 
       const prevAssignments =
         s.assignments ?? Array(ASSIGNMENTS_COUNT).fill(null);
@@ -344,18 +324,9 @@ export function TeacherCourseDetail({
             } else {
               assignments[index] = null;
             }
-
-            console.log(
-              `    ✓ Mapped work to slot ${number}: ID=${independentWorkId}`,
-            );
           }
         }
       }
-
-      console.log(
-        `  Final IDs:`,
-        assignmentIds.filter((id) => id !== null),
-      );
 
       return { ...s, assignments, assignmentIds };
     });
@@ -636,10 +607,6 @@ export function TeacherCourseDetail({
           await listTaughtSubjectIndependentWorks(taughtSubjectId);
         const rawWorks = unwrap<any>(independentWorksResp);
 
-        console.log("=== RAW INDEPENDENT WORKS RESPONSE ===");
-        console.log("Full response:", independentWorksResp);
-        console.log("Unwrapped:", rawWorks);
-
         const worksArray = toArray(
           rawWorks?.independentWorks ??
             rawWorks?.IndependentWorks ??
@@ -648,12 +615,8 @@ export function TeacherCourseDetail({
             [],
         );
 
-        console.log("Works array after toArray:", worksArray);
-
         // Just use the raw works directly!
         independentWorks = worksArray;
-
-        console.log("Final independentWorks array:", independentWorks);
       } catch (e) {
         console.warn("Failed to load independent works:", e);
         independentWorks = [];
@@ -823,18 +786,6 @@ export function TeacherCourseDetail({
         mergedWithColloquiums,
         independentWorks,
       );
-
-      // DEBUG: Check what we're about to set
-      console.log("=== FINAL MERGED STUDENTS ===");
-      merged.forEach((student) => {
-        const hasAnyIds = student.assignmentIds?.some((id) => id !== null);
-        if (hasAnyIds) {
-          console.log(`${student.name}:`, {
-            assignmentIds: student.assignmentIds,
-            assignments: student.assignments,
-          });
-        }
-      });
 
       attendanceSnapshotRef.current = new Map(
         merged.map((student) => [
@@ -1450,8 +1401,6 @@ export function TeacherCourseDetail({
         setIsSendingAssignments(false);
         return;
       }
-
-      console.log("Sending to API:", changesWithIds);
 
       await markIndependentWorkGrade(changesWithIds);
 

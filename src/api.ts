@@ -94,15 +94,19 @@ async function parseError(resp: Response): Promise<string> {
     if (ct.includes("application/json")) {
       const j = await resp.json();
       // Try various possible error message fields
-      return j?.responseMessage ?? 
-        j?.ResponseMessage ?? 
-        j?.message ?? 
-        j?.Message ?? 
-        j?.error ?? 
+      return (
+        j?.responseMessage ??
+        j?.ResponseMessage ??
+        j?.message ??
+        j?.Message ??
+        j?.error ??
         j?.Error ??
-        (j?.errors && typeof j.errors === 'object' ? JSON.stringify(j.errors) : null) ??
-        (j?.title ? `${j.title}${j.detail ? ': ' + j.detail : ''}` : null) ??
-        JSON.stringify(j);
+        (j?.errors && typeof j.errors === "object"
+          ? JSON.stringify(j.errors)
+          : null) ??
+        (j?.title ? `${j.title}${j.detail ? ": " + j.detail : ""}` : null) ??
+        JSON.stringify(j)
+      );
     }
     return await resp.text();
   } catch {
@@ -267,8 +271,6 @@ export function markStudentAbsence(studentId: string, classId: string) {
   );
 }
 
-
-
 export async function getIndependentWorkByStudentAndSubject(
   studentId: string,
   taughtSubjectId: string,
@@ -284,10 +286,10 @@ export function markIndependentWorkGrade(
   grades: Array<{
     independentWorkId: string;
     isPassed: boolean | null;
-  }>
+  }>,
 ) {
   const url = `/api/independent-works/grade`;
-  return apiJson<any>(url, { 
+  return apiJson<any>(url, {
     method: "PUT",
     body: JSON.stringify(grades),
   });
