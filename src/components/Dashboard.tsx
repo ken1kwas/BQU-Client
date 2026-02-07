@@ -15,7 +15,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { CourseCard } from "./CourseCard";
-import { getStudentDashboard, getStudentProfile } from "../api";
+import { getStudentDashboard, getStudentProfile, toArray } from "../api";
 
 interface DashboardCourse {
   id: string | number;
@@ -34,6 +34,299 @@ interface DashboardNotification {
   code?: string;
   message: string;
   timestamp: string;
+}
+
+function formatTimeValue(value: any): string {
+  if (!value) return "";
+
+  const str = String(value).trim();
+  if (str.includes("AM") || str.includes("PM")) return str;
+
+  if (str.includes("T")) {
+    const date = new Date(str);
+    if (!Number.isNaN(date.getTime())) {
+      const hours = date.getHours();
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
+      const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+      return `${displayHour}:${minutes} ${ampm}`;
+    }
+  }
+
+  const parts = str.split(":");
+  if (parts.length >= 2) {
+    const hour = Number(parts[0]);
+    if (Number.isNaN(hour)) return str;
+    const minutes = parts[1].split(" ")[0].padStart(2, "0");
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    return `${displayHour}:${minutes} ${ampm}`;
+  }
+
+  return str;
+}
+
+function toTimeRange(start: any, end: any): string {
+  if (!start && !end) return "";
+  const from = formatTimeValue(start);
+  const to = formatTimeValue(end);
+  if (from && to) return `${from} - ${to}`;
+  return from || to || "";
+}
+
+function pickString(...values: any[]): string {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return "";
+}
+
+function normalizeClassType(value: any): string {
+  const raw = pickString(value).toLowerCase();
+  if (raw === "l" || raw.startsWith("lecture") || raw.startsWith("лекция")) {
+    return "lecture";
+  }
+  if (
+    raw === "s" ||
+    raw === "1" ||
+    raw.startsWith("seminar") ||
+    raw.startsWith("семинар")
+  ) {
+    return "seminar";
+  }
+  if (raw.startsWith("lab") || raw.startsWith("практика")) {
+    return "lab";
+  }
+  return raw || "lecture";
+}
+
+function toDashboardCourse(raw: any, index: number): DashboardCourse {
+  let start =
+    raw?.startTime ??
+    raw?.start ??
+    raw?.beginTime ??
+    raw?.timeStart ??
+    raw?.classStartTime ??
+    raw?.sessionStartTime ??
+    raw?.periodStart ??
+    raw?.startDateTime;
+  let end =
+    raw?.endTime ??
+    raw?.end ??
+    raw?.finishTime ??
+    raw?.timeEnd ??
+    raw?.classEndTime ??
+    raw?.sessionEndTime ??
+    raw?.periodEnd ??
+    raw?.endDateTime;
+
+  if (raw?.period && !start) {
+    try {
+      const periodDate = new Date(raw.period);
+      if (!Number.isNaN(periodDate.getTime())) {
+        start = periodDate.toISOString();
+        const endDate = new Date(periodDate);
+        endDate.setMinutes(endDate.getMinutes() + 90);
+        end = endDate.toISOString();
+      }
+    } catch (e) {
+      // ignore invalid period
+    }
+  }
+
+  const location = pickString(
+    raw?.location,
+    raw?.room,
+    raw?.roomName,
+    raw?.roomCode,
+    raw?.roomNumber,
+    raw?.classroom,
+    raw?.roomDto?.roomName,
+    raw?.roomDto?.name,
+    raw?.roomDto?.room,
+    raw?.roomDto?.roomNumber,
+    raw?.roomInfo?.name,
+    raw?.roomInfo?.roomName,
+  );
+
+  const idCandidate =
+    raw?.id ??
+    raw?.classId ??
+    raw?.scheduleId ??
+    raw?.entryId ??
+    raw?.taughtSubjectId ??
+    raw?.code ??
+    `course-${index}`;
+
+  const title =
+    pickString(
+      raw?.name,
+      raw?.title,
+      raw?.courseName,
+      raw?.subjectName,
+      raw?.course,
+    ) || "Course";
+
+  const code = pickString(
+    raw?.code,
+    raw?.courseCode,
+    raw?.subjectCode,
+    raw?.classCode,
+  );
+
+  const instructor = pickString(
+    raw?.instructor,
+    raw?.teacher,
+    raw?.teacherName,
+    raw?.professor,
+    raw?.lecturer,
+    raw?.mentor,
+  );
+
+  return {
+    id:
+      typeof idCandidate === "string" || typeof idCandidate === "number"
+        ? idCandidate
+        : `course-${index}`,
+    title,
+    code,
+    time: pickString(raw?.time, toTimeRange(start, end)),
+    location: location || "—",
+    type: normalizeClassType(
+      raw?.classType ?? raw?.type ?? raw?.lessonType ?? raw?.sessionType,
+    ),
+    instructor,
+  };
+}
+
+function deduplicateCourses(entries: DashboardCourse[]): DashboardCourse[] {
+  const seenKeys = new Set<string>();
+  const seenContent = new Set<string>();
+
+  return entries.filter((entry) => {
+    const key = `${entry.id}-${entry.time}-${entry.type}-${entry.title}-${entry.code}-${entry.location}`;
+    const contentKey = `${entry.time}-${entry.type}-${entry.title}-${entry.code}-${entry.location}-${entry.instructor}`;
+
+    if (seenKeys.has(key) || seenContent.has(contentKey)) return false;
+
+    seenKeys.add(key);
+    seenContent.add(contentKey);
+    return true;
+  });
+}
+
+function unwrapDashboardBase(raw: any): any {
+  let current = raw;
+  const visited = new Set<any>();
+
+  while (
+    current &&
+    typeof current === "object" &&
+    !Array.isArray(current) &&
+    !visited.has(current)
+  ) {
+    visited.add(current);
+    if (current.items && current.items !== current) {
+      current = current.items;
+      continue;
+    }
+    if (current.data && current.data !== current) {
+      current = current.data;
+      continue;
+    }
+    if (current.result && current.result !== current) {
+      current = current.result;
+      continue;
+    }
+    if (current.value && current.value !== current) {
+      current = current.value;
+      continue;
+    }
+    break;
+  }
+
+  return current;
+}
+
+function firstNonEmptyArray(...candidates: any[]): any[] {
+  for (const candidate of candidates) {
+    const arr = toArray(candidate);
+    if (arr.length > 0) return arr;
+  }
+  return [];
+}
+
+function normalizeDashboardResponse(raw: any): {
+  studentName: string;
+  courses: DashboardCourse[];
+  notifications: DashboardNotification[];
+} {
+  const base = unwrapDashboardBase(raw) ?? {};
+
+  const courseCandidates = firstNonEmptyArray(
+    base.classes,
+    base.todayClasses,
+    base.todaysClasses,
+    base.classesToday,
+    base.classes,
+  );
+
+  const courseEntries = deduplicateCourses(
+    courseCandidates.map((item, index) => toDashboardCourse(item, index)),
+  );
+
+  const notificationCandidates = firstNonEmptyArray(
+    base.notifications,
+    raw?.notifications,
+    raw?.data?.notifications,
+  );
+
+  const notifications = notificationCandidates.map(
+    (item, index): DashboardNotification => ({
+      id: (item?.id ?? index) as string | number,
+      type: pickString(item?.type, item?.category, item?.kind) || "general",
+      course:
+        pickString(item?.course, item?.title, item?.subject, item?.className) ||
+        "Notification",
+      code:
+        pickString(item?.code, item?.courseCode, item?.subjectCode) ||
+        undefined,
+      message:
+        pickString(
+          item?.message,
+          item?.description,
+          item?.details,
+          item?.text,
+        ) || "No details provided.",
+      timestamp:
+        pickString(
+          item?.timestamp,
+          item?.time,
+          item?.date,
+          item?.createdAt,
+          item?.updatedAt,
+        ) || "",
+    }),
+  );
+
+  const studentName = pickString(
+    base.studentName,
+    base.name,
+    base.fullName,
+    base.student,
+  );
+
+  return {
+    studentName,
+    courses: courseEntries,
+    notifications,
+  };
 }
 
 export function Dashboard() {
@@ -94,13 +387,10 @@ export function Dashboard() {
         setLoading(true);
         const data = await getStudentDashboard();
         if (!mounted) return;
-        if (Array.isArray(data)) {
-          setCourses(data);
-        } else {
-          if (Array.isArray(data.todayClasses)) setCourses(data.todayClasses);
-          if (Array.isArray(data.notifications))
-            setNotifications(data.notifications);
-        }
+        const normalized = normalizeDashboardResponse(data);
+        setCourses(normalized.courses);
+        setNotifications(normalized.notifications);
+        setStudentName((prev) => prev || normalized.studentName || prev);
       } catch (err: any) {
         if (!mounted) return;
         setError(err.message || "Не удалось загрузить данные");
@@ -126,7 +416,7 @@ export function Dashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Your Courses</CardTitle>
-            <CardDescription>Upcoming Classes</CardDescription>
+            <CardDescription>Today's schedule</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (

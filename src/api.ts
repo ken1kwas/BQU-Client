@@ -93,11 +93,24 @@ async function parseError(resp: Response): Promise<string> {
     const ct = resp.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       const j = await resp.json();
-      return j?.message || j?.error || JSON.stringify(j);
+      // Try various possible error message fields
+      return (
+        j?.responseMessage ??
+        j?.ResponseMessage ??
+        j?.message ??
+        j?.Message ??
+        j?.error ??
+        j?.Error ??
+        (j?.errors && typeof j.errors === "object"
+          ? JSON.stringify(j.errors)
+          : null) ??
+        (j?.title ? `${j.title}${j.detail ? ": " + j.detail : ""}` : null) ??
+        JSON.stringify(j)
+      );
     }
     return await resp.text();
   } catch {
-    return `HTTP ${resp.status}`;
+    return `HTTP ${resp.status} ${resp.statusText}`;
   }
 }
 
@@ -251,31 +264,10 @@ export async function getStudentGrades(scope: string) {
   return apiJson<any>(`/api/students/grades/${encodeURIComponent(scope)}`);
 }
 
-export function markStudentAbsence(
-  studentId: string,
-  classId: string,
-) {
+export function markStudentAbsence(studentId: string, classId: string) {
   return apiJson<any>(
     `/api/students/${encodeURIComponent(studentId)}/classes/${encodeURIComponent(classId)}/mark-absence`,
     { method: "PUT" },
-  );
-}
-
-export function createIndependentWork(
-  studentId: string,
-  taughtSubjectId: string,
-  dueDate: string,
-) {
-  return apiJson<any>(
-    `/api/independent-works`,
-    {
-      method: "POST",
-      json: {
-        studentId,
-        taughtSubjectId,
-        dueDate
-      }
-    },
   );
 }
 
@@ -291,18 +283,16 @@ export async function getIndependentWorkByStudentAndSubject(
 }
 
 export function markIndependentWorkGrade(
-  studentId: string,
-  independentWorkId: string,
-  isPassed: boolean | null,
+  grades: Array<{
+    independentWorkId: string;
+    isPassed: boolean | null;
+  }>,
 ) {
-  const q = new URLSearchParams();
-  // Only add isPassed parameter if it's not null (neutral state)
-  if (isPassed !== null) {
-    q.set("isPassed", String(isPassed));
-  }
-  const queryString = q.toString();
-  const url = `/api/students/${encodeURIComponent(studentId)}/independent-works/${encodeURIComponent(independentWorkId)}/grade${queryString ? `?${queryString}` : ''}`;
-  return apiJson<any>(url, { method: "PUT" });
+  const url = `/api/independent-works/grade`;
+  return apiJson<any>(url, {
+    method: "PUT",
+    body: JSON.stringify(grades),
+  });
 }
 
 export async function getStudentProfile() {
@@ -319,7 +309,9 @@ export async function getTeacherProfile() {
 
 // -------------------- ROOMS --------------------
 export async function listRooms(page = 1, pageSize = 100) {
-  const raw = await apiJson<any>(`/api/rooms?page=${page}&pageSize=${pageSize}`);
+  const raw = await apiJson<any>(
+    `/api/rooms?page=${page}&pageSize=${pageSize}`,
+  );
   return unwrapApiResult(raw);
 }
 
@@ -340,7 +332,9 @@ export function deleteRoom(id: string) {
 
 // -------------------- GROUPS --------------------
 export async function listGroups(page = 1, pageSize = 100) {
-  const raw = await apiJson<any>(`/api/groups?page=${page}&pageSize=${pageSize}`);
+  const raw = await apiJson<any>(
+    `/api/groups?page=${page}&pageSize=${pageSize}`,
+  );
   return unwrapApiResult(raw);
 }
 
@@ -350,7 +344,9 @@ export async function getGroup(id: string) {
 }
 
 export async function getGroupSchedule(id: string) {
-  const raw = await apiJson<any>(`/api/groups/${encodeURIComponent(id)}/schedule`);
+  const raw = await apiJson<any>(
+    `/api/groups/${encodeURIComponent(id)}/schedule`,
+  );
   return unwrapApiResult(raw);
 }
 
@@ -381,7 +377,9 @@ export function deleteGroup(id: string) {
 
 // -------------------- STUDENTS --------------------
 export async function listStudents(page = 1, pageSize = 100) {
-  const raw = await apiJson<any>(`/api/students?page=${page}&pageSize=${pageSize}`);
+  const raw = await apiJson<any>(
+    `/api/students?page=${page}&pageSize=${pageSize}`,
+  );
   return unwrapApiResult(raw);
 }
 
@@ -397,7 +395,9 @@ export async function filterStudents(groupId?: string, year?: number) {
   if (groupId) qs.set("groupId", groupId);
   if (year !== undefined) qs.set("year", String(year));
   const queryString = qs.toString();
-  const url = queryString ? `/api/students/filter-by?${queryString}` : `/api/students/filter-by`;
+  const url = queryString
+    ? `/api/students/filter-by?${queryString}`
+    : `/api/students/filter-by`;
   const raw = await apiJson<any>(url);
   return unwrapApiResult(raw);
 }
@@ -424,7 +424,9 @@ export function importStudentsExcel(file: File) {
 
 // -------------------- TEACHERS --------------------
 export async function listTeachers(page = 1, pageSize = 100) {
-  const raw = await apiJson<any>(`/api/teachers?page=${page}&pageSize=${pageSize}`);
+  const raw = await apiJson<any>(
+    `/api/teachers?page=${page}&pageSize=${pageSize}`,
+  );
   return unwrapApiResult(raw);
 }
 
@@ -494,7 +496,9 @@ export async function importTeachersExcel(file: File): Promise<any> {
 
 // -------------------- DEPARTMENTS / SPECIALIZATIONS --------------------
 export async function listDepartments(page = 1, pageSize = 100) {
-  const raw = await apiJson<any>(`/api/departments?page=${page}&pageSize=${pageSize}`);
+  const raw = await apiJson<any>(
+    `/api/departments?page=${page}&pageSize=${pageSize}`,
+  );
   return unwrapApiResult(raw);
 }
 
@@ -507,12 +511,16 @@ export async function listSpecializations(page = 1, pageCount = 100) {
 
 // -------------------- TAUGHT SUBJECTS (COURSES) --------------------
 export async function listTaughtSubjects(page = 1, pageSize = 100) {
-  const raw = await apiJson<any>(`/api/taught-subjects?page=${page}&pageSize=${pageSize}`);
+  const raw = await apiJson<any>(
+    `/api/taught-subjects?page=${page}&pageSize=${pageSize}`,
+  );
   return unwrapApiResult(raw);
 }
 
 export async function getTaughtSubject(id: string) {
-  const raw = await apiJson<any>(`/api/taught-subjects/${encodeURIComponent(id)}`);
+  const raw = await apiJson<any>(
+    `/api/taught-subjects/${encodeURIComponent(id)}`,
+  );
   return unwrapApiResult(raw);
 }
 
@@ -597,7 +605,10 @@ export function createColloquium(req: {
 }
 
 // -------------------- SEMINARS --------------------
-export function createSeminar(req: { studentId: string; taughtSubjectId: string }) {
+export function createSeminar(req: {
+  studentId: string;
+  taughtSubjectId: string;
+}) {
   return apiJson<any>(
     `/api/seminars/${encodeURIComponent(req.studentId)}/${encodeURIComponent(req.taughtSubjectId)}`,
     { method: "POST" },

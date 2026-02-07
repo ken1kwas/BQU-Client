@@ -142,7 +142,6 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
 
       {error && <p className="text-destructive">{error}</p>}
 
-      {/* Single Profile Card */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-6 items-start mb-4">
@@ -183,7 +182,6 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
 
           <Separator className="my-6" />
 
-          {/* All information in one card */}
           <div className="grid gap-6 md:grid-cols-2 pt-2">
             {!isTeacher && !isDean && (
               <>
