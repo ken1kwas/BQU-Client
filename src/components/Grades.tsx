@@ -9,7 +9,7 @@ import {
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Check, X } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { getStudentGrades, toArray } from "../api";
 
 type ClassSession = {
@@ -392,6 +392,12 @@ export function Grades() {
     };
   }, []);
 
+  const loadingContent = (
+    <div className="flex justify- py-12">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -411,7 +417,7 @@ export function Grades() {
 
         <TabsContent value="current" className="space-y-4">
           {loading ? (
-            <p>Loading…</p>
+            loadingContent
           ) : grades.length === 0 ? (
             <Card className="p-6 text-sm text-muted-foreground">
               Нет данных об оценках. Попробуйте обновить страницу позже.
@@ -609,7 +615,7 @@ export function Grades() {
 
         <TabsContent value="sessions" className="space-y-4">
           {loading ? (
-            <p>Loading…</p>
+            loadingContent
           ) : grades.length === 0 ? (
             <Card className="p-6 text-sm text-muted-foreground">
               Нет информации по занятиям. Попробуйте позже.

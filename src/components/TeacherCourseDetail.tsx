@@ -15,6 +15,7 @@ import {
   Calendar,
   Send,
   Minus,
+  Loader2,
 } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
@@ -1417,6 +1418,19 @@ export function TeacherCourseDetail({
     }
   };
 
+  const loadingSpinner = (
+    <div className="py-16">
+      <span className="text-sm text-muted-foreground relative inline-flex items-center gap-1">
+        Loading
+        <span className="flex gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/80 animate-bounce [animation-delay:0ms]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/80 animate-bounce [animation-delay:150ms]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/80 animate-bounce [animation-delay:300ms]" />
+        </span>
+      </span>
+    </div>
+  );
+
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex items-center gap-4">
@@ -1535,89 +1549,94 @@ export function TeacherCourseDetail({
               </div>
             </CardHeader>
             <CardContent className="min-w-0 p-0">
-              <div className="relative overflow-x-auto border rounded-md">
-                <div className="inline-block min-w-full align-middle">
-                  <div className="overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="sticky left-0 bg-background z-30 min-w-[200px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                            Student Name
-                          </TableHead>
-                          {sessions.map((session, idx) => (
-                            <TableHead
-                              key={session.id}
-                              className={`text-center min-w-[120px] ${selectedColumn === idx ? "bg-accent" : ""}`}
-                            >
-                              <div className="text-xs">
-                                <div>{session.date}</div>
-                                <div className="text-muted-foreground">
-                                  ({session.type}) {session.time}
-                                </div>
-                              </div>
+              {isLoading ? (
+                loadingSpinner
+              ) : (
+                <div className="relative overflow-x-auto border rounded-md">
+                  <div className="inline-block min-w-full align-middle">
+                    <div className="overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="sticky left-0 bg-background z-30 min-w-[200px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                              Student Name
                             </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {students.map((student) => {
-                          return (
-                            <TableRow key={student.id}>
-                              <TableCell className="sticky left-0 bg-background z-30 font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                                {student.name}
-                              </TableCell>
-                              {sessions.map((session, idx) => (
-                                <TableCell
-                                  key={session.id}
-                                  className={`text-center ${selectedColumn === idx ? "bg-accent/50" : ""}`}
-                                >
-                                  <Select
-                                    value={getActivityValue(
-                                      student.activityAttendance[idx],
-                                      session,
-                                    )}
-                                    onValueChange={(value: string) =>
-                                      updateActivityAttendance(
-                                        student.id,
-                                        idx,
-                                        value,
-                                      )
-                                    }
-                                  >
-                                    <SelectTrigger className="w-[100px] mx-auto">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="present">
-                                        Present
-                                      </SelectItem>
-                                      <SelectItem value="absent">
-                                        Absent
-                                      </SelectItem>
-                                      {session.type === "S" &&
-                                        Array.from(
-                                          { length: 11 },
-                                          (_, i) => i,
-                                        ).map((grade) => (
-                                          <SelectItem
-                                            key={grade}
-                                            value={grade.toString()}
-                                          >
-                                            {grade}
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
+                            {sessions.map((session, idx) => (
+                              <TableHead
+                                key={session.id}
+                                className={`text-center min-w-[120px] ${selectedColumn === idx ? "bg-accent" : ""}`}
+                              >
+                                <div className="text-xs">
+                                  <div>{session.date}</div>
+                                  <div className="text-muted-foreground">
+                                    ({session.type}) {session.time}
+                                  </div>
+                                </div>
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {students.map((student) => {
+                            return (
+                              <TableRow key={student.id}>
+                                <TableCell className="sticky left-0 bg-background z-30 font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                  {student.name}
                                 </TableCell>
-                              ))}
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                                {sessions.map((session, idx) => (
+                                  <TableCell
+                                    key={session.id}
+                                    className={`text-center ${selectedColumn === idx ? "bg-accent/50" : ""}`}
+                                  >
+                                    <Select
+                                      value={getActivityValue(
+                                        student.activityAttendance[idx],
+                                        session,
+                                      )}
+                                      onValueChange={(value: string) =>
+                                        updateActivityAttendance(
+                                          student.id,
+                                          idx,
+                                          value,
+                                        )
+                                      }
+                                      disabled={isLoading}
+                                    >
+                                      <SelectTrigger className="w-[100px] mx-auto">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="present">
+                                          Present
+                                        </SelectItem>
+                                        <SelectItem value="absent">
+                                          Absent
+                                        </SelectItem>
+                                        {session.type === "S" &&
+                                          Array.from(
+                                            { length: 11 },
+                                            (_, i) => i,
+                                          ).map((grade) => (
+                                            <SelectItem
+                                              key={grade}
+                                              value={grade.toString()}
+                                            >
+                                              {grade}
+                                            </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1647,59 +1666,70 @@ export function TeacherCourseDetail({
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead className="text-center">Colloquium 1</TableHead>
-                    <TableHead className="text-center">Colloquium 2</TableHead>
-                    <TableHead className="text-center">Colloquium 3</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell className="font-medium">
-                        {student.name}
-                      </TableCell>
-                      {[0, 1, 2].map((collIndex) => (
-                        <TableCell key={collIndex} className="text-center">
-                          <Select
-                            value={
-                              student.colloquium[collIndex]?.toString() ||
-                              "none"
-                            }
-                            onValueChange={(value: string) =>
-                              updateColloquium(
-                                student.id,
-                                collIndex,
-                                value === "none" ? null : parseInt(value, 10),
-                              )
-                            }
-                          >
-                            <SelectTrigger className="w-[100px] mx-auto">
-                              <SelectValue placeholder="-" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">-</SelectItem>
-                              {Array.from({ length: 11 }, (_, i) => i).map(
-                                (grade) => (
-                                  <SelectItem
-                                    key={grade}
-                                    value={grade.toString()}
-                                  >
-                                    {grade}
-                                  </SelectItem>
-                                ),
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      ))}
+              {isLoading ? (
+                loadingSpinner
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student Name</TableHead>
+                      <TableHead className="text-center">
+                        Colloquium 1
+                      </TableHead>
+                      <TableHead className="text-center">
+                        Colloquium 2
+                      </TableHead>
+                      <TableHead className="text-center">
+                        Colloquium 3
+                      </TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {students.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium">
+                          {student.name}
+                        </TableCell>
+                        {[0, 1, 2].map((collIndex) => (
+                          <TableCell key={collIndex} className="text-center">
+                            <Select
+                              value={
+                                student.colloquium[collIndex]?.toString() ||
+                                "none"
+                              }
+                              onValueChange={(value: string) =>
+                                updateColloquium(
+                                  student.id,
+                                  collIndex,
+                                  value === "none" ? null : parseInt(value, 10),
+                                )
+                              }
+                              disabled={isLoading}
+                            >
+                              <SelectTrigger className="w-[100px] mx-auto">
+                                <SelectValue placeholder="-" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">-</SelectItem>
+                                {Array.from({ length: 11 }, (_, i) => i).map(
+                                  (grade) => (
+                                    <SelectItem
+                                      key={grade}
+                                      value={grade.toString()}
+                                    >
+                                      {grade}
+                                    </SelectItem>
+                                  ),
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1726,51 +1756,58 @@ export function TeacherCourseDetail({
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student Name</TableHead>
-                    {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
-                      <TableHead key={num} className="text-center">
-                        #{num}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {students.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell className="font-medium">
-                        {student.name}
-                      </TableCell>
-                      {student.assignments.map((assignment, idx) => (
-                        <TableCell key={idx} className="text-center">
-                          <Button
-                            variant={
-                              assignment === 1
-                                ? "default"
-                                : assignment === 0
-                                  ? "destructive"
-                                  : "outline"
-                            }
-                            size="sm"
-                            onClick={() => toggleAssignment(student.id, idx)}
-                            className="w-10 h-10 p-0"
-                          >
-                            {assignment === 1 ? (
-                              <Check className="h-4 w-4" />
-                            ) : assignment === 0 ? (
-                              <X className="h-4 w-4" />
-                            ) : (
-                              <Minus className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                      ))}
+              {isLoading ? (
+                loadingSpinner
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student Name</TableHead>
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map(
+                        (num) => (
+                          <TableHead key={num} className="text-center">
+                            #{num}
+                          </TableHead>
+                        ),
+                      )}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {students.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium">
+                          {student.name}
+                        </TableCell>
+                        {student.assignments.map((assignment, idx) => (
+                          <TableCell key={idx} className="text-center">
+                            <Button
+                              variant={
+                                assignment === 1
+                                  ? "default"
+                                  : assignment === 0
+                                    ? "destructive"
+                                    : "outline"
+                              }
+                              size="sm"
+                              onClick={() => toggleAssignment(student.id, idx)}
+                              className="w-10 h-10 p-0"
+                              disabled={isLoading}
+                            >
+                              {assignment === 1 ? (
+                                <Check className="h-4 w-4" />
+                              ) : assignment === 0 ? (
+                                <X className="h-4 w-4" />
+                              ) : (
+                                <Minus className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
