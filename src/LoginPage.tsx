@@ -2,21 +2,8 @@ import { useState } from "react";
 import { signIn } from "./api";
 
 interface LoginPageProps {
-  /**
-   * Called when a user successfully authenticates.  The caller
-   * should update application state (e.g. store role) and navigate
-   * away from the login screen.
-   */
   onLoginSuccess: (role: string | undefined) => void;
 }
-
-/**
- * Login screen for the LMS application.  This component is largely
- * based off of a design provided in another project.  The colours
- * and typography have been adapted to match the existing LMS
- * styling by leaning on our CSS variables.  Tailwind classes are
- * used for layout and spacing.
- */
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -34,10 +21,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     try {
       setLoading(true);
       const res = await signIn(login, password);
-      // Attempt to derive the role from the response.  Some
-      // implementations return it explicitly as `roleName`.  If it
-      // isn't present we fall back to undefined and allow the app
-      // component to probe the appropriate profile endpoints.
       const role = (res as any).roleName as string | undefined;
       onLoginSuccess(role);
     } catch (err: any) {

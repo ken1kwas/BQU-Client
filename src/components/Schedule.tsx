@@ -11,8 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { CourseCard } from "./CourseCard";
 import { getStudentSchedule, getTeacherSchedule, toArray } from "../api";
 
-// The weekly schedule will be populated from the backend.  Each day
-// contains a name, a date string and an array of class entries.
 interface ScheduleDay {
   day: string;
   date: string;
@@ -36,10 +34,8 @@ const formatTimeValue = (value: any): string => {
 
   const str = String(value).trim();
 
-  // If already formatted with AM/PM, return as is
   if (str.includes("AM") || str.includes("PM")) return str;
 
-  // Try to parse as ISO datetime string (e.g., "2025-01-25T14:30:00")
   if (str.includes("T")) {
     try {
       const date = new Date(str);
@@ -51,11 +47,9 @@ const formatTimeValue = (value: any): string => {
         return `${displayHour}:${minutes} ${ampm}`;
       }
     } catch (e) {
-      // Fall through to time parsing
     }
   }
 
-  // Parse as time string (HH:MM or HH:MM:SS)
   const parts = str.split(":");
   if (parts.length >= 2) {
     const hour = parseInt(parts[0]);
@@ -472,25 +466,7 @@ const toTodaySchedule = (raw: any): ScheduleEntry[] => {
 //     description: "Join us for an insightful talk on AI Ethics and the Future of Technology. Dr. Smith is a leading researcher in artificial intelligence and will discuss ethical considerations in modern AI development.",
 //     type: "speaker"
 //   },
-//   {
-//     id: 2,
-//     title: "Career Fair 2025",
-//     date: "Oct 25, 2025",
-//     time: "10:00 AM - 4:00 PM",
-//     location: "Student Center",
-//     description: "Meet with top employers from tech, finance, and consulting industries. Bring your resume and be ready to network with recruiters from over 50 companies.",
-//     type: "career"
-//   },
-//   {
-//     id: 3,
-//     title: "Hackathon: Build for Good",
-//     date: "Nov 5-6, 2025",
-//     time: "All Day",
-//     location: "Engineering Building",
-//     description: "24-hour hackathon focused on creating solutions for social impact. Form teams, collaborate with peers, and compete for prizes while making a difference.",
-//     type: "workshop"
-//   }
-// ];
+
 
 interface ScheduleProps {
   userRole?: "student" | "teacher";

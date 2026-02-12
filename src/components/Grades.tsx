@@ -146,12 +146,10 @@ function normalizeCourseList(raw: any): GradeCourse[] {
       },
     );
 
-    // Handle new independentWorks structure
     const independentWorksRaw = toArray(
       getProp(item, "IndependentWorks", "independentWorks"),
     );
 
-    // Sort by number field and map to assignment scores
     const sortedWorks = independentWorksRaw
       .map((work: any) => ({
         number: toNumber(getProp(work, "Number", "number")),
@@ -159,12 +157,11 @@ function normalizeCourseList(raw: any): GradeCourse[] {
       }))
       .sort((a, b) => a.number - b.number);
 
-    // Create array of 10 assignment scores based on isPassed
     const assignmentScores = Array(10).fill(0);
     let assignmentsPassed = 0;
 
     sortedWorks.forEach((work) => {
-      const index = work.number - 1; // Convert 1-based to 0-based
+      const index = work.number - 1; 
       if (index >= 0 && index < 10) {
         if (work.isPassed === true) {
           assignmentScores[index] = 1;
@@ -172,12 +169,12 @@ function normalizeCourseList(raw: any): GradeCourse[] {
         } else if (work.isPassed === false) {
           assignmentScores[index] = 0;
         } else {
-          assignmentScores[index] = 0; // null means not completed yet
+          assignmentScores[index] = 0; 
         }
       }
     });
 
-    const assignmentTotal = 10; // Always 10 assignments
+    const assignmentTotal = 10; 
 
     const classCount = Math.max(
       0,

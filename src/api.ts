@@ -94,7 +94,6 @@ async function parseError(resp: Response): Promise<string> {
     const ct = resp.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       const j = await resp.json();
-      // Try various possible error message fields
       return (
         j?.responseMessage ??
         j?.ResponseMessage ??

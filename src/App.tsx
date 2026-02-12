@@ -33,10 +33,13 @@ import { DeanSchedule } from "./components/DeanSchedule";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
 import { Toaster } from "./components/ui/sonner";
-
-// Import the login page and API helpers
 import LoginPage from "./LoginPage";
-import { getStudentProfile, getTeacherProfile, getDeanProfile, logout } from "./api";
+import {
+  getStudentProfile,
+  getTeacherProfile,
+  getDeanProfile,
+  logout,
+} from "./api";
 
 const DEV_BYPASS_LOGIN = false;
 
@@ -75,37 +78,35 @@ const deanNavigation = [
 ];
 
 export default function App() {
-  // Control which main view is displayed (dashboard, schedule, etc.)
   const [activeView, setActiveView] = useState("dashboard");
-  // Retrieve the JWT from localStorage on initial render.  When the
-  // token is null the application will render the LoginPage.
   const [token, setToken] = useState<string | null>(() =>
     localStorage.getItem("token"),
   );
-  // The authenticated user's role, resolved via the backend profile
-  // endpoints.  When undefined the role has not yet been determined.
   const [userRole, setUserRole] = useState<
     "student" | "teacher" | "dean" | undefined
   >(undefined);
-  // Track whether role resolution is in progress to avoid repeated
-  // calls to the API.
   const [loadingRole, setLoadingRole] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<
-    | { id: string | number; studentCount?: number; hours?: number }
-    | null
-  >(null);
-
-  // For production use we remove the manual role switch.  If you
-  // require role switching for development or testing you may
-  // uncomment the following implementation and assign it to
-  // `handleRoleSwitch`.  Leaving it undefined hides the control.
+  const [selectedCourse, setSelectedCourse] = useState<{
+    id: string | number;
+    studentCount?: number;
+    hours?: number;
+  } | null>(null);
   const handleRoleSwitch: undefined | (() => void) = undefined;
 
   const handleCourseSelect = (
-    course: string | number | { id: string | number; studentCount?: number; hours?: number },
+    course:
+      | string
+      | number
+      | { id: string | number; studentCount?: number; hours?: number },
   ) => {
     if (course && typeof course === "object") {
-      setSelectedCourse(course as { id: string | number; studentCount?: number; hours?: number });
+      setSelectedCourse(
+        course as {
+          id: string | number;
+          studentCount?: number;
+          hours?: number;
+        },
+      );
     } else {
       setSelectedCourse({ id: course as string | number });
     }
@@ -123,13 +124,6 @@ export default function App() {
     setActiveView("dashboard");
   };
 
-  // Resolve the user's role from the backend based on the stored
-  // authentication token.  When the token is present and the role is
-  // undefined the component will probe the dean, teacher and student
-  // profile endpoints in that order.  If a profile request returns
-  // successfully the corresponding role is recorded and a default
-  // active view is selected.  Loading state prevents multiple
-  // simultaneous requests.
   useEffect(() => {
     if (token && !userRole && !loadingRole) {
       setLoadingRole(true);
@@ -142,9 +136,7 @@ export default function App() {
             setActiveView("management");
             resolved = true;
           }
-        } catch {
-          // ignore
-        }
+        } catch {}
         if (!resolved) {
           try {
             const teacher = await getTeacherProfile();
@@ -153,9 +145,7 @@ export default function App() {
               setActiveView("courses");
               resolved = true;
             }
-          } catch {
-            // ignore
-          }
+          } catch {}
         }
         if (!resolved) {
           try {
@@ -165,13 +155,9 @@ export default function App() {
               setActiveView("dashboard");
               resolved = true;
             }
-          } catch {
-            // ignore
-          }
+          } catch {}
         }
         if (!resolved) {
-          // токен не принят беком / нет доступа ни к одному профилю
-          // logout();
           setToken(null);
           setUserRole(undefined);
         }
@@ -240,18 +226,10 @@ export default function App() {
         ? teacherNavigation
         : deanNavigation;
 
-  // If there is no authentication token present then render the
-  // LoginPage.  Upon successful login the token will be stored in
-  // localStorage and set in state.  We attempt to derive the role
-  // from the login response if provided, otherwise the useEffect
-  // above will probe the profile endpoints.
   if (!token && !DEV_BYPASS_LOGIN) {
     return (
       <LoginPage
         onLoginSuccess={(role) => {
-          // The login function in api.ts stores the token in
-          // localStorage.  We sync it back into state here so the
-          // component re-renders.
           setToken(localStorage.getItem("token"));
           if (role) {
             const r = role.toLowerCase();
@@ -271,7 +249,6 @@ export default function App() {
     );
   }
 
-  // While the role is being resolved show a simple loading state.
   if (!userRole) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -335,11 +312,13 @@ export default function App() {
                     {group.items.map((item) => (
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
-                            onClick={() => {
-                              setActiveView(item.id);
-                              setSelectedCourse(null);
-                            }}
-                            isActive={activeView === item.id && selectedCourse === null}
+                          onClick={() => {
+                            setActiveView(item.id);
+                            setSelectedCourse(null);
+                          }}
+                          isActive={
+                            activeView === item.id && selectedCourse === null
+                          }
                           className="py-3"
                         >
                           <item.icon className="h-5 w-5" />
@@ -355,7 +334,6 @@ export default function App() {
         </Sidebar>
 
         <SidebarInset className="flex flex-1 flex-col">
-          {/* Main Content */}
           <main className="flex-1 overflow-auto p-6">{renderContent()}</main>
         </SidebarInset>
       </div>

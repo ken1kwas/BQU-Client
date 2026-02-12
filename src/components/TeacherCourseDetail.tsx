@@ -185,13 +185,13 @@ export function TeacherCourseDetail({
   );
   const [sessions, setSessions] = useState<CourseSession[]>([]);
   const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
-  const [bulkValue, setBulkValue] = useState<string>(""); // Контролируемое значение для bulk select
+  const [bulkValue, setBulkValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSendingAttendance, setIsSendingAttendance] =
     useState<boolean>(false);
   const [isSendingAssignments, setIsSendingAssignments] =
     useState<boolean>(false);
-  const [isBulkUpdating, setIsBulkUpdating] = useState<boolean>(false); // Flag to prevent infinite loops during bulk update
+  const [isBulkUpdating, setIsBulkUpdating] = useState<boolean>(false); 
   const attendanceSnapshotRef = useRef<Map<string, ("present" | "absent")[]>>(
     new Map(),
   );
@@ -379,12 +379,10 @@ export function TeacherCourseDetail({
           const taughtSubject = unwrap<any>(taughtSubjectResp);
           sessionItems = mapSessionsFromApi(taughtSubject);
         } catch (e) {
-          // Endpoint requires Dean role, but we're Teacher - this is expected
           console.warn(
             "Could not fetch taught subject for sessions (non-fatal):",
             e,
           );
-          // Keep empty sessionItems - will be handled by other logic
         }
       }
 
@@ -394,20 +392,16 @@ export function TeacherCourseDetail({
           ? null
           : prev,
       );
-      setBulkValue(""); // Сбрасываем bulk value при загрузке данных
+      setBulkValue(""); 
 
       let taughtSubject: any = {};
       try {
         const taughtSubjectResp = await getTaughtSubject(taughtSubjectId);
         taughtSubject = unwrap<any>(taughtSubjectResp);
       } catch (e) {
-        // Endpoint requires Dean role, but we're Teacher - this is expected
-        // Try to get data from GetStudentsAndAttendances response instead
         console.warn("Could not fetch taught subject details (non-fatal):", e);
 
-        // Extract taught subject info from classesData if available
         if (classesData.length > 0) {
-          // Try to get subject info from first student's data
           const firstStudent = classesData[0];
           if (firstStudent) {
             taughtSubject = {
@@ -616,7 +610,6 @@ export function TeacherCourseDetail({
             [],
         );
 
-        // Just use the raw works directly!
         independentWorks = worksArray;
       } catch (e) {
         console.warn("Failed to load independent works:", e);
@@ -735,8 +728,6 @@ export function TeacherCourseDetail({
                     : null,
               };
 
-              // If there's a grade > 0 (1-10), student must be present
-              // Grade 0 with null isPresent should remain absent
               if (
                 session.type === "S" &&
                 result.grade !== null &&
@@ -831,7 +822,7 @@ export function TeacherCourseDetail({
     studentId: string | number,
     sessionIndex: number,
     value: string,
-    skipStateUpdate: boolean = false, // Flag to skip state update when called from bulk update
+    skipStateUpdate: boolean = false,
   ) => {
     const studentIdStr = String(studentId);
     const session = sessions[sessionIndex];
@@ -899,7 +890,6 @@ export function TeacherCourseDetail({
       );
     }
 
-    // Handle attendance updates (present/absent) - not just seminar grades
     if (value === "present" || value === "absent") {
       const currentStudent = students.find(
         (s) => String(s.id) === studentIdStr,
@@ -951,7 +941,7 @@ export function TeacherCourseDetail({
           revertAttendance();
         }
       }
-      return; // Don't proceed to seminar grade logic for present/absent
+      return; 
     }
 
     if (!isSeminarGrade) return;
@@ -1032,7 +1022,6 @@ export function TeacherCourseDetail({
 
       if (seminarId) {
         await updateSeminarGrade(actualStudentId, seminarId, grade);
-        // Update snapshot to reflect that attendance is now "present" due to grade
         commitSnapshot("present");
       } else {
         const seminarData = {
@@ -1050,7 +1039,6 @@ export function TeacherCourseDetail({
         if (typeof createdId === "string" && createdId) {
           seminarId = createdId;
           await updateSeminarGrade(actualStudentId, seminarId, grade);
-          // Update snapshot to reflect that attendance is now "present" due to grade
           commitSnapshot("present");
           setStudents((prev) =>
             prev.map((s) => {
@@ -1147,7 +1135,6 @@ export function TeacherCourseDetail({
           const newAssignments = [...student.assignments];
           const current = newAssignments[assignmentIndex];
 
-          // Cycle through: null -> 1 -> 0 -> null
           let newValue: 0 | 1 | null;
           if (current === null) {
             newValue = 1;
@@ -1159,13 +1146,9 @@ export function TeacherCourseDetail({
 
           newAssignments[assignmentIndex] = newValue;
 
-          // Track this change
           const independentWorkId = student.assignmentIds?.[assignmentIndex];
           const isPassed =
             newValue === 1 ? true : newValue === 0 ? false : null;
-
-          // Create a unique key for tracking this change
-          // Format: "studentId:assignmentIndex" or use the independentWorkId if it exists
           const changeKey =
             independentWorkId || `${student.id}:${assignmentIndex}`;
 
@@ -1193,9 +1176,6 @@ export function TeacherCourseDetail({
         value !== "present" &&
         value !== "absent" &&
         !Number.isNaN(parseInt(value, 10));
-
-      // Update UI state immediately for better UX
-      // Use functional update to get current students state
       let studentsToUpdate: Student[] = [];
       setStudents((prevStudents) => {
         const updated = prevStudents.map((student) => {
@@ -1211,12 +1191,10 @@ export function TeacherCourseDetail({
           return { ...student, activityAttendance: newData };
         });
 
-        // For seminar grades, collect students that need API updates
         if (isSeminarGrade) {
           const grade = parseInt(value, 10);
           if (grade >= 0 && grade <= 10) {
             studentsToUpdate = prevStudents.filter((s) => {
-              // Only update students that don't already have this grade
               const currentValue = s.activityAttendance[selectedColumn];
               return (
                 !currentValue ||
@@ -1231,19 +1209,13 @@ export function TeacherCourseDetail({
       });
 
       setBulkValue("");
-
-      // For seminar grades, call updateActivityAttendance for each student sequentially
-      // This prevents infinite loops by ensuring each API call completes before the next one
-      // Use a flag to prevent Select components from triggering onValueChange during bulk update
       if (isSeminarGrade && studentsToUpdate.length > 0) {
         const grade = parseInt(value, 10);
         if (grade >= 0 && grade <= 10) {
-          setIsBulkUpdating(true); // Set flag to prevent state updates from triggering Select onValueChange
+          setIsBulkUpdating(true);
           try {
-            // Update each student sequentially to prevent race conditions and infinite loops
             for (const student of studentsToUpdate) {
               try {
-                // Skip state update since we already updated it above
                 await updateActivityAttendance(
                   student.id,
                   selectedColumn,
@@ -1255,11 +1227,10 @@ export function TeacherCourseDetail({
                   `Failed to update grade for student ${student.id}:`,
                   error,
                 );
-                // Continue with next student even if one fails
               }
             }
           } finally {
-            setIsBulkUpdating(false); // Reset flag after all updates complete
+            setIsBulkUpdating(false);
           }
         }
       }
@@ -1279,7 +1250,6 @@ export function TeacherCourseDetail({
     if (!data) return "absent";
     if (data.attendance === "absent") return "absent";
     if (data.grade !== null && data.grade !== undefined) {
-      // If grade is 0, show attendance state instead of "0"
       if (data.grade === 0) {
         return data.attendance;
       }
@@ -1389,7 +1359,6 @@ export function TeacherCourseDetail({
     }
 
     try {
-      // Filter out only changes that have independentWorkId
       const changesWithIds = changes
         .filter((change) => change.independentWorkId !== null)
         .map((change) => ({
@@ -1409,7 +1378,6 @@ export function TeacherCourseDetail({
         `Successfully saved ${changesWithIds.length} assignment(s)`,
       );
 
-      // Clear pending changes after successful save
       pendingAssignmentChanges.current.clear();
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save assignments");
@@ -1691,7 +1659,6 @@ export function TeacherCourseDetail({
                           {student.name}
                         </TableCell>
                         {[0, 1, 2].map((collIndex) => {
-                          // Check if previous colloquium is filled
                           const isPreviousFilled =
                             collIndex === 0 ||
                             (student.colloquium[collIndex - 1] !== null &&

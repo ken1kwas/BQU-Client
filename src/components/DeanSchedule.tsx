@@ -87,11 +87,9 @@ export function DeanSchedule() {
   const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>("");
 
-  // Get today's day of week
   const today = new Date().getDay();
   const todayName = daysOfWeek[(today + 6) % 7] || "Monday";
 
-  // On mount, fetch lists of courses, rooms and groups from the backend.
   useEffect(() => {
     const fetchLists = async () => {
       try {
@@ -162,7 +160,6 @@ export function DeanSchedule() {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
-  // Function to safely get initial group
   useEffect(() => {
     if (groups.length > 0 && selectedGroup === "") {
       const firstGroup = groups.find((g) => g.code);
@@ -172,7 +169,6 @@ export function DeanSchedule() {
     }
   }, [groups, selectedGroup]);
 
-  // Load schedule when group is selected
   useEffect(() => {
     if (!selectedGroup) {
       setScheduleEntries([]);
@@ -206,7 +202,6 @@ export function DeanSchedule() {
 
         const entries: ScheduleEntry[] = scheduleArray.map(
           (item: any, index: number) => {
-            // Course name and code
             const courseName =
               item.name ??
               item.courseName ??
@@ -217,7 +212,6 @@ export function DeanSchedule() {
             const courseCode =
               item.code ?? item.courseCode ?? item.course?.code ?? "";
 
-            // Teacher name
             let teacherName = item.professor ?? item.teacherName ?? "";
             if (!teacherName && item.teacher) {
               const teacherFullName =
@@ -225,35 +219,37 @@ export function DeanSchedule() {
               teacherName = teacherFullName || "";
             }
 
-            // Room handling - backend returns UUID string in 'room' field
             let roomName = "";
             let roomId = "";
-            
+
             if (typeof item.room === "string") {
-              // Room is a UUID string
               roomId = item.room;
-              // Try to find room name from rooms array
               const foundRoom = rooms.find((r: any) => r.id === item.room);
-              roomName = foundRoom ? (foundRoom.name ?? foundRoom.roomName ?? "") : "";
+              roomName = foundRoom
+                ? (foundRoom.name ?? foundRoom.roomName ?? "")
+                : "";
             } else if (typeof item.room === "object" && item.room !== null) {
-              // Room is an object
               roomId = item.room.id ?? "";
               roomName = item.room.name ?? item.room.roomName ?? "";
             }
-            
-            // Fallback to other fields if still empty
+
             if (!roomName) {
-              roomName = item.roomName ?? item.location ?? item.locationName ?? item.auditorium ?? item.auditoriumName ?? "";
+              roomName =
+                item.roomName ??
+                item.location ??
+                item.locationName ??
+                item.auditorium ??
+                item.auditoriumName ??
+                "";
             }
             if (!roomId) {
               roomId = item.roomId ?? "";
             }
 
-            // Time extraction - use start/end from backend
-            const startTime = item.start ?? item.startTime ?? item.classStartTime ?? "";
+            const startTime =
+              item.start ?? item.startTime ?? item.classStartTime ?? "";
             const endTime = item.end ?? item.endTime ?? item.classEndTime ?? "";
 
-            // Day of week extraction - use period for day
             let dayOfWeek = "Monday";
 
             if (item.period) {
@@ -271,12 +267,9 @@ export function DeanSchedule() {
                   ];
                   dayOfWeek = dayNames[periodDate.getDay()] ?? "Monday";
                 }
-              } catch {
-                // Keep default Monday
-              }
+              } catch {}
             }
 
-            // Fallback: try numeric day field
             if (dayOfWeek === "Monday" && !item.period) {
               const dayNum = item.day ?? item.dayOfWeek ?? item.dayNumber;
               if (typeof dayNum === "number" && dayNum >= 0 && dayNum <= 6) {
@@ -295,7 +288,6 @@ export function DeanSchedule() {
               }
             }
 
-            // Class type normalization
             const type = normalizeClassType(
               item.classType ?? item.type ?? item.course?.type ?? "lecture",
             );

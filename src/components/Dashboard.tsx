@@ -135,9 +135,7 @@ function toDashboardCourse(raw: any, index: number): DashboardCourse {
         endDate.setMinutes(endDate.getMinutes() + 90);
         end = endDate.toISOString();
       }
-    } catch (e) {
-      // ignore invalid period
-    }
+    } catch (e) {}
   }
 
   const location = pickString(

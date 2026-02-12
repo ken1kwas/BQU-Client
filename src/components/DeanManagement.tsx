@@ -159,20 +159,9 @@ const mapRoomFromApi = (r: any): Room => {
     type = "";
   }
   const roomName =
-    r.roomName ??
-    r.name ??
-    r.Name ??
-    r.RoomName ??
-    r.room ??
-    r.Room ??
-    "";
+    r.roomName ?? r.name ?? r.Name ?? r.RoomName ?? r.room ?? r.Room ?? "";
 
-  const roomId =
-    r.id ??
-    r.Id ??
-    r.roomId ??
-    r.RoomId ??
-    "";
+  const roomId = r.id ?? r.Id ?? r.roomId ?? r.RoomId ?? "";
 
   return {
     id: roomId,
@@ -189,7 +178,10 @@ const mapTeacherFromApi = (t: any): Teacher => {
   const middleName = t.middleName ?? "";
   const userName = t.userName ?? t.username ?? "";
   const fullName =
-    `${firstName} ${surname} ${middleName}`.trim() || t.fullName || userName || "";
+    `${firstName} ${surname} ${middleName}`.trim() ||
+    t.fullName ||
+    userName ||
+    "";
   return {
     id: t.id ?? t.Id ?? t.teacherId,
     name: firstName,
@@ -203,7 +195,11 @@ const mapTeacherFromApi = (t: any): Teacher => {
   };
 };
 
-const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: any[]): Group => {
+const mapGroupFromApi = (
+  g: any,
+  departmentsList?: any[],
+  specializationsList?: any[],
+): Group => {
   const specialization = g.specialization ?? {};
   const specializationId =
     g.specializationId ?? specialization.id ?? specialization.Id;
@@ -237,7 +233,12 @@ const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: 
       return String(sId) === String(specializationId);
     });
     if (foundSpec) {
-      const specName = foundSpec.name ?? foundSpec.Name ?? foundSpec.title ?? foundSpec.Title ?? "";
+      const specName =
+        foundSpec.name ??
+        foundSpec.Name ??
+        foundSpec.title ??
+        foundSpec.Title ??
+        "";
       if (specName) {
         departmentName = specName;
       }
@@ -272,13 +273,13 @@ const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: 
 };
 
 const mapStudentFromApi = (s: any): Student => {
-  // Извлекаем имя из разных возможных полей
   const firstName = s.name ?? s.firstName ?? s.givenName ?? "";
   const surname = s.surname ?? s.lastName ?? s.familyName ?? "";
   const middleName = s.middleName ?? "";
-  const constructedName = firstName && surname
-    ? `${firstName} ${middleName ? middleName + " " : ""}${surname}`.trim()
-    : "";
+  const constructedName =
+    firstName && surname
+      ? `${firstName} ${middleName ? middleName + " " : ""}${surname}`.trim()
+      : "";
   const fullName = s.fullName ?? constructedName ?? s.name ?? "";
 
   return {
@@ -287,9 +288,16 @@ const mapStudentFromApi = (s: any): Student => {
     name: fullName,
     email: s.email ?? s.emailAddress ?? "",
     groupId: s.groupId ?? s.group?.id ?? s.groupId,
-    groupCode: s.groupName ?? s.groupCode ?? s.group?.groupCode ?? s.group?.code ?? s.group?.name ?? "",
+    groupCode:
+      s.groupName ??
+      s.groupCode ??
+      s.group?.groupCode ??
+      s.group?.code ??
+      s.group?.name ??
+      "",
     year: s.year ?? s.currentYear ?? s.academicYear ?? 0,
-    specialization: s.speciality ?? s.specialization ?? s.specializationName ?? "",
+    specialization:
+      s.speciality ?? s.specialization ?? s.specializationName ?? "",
     dateOfBirth: s.dateOfBirth ?? s.birthDate ?? s.dob,
     phoneNumber: s.phoneNumber ?? s.phone ?? s.mobile ?? "",
     address: s.address ?? "",
@@ -302,7 +310,7 @@ const mapStudentFromApi = (s: any): Student => {
 const FREQUENCY_LABELS: Record<number, string> = {
   1: "Lower",
   2: "Upper",
-  3: "Both"
+  3: "Both",
 };
 
 const DAY_LABELS: Record<number, string> = {
@@ -312,7 +320,7 @@ const DAY_LABELS: Record<number, string> = {
   4: "Thursday",
   5: "Friday",
   6: "Saturday",
-  7: "Sunday"
+  7: "Sunday",
 };
 
 const mapCourseFromApi = (c: any): Course => {
@@ -334,14 +342,17 @@ const mapCourseFromApi = (c: any): Course => {
     title: c.title ?? c.name ?? "",
     credits: c.credits ?? 0,
     type: c.type ?? "Lecture",
-    department: (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
-    teacherId: c.teacherId ?? (typeof teacher === "object" ? teacher.id : undefined),
+    department:
+      (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
+    teacherId:
+      c.teacherId ?? (typeof teacher === "object" ? teacher.id : undefined),
     teacherName: teacherName,
     groupId: c.groupId ?? group.id,
     groupCode: c.groupCode ?? group.groupCode ?? "",
     studentCount: c.studentCount ?? 0,
     hasSyllabus: Boolean(c.syllabusId),
-    departmentName: (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
+    departmentName:
+      (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
     year: c.year,
     semester: c.semester ?? c.semster,
   };
@@ -402,7 +413,8 @@ export function DeanManagement() {
   const teachersPerPage = 10;
 
   const [teacherSearchQuery, setTeacherSearchQuery] = useState("");
-  const [teacherPositionFilter, setTeacherPositionFilter] = useState<string>("all");
+  const [teacherPositionFilter, setTeacherPositionFilter] =
+    useState<string>("all");
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -425,17 +437,17 @@ export function DeanManagement() {
         const departmentsList = toArray(deptsResp);
         const specializationsList = toArray(specsResp);
 
-
         setRooms(toArray(roomsResp).map(mapRoomFromApi));
         setTeachers(toArray(teachersResp).map(mapTeacherFromApi));
-        setGroups(toArray(groupsResp).map((g: any) => mapGroupFromApi(g, departmentsList, specializationsList)));
+        setGroups(
+          toArray(groupsResp).map((g: any) =>
+            mapGroupFromApi(g, departmentsList, specializationsList),
+          ),
+        );
         setCourses(toArray(coursesResp).map(mapCourseFromApi));
         setDepartments(departmentsList);
         setSpecializations(specializationsList);
-
-      } catch (err) {
-        // Ignore
-      }
+      } catch (err) {}
     };
     fetchAll();
   }, []);
@@ -453,11 +465,12 @@ export function DeanManagement() {
           studentGroupFilter !== "all" ||
           studentYearFilter !== "all"
         ) {
-          // Ждем загрузки groups перед фильтрацией
           if (groups.length === 0) {
             return;
           }
-          const groupObj = groups.find((g) => (g.code || g.groupCode) === studentGroupFilter);
+          const groupObj = groups.find(
+            (g) => (g.code || g.groupCode) === studentGroupFilter,
+          );
           const groupId =
             studentGroupFilter !== "all" ? groupObj?.id?.toString() : undefined;
           const year =
@@ -470,7 +483,6 @@ export function DeanManagement() {
             setStudents(studentsArray.map(mapStudentFromApi));
           }
         } else {
-          // Загружаем всех студентов
           let studentsLoaded = false;
           try {
             const resp = await listStudents(1, 100);
@@ -480,7 +492,6 @@ export function DeanManagement() {
               setStudents(mapped);
               studentsLoaded = true;
             } else {
-              // Пробуем альтернативный метод
               try {
                 const resp2 = await filterStudents(undefined, undefined);
                 const studentsArray2 = toArray(resp2);
@@ -488,12 +499,9 @@ export function DeanManagement() {
                   setStudents(studentsArray2.map(mapStudentFromApi));
                   studentsLoaded = true;
                 }
-              } catch (filterErr) {
-                // Ignore
-              }
+              } catch (filterErr) {}
             }
           } catch (listErr: any) {
-            // Если listStudents не работает, пробуем filterStudents без параметров
             try {
               const resp = await filterStudents(undefined, undefined);
               const studentsArray = toArray(resp);
@@ -502,20 +510,19 @@ export function DeanManagement() {
                 studentsLoaded = true;
               }
             } catch (filterErr) {
-              // Показываем предупреждение пользователю только если список пустой
               if (students.length === 0 && !studentsLoaded) {
-                toast.error("Unable to load students. The server returned an error (500). Please check the backend logs.", {
-                  duration: 5000,
-                });
-                // Устанавливаем пустой массив, чтобы показать, что данных нет
+                toast.error(
+                  "Unable to load students. The server returned an error (500). Please check the backend logs.",
+                  {
+                    duration: 5000,
+                  },
+                );
                 setStudents([]);
               }
             }
           }
         }
-      } catch (err) {
-        // Не устанавливаем пустой массив при ошибке, оставляем текущий список
-      }
+      } catch (err) {}
     };
     fetchFilteredStudents();
   }, [studentSearchQuery, studentGroupFilter, studentYearFilter, groups]);
@@ -605,7 +612,10 @@ export function DeanManagement() {
   const addClassTime = () => {
     setCourseForm({
       ...courseForm,
-      classTimes: [...(courseForm.classTimes || []), { start: "", end: "", day: 1, room: "", frequency: 3 }]
+      classTimes: [
+        ...(courseForm.classTimes || []),
+        { start: "", end: "", day: 1, room: "", frequency: 3 },
+      ],
     });
   };
 
@@ -615,7 +625,11 @@ export function DeanManagement() {
     setCourseForm({ ...courseForm, classTimes: newClassTimes });
   };
 
-  const updateClassTime = (index: number, field: keyof any, value: string | number) => {
+  const updateClassTime = (
+    index: number,
+    field: keyof any,
+    value: string | number,
+  ) => {
     const newClassTimes = [...(courseForm.classTimes || [])];
     newClassTimes[index] = { ...newClassTimes[index], [field]: value };
     setCourseForm({ ...courseForm, classTimes: newClassTimes });
@@ -657,11 +671,19 @@ export function DeanManagement() {
         });
         toast.success("Course updated successfully");
       } else {
-        if (courseForm.credits === undefined || courseForm.credits === null || courseForm.credits === 0) {
+        if (
+          courseForm.credits === undefined ||
+          courseForm.credits === null ||
+          courseForm.credits === 0
+        ) {
           toast.error("Credits is required");
           return;
         }
-        if (courseForm.hours === undefined || courseForm.hours === null || courseForm.hours === 0) {
+        if (
+          courseForm.hours === undefined ||
+          courseForm.hours === null ||
+          courseForm.hours === 0
+        ) {
           toast.error("Hours is required");
           return;
         }
@@ -676,7 +698,14 @@ export function DeanManagement() {
 
         const validClassTimes = (courseForm.classTimes || [])
           .filter((ct: any) => {
-            return ct.start && ct.end && ct.room && ct.room.trim() && ct.day && ct.frequency !== undefined;
+            return (
+              ct.start &&
+              ct.end &&
+              ct.room &&
+              ct.room.trim() &&
+              ct.day &&
+              ct.frequency !== undefined
+            );
           })
           .map((ct: any) => {
             const startTime = ensureHHMMSS(ct.start);
@@ -685,8 +714,15 @@ export function DeanManagement() {
             const room = String(ct.room).trim();
             const frequency = Number(ct.frequency);
 
-            if (!startTime || startTime === "00:00:00" || !endTime || endTime === "00:00:00") {
-              throw new Error("Start and end times are required for class times");
+            if (
+              !startTime ||
+              startTime === "00:00:00" ||
+              !endTime ||
+              endTime === "00:00:00"
+            ) {
+              throw new Error(
+                "Start and end times are required for class times",
+              );
             }
             if (!room) {
               throw new Error("Room is required for class times");
@@ -695,7 +731,9 @@ export function DeanManagement() {
               throw new Error("Valid day (1-7) is required for class times");
             }
             if (!frequency || frequency < 1 || frequency > 3) {
-              throw new Error("Valid frequency (1-3) is required for class times");
+              throw new Error(
+                "Valid frequency (1-3) is required for class times",
+              );
             }
 
             return {
@@ -780,7 +818,11 @@ export function DeanManagement() {
           toast.error("Specify education language and level for new group");
           return;
         }
-          console.log("SUBMIT educationLanguage =", groupForm.educationLanguage, groupForm);
+        console.log(
+          "SUBMIT educationLanguage =",
+          groupForm.educationLanguage,
+          groupForm,
+        );
         await createGroup({
           ...basePayload,
           educationLanguage: Number(groupForm.educationLanguage),
@@ -789,7 +831,11 @@ export function DeanManagement() {
         toast.success("Group added successfully");
       }
       const resp = await listGroups(1, 100);
-      setGroups(toArray(resp).map((g: any) => mapGroupFromApi(g, departments, specializations)));
+      setGroups(
+        toArray(resp).map((g: any) =>
+          mapGroupFromApi(g, departments, specializations),
+        ),
+      );
     } catch (error: any) {
       if (editingGroupId) {
         setGroups(
@@ -883,19 +929,21 @@ export function DeanManagement() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         toast.success("Import completed. Report downloaded.");
-      }
-      else if (
+      } else if (
         typeof result === "object" &&
         result !== null &&
         !(result instanceof Blob)
       ) {
         if ((result as any).message || (result as any).error) {
-          toast.error((result as any).message || (result as any).error || "Error importing file");
+          toast.error(
+            (result as any).message ||
+              (result as any).error ||
+              "Error importing file",
+          );
         } else {
           toast.success("File uploaded successfully");
         }
-      }
-      else {
+      } else {
         toast.success("File uploaded successfully");
       }
 
@@ -913,8 +961,7 @@ export function DeanManagement() {
           if (studentsArray.length > 0) {
             setStudents(studentsArray.map(mapStudentFromApi));
           }
-        } catch (filterErr) {
-        }
+        } catch (filterErr) {}
       }
       setIsUploadDialogOpen(false);
       event.target.value = "";
@@ -943,20 +990,21 @@ export function DeanManagement() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         toast.success("Import completed. Report downloaded.");
-      }
-      // Если это JSON объект с сообщением (обычно это ошибка или успешный ответ без файла)
-      else if (
+      } else if (
         typeof result === "object" &&
         result !== null &&
         !(result instanceof Blob)
       ) {
         if ((result as any).message || (result as any).error) {
-          toast.error((result as any).message || (result as any).error || "Error importing file");
+          toast.error(
+            (result as any).message ||
+              (result as any).error ||
+              "Error importing file",
+          );
         } else {
           toast.success("File uploaded successfully");
         }
-      }
-      else {
+      } else {
         toast.success("File uploaded successfully");
       }
 
@@ -1020,19 +1068,26 @@ export function DeanManagement() {
     filteredStudents.length,
   );
 
-  const filteredTeachers = teachers.filter(teacher => {
+  const filteredTeachers = teachers.filter((teacher) => {
     const searchLower = teacherSearchQuery.toLowerCase();
-    const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""} ${teacher.userName || ""}`.toLowerCase();
+    const fullName =
+      `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""} ${teacher.userName || ""}`.toLowerCase();
     const matchesSearch = !teacherSearchQuery || fullName.includes(searchLower);
-    const matchesPosition = teacherPositionFilter === "all" ||
+    const matchesPosition =
+      teacherPositionFilter === "all" ||
       (teacher.position && String(teacher.position) === teacherPositionFilter);
 
     return matchesSearch && matchesPosition;
   });
 
-  const teacherTotalPages = Math.ceil(filteredTeachers.length / teachersPerPage);
+  const teacherTotalPages = Math.ceil(
+    filteredTeachers.length / teachersPerPage,
+  );
   const teacherStartIndex = (teacherCurrentPage - 1) * teachersPerPage + 1;
-  const teacherEndIndex = Math.min(teacherCurrentPage * teachersPerPage, filteredTeachers.length);
+  const teacherEndIndex = Math.min(
+    teacherCurrentPage * teachersPerPage,
+    filteredTeachers.length,
+  );
 
   return (
     <div className="space-y-6">
@@ -1069,9 +1124,14 @@ export function DeanManagement() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Course Management</CardTitle>
-                  <CardDescription>Add, edit, or remove course information</CardDescription>
+                  <CardDescription>
+                    Add, edit, or remove course information
+                  </CardDescription>
                 </div>
-                <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
+                <Dialog
+                  open={isCourseDialogOpen}
+                  onOpenChange={setIsCourseDialogOpen}
+                >
                   <DialogTrigger asChild>
                     <Button onClick={handleAddCourse}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -1080,9 +1140,13 @@ export function DeanManagement() {
                   </DialogTrigger>
                   <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>{editingCourseId ? "Edit Course" : "Add New Course"}</DialogTitle>
+                      <DialogTitle>
+                        {editingCourseId ? "Edit Course" : "Add New Course"}
+                      </DialogTitle>
                       <DialogDescription>
-                        {editingCourseId ? "Update course information" : "Enter details for the new course"}
+                        {editingCourseId
+                          ? "Update course information"
+                          : "Enter details for the new course"}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1094,7 +1158,12 @@ export function DeanManagement() {
                             placeholder="e.g., MAT-AN"
                             maxLength={20}
                             value={courseForm.code || ""}
-                            onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
+                            onChange={(e) =>
+                              setCourseForm({
+                                ...courseForm,
+                                code: e.target.value,
+                              })
+                            }
                           />
                         </div>
                         <div className="space-y-2">
@@ -1104,7 +1173,12 @@ export function DeanManagement() {
                             placeholder="e.g., Mat. Analiz"
                             maxLength={100}
                             value={courseForm.title || ""}
-                            onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                            onChange={(e) =>
+                              setCourseForm({
+                                ...courseForm,
+                                title: e.target.value,
+                              })
+                            }
                           />
                         </div>
                       </div>
@@ -1113,18 +1187,34 @@ export function DeanManagement() {
                           <Label htmlFor="course-department">Department</Label>
                           <Select
                             value={courseForm.departmentId?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, departmentId: value })}
+                            onValueChange={(value) =>
+                              setCourseForm({
+                                ...courseForm,
+                                departmentId: value,
+                              })
+                            }
                           >
                             <SelectTrigger id="course-department">
                               <SelectValue placeholder="Select department" />
                             </SelectTrigger>
                             <SelectContent>
-                              {departments.map(dept => {
-                                const deptId = dept?.id ?? dept?.Id ?? dept?.departmentId;
-                                const deptName = dept?.name ?? dept?.Name ?? dept?.title ?? dept?.Title ?? "";
+                              {departments.map((dept) => {
+                                const deptId =
+                                  dept?.id ?? dept?.Id ?? dept?.departmentId;
+                                const deptName =
+                                  dept?.name ??
+                                  dept?.Name ??
+                                  dept?.title ??
+                                  dept?.Title ??
+                                  "";
                                 if (!deptId || !deptName) return null;
                                 return (
-                                  <SelectItem key={String(deptId)} value={String(deptId)}>{deptName}</SelectItem>
+                                  <SelectItem
+                                    key={String(deptId)}
+                                    value={String(deptId)}
+                                  >
+                                    {deptName}
+                                  </SelectItem>
                                 );
                               })}
                             </SelectContent>
@@ -1134,16 +1224,24 @@ export function DeanManagement() {
                           <Label htmlFor="course-teacher">Teacher</Label>
                           <Select
                             value={courseForm.teacherId?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, teacherId: value })}
+                            onValueChange={(value) =>
+                              setCourseForm({ ...courseForm, teacherId: value })
+                            }
                           >
                             <SelectTrigger id="course-teacher">
                               <SelectValue placeholder="Select teacher" />
                             </SelectTrigger>
                             <SelectContent>
-                              {teachers.map(teacher => {
-                                const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() || teacher.userName || `Teacher ${teacher.id}`;
+                              {teachers.map((teacher) => {
+                                const fullName =
+                                  `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() ||
+                                  teacher.userName ||
+                                  `Teacher ${teacher.id}`;
                                 return (
-                                  <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                  <SelectItem
+                                    key={teacher.id}
+                                    value={teacher.id.toString()}
+                                  >
                                     {fullName}
                                   </SelectItem>
                                 );
@@ -1157,14 +1255,21 @@ export function DeanManagement() {
                           <Label htmlFor="course-group">Group</Label>
                           <Select
                             value={courseForm.groupId?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, groupId: value })}
+                            onValueChange={(value) =>
+                              setCourseForm({ ...courseForm, groupId: value })
+                            }
                           >
                             <SelectTrigger id="course-group">
                               <SelectValue placeholder="Select group" />
                             </SelectTrigger>
                             <SelectContent>
-                              {groups.map(group => (
-                                <SelectItem key={group.id} value={group.id.toString()}>{group.code || group.groupCode}</SelectItem>
+                              {groups.map((group) => (
+                                <SelectItem
+                                  key={group.id}
+                                  value={group.id.toString()}
+                                >
+                                  {group.code || group.groupCode}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1180,12 +1285,18 @@ export function DeanManagement() {
                             onChange={(e) => {
                               const value = e.target.value;
                               if (value === "") {
-                                setCourseForm({ ...courseForm, credits: undefined });
+                                setCourseForm({
+                                  ...courseForm,
+                                  credits: undefined,
+                                });
                                 return;
                               }
                               const numValue = parseInt(value, 10);
                               if (!isNaN(numValue) && numValue >= 0) {
-                                setCourseForm({ ...courseForm, credits: numValue });
+                                setCourseForm({
+                                  ...courseForm,
+                                  credits: numValue,
+                                });
                               }
                             }}
                           />
@@ -1203,12 +1314,18 @@ export function DeanManagement() {
                             onChange={(e) => {
                               const value = e.target.value;
                               if (value === "") {
-                                setCourseForm({ ...courseForm, hours: undefined });
+                                setCourseForm({
+                                  ...courseForm,
+                                  hours: undefined,
+                                });
                                 return;
                               }
                               const numValue = parseInt(value, 10);
                               if (!isNaN(numValue) && numValue >= 0) {
-                                setCourseForm({ ...courseForm, hours: numValue });
+                                setCourseForm({
+                                  ...courseForm,
+                                  hours: numValue,
+                                });
                               }
                             }}
                           />
@@ -1217,7 +1334,12 @@ export function DeanManagement() {
                           <Label htmlFor="course-year">Year</Label>
                           <Select
                             value={courseForm.year?.toString() || ""}
-                            onValueChange={(value: string) => setCourseForm({ ...courseForm, year: parseInt(value) })}
+                            onValueChange={(value: string) =>
+                              setCourseForm({
+                                ...courseForm,
+                                year: parseInt(value),
+                              })
+                            }
                           >
                             <SelectTrigger id="course-year">
                               <SelectValue placeholder="Select year" />
@@ -1234,7 +1356,12 @@ export function DeanManagement() {
                           <Label htmlFor="course-semester">Semester</Label>
                           <Select
                             value={courseForm.semester?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, semester: parseInt(value) })}
+                            onValueChange={(value) =>
+                              setCourseForm({
+                                ...courseForm,
+                                semester: parseInt(value),
+                              })
+                            }
                           >
                             <SelectTrigger id="course-semester">
                               <SelectValue placeholder="Select semester" />
@@ -1250,116 +1377,178 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label>Class Times</Label>
-                          <Button type="button" variant="outline" size="sm" onClick={addClassTime}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addClassTime}
+                          >
                             <Plus className="h-4 w-4 mr-1" />
                             Add Time Slot
                           </Button>
                         </div>
                         <div className="space-y-3">
-                          {(courseForm.classTimes || []).map((classTime, index) => (
-                            <Card key={index} className="p-4">
-                              <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div className="space-y-2">
-                                    <Label>Start Time</Label>
-                                    <Input
-                                      type="time"
-                                      value={classTime.start}
-                                      onChange={(e) => updateClassTime(index, "start", e.target.value)}
-                                    />
+                          {(courseForm.classTimes || []).map(
+                            (classTime, index) => (
+                              <Card key={index} className="p-4">
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                      <Label>Start Time</Label>
+                                      <Input
+                                        type="time"
+                                        value={classTime.start}
+                                        onChange={(e) =>
+                                          updateClassTime(
+                                            index,
+                                            "start",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>End Time</Label>
+                                      <Input
+                                        type="time"
+                                        value={classTime.end}
+                                        onChange={(e) =>
+                                          updateClassTime(
+                                            index,
+                                            "end",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </div>
                                   </div>
-                                  <div className="space-y-2">
-                                    <Label>End Time</Label>
-                                    <Input
-                                      type="time"
-                                      value={classTime.end}
-                                      onChange={(e) => updateClassTime(index, "end", e.target.value)}
-                                    />
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-3 gap-3">
-                                  <div className="space-y-2">
-                                    <Label>Day</Label>
-                                    <Select
-                                      value={classTime.day.toString()}
-                                      onValueChange={(value) => updateClassTime(index, "day", parseInt(value))}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {Object.entries(DAY_LABELS).map(([value, label]) => (
-                                          <SelectItem key={value} value={value}>{label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Room</Label>
-                                    <Select
-                                      value={classTime.room}
-                                      onValueChange={(value) => updateClassTime(index, "room", value)}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select room" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {rooms.length === 0 ? (
-                                          <SelectItem value="" disabled>No rooms available</SelectItem>
-                                        ) : (
-                                          rooms.map(room => {
-                                            const roomId = room.id;
-                                            const roomName = room.name || "";
-                                            const roomCapacity = room.capacity || 0;
-
-                                            if (!roomId || !roomName) return null;
-
-                                            return (
-                                              <SelectItem key={String(roomId)} value={String(roomId)}>
-                                                {roomName} {roomCapacity > 0 ? `(${roomCapacity})` : ""}
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-2">
+                                      <Label>Day</Label>
+                                      <Select
+                                        value={classTime.day.toString()}
+                                        onValueChange={(value) =>
+                                          updateClassTime(
+                                            index,
+                                            "day",
+                                            parseInt(value),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {Object.entries(DAY_LABELS).map(
+                                            ([value, label]) => (
+                                              <SelectItem
+                                                key={value}
+                                                value={value}
+                                              >
+                                                {label}
                                               </SelectItem>
-                                            );
-                                          })
-                                        )}
-                                      </SelectContent>
-                                    </Select>
+                                            ),
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Room</Label>
+                                      <Select
+                                        value={classTime.room}
+                                        onValueChange={(value) =>
+                                          updateClassTime(index, "room", value)
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select room" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {rooms.length === 0 ? (
+                                            <SelectItem value="" disabled>
+                                              No rooms available
+                                            </SelectItem>
+                                          ) : (
+                                            rooms.map((room) => {
+                                              const roomId = room.id;
+                                              const roomName = room.name || "";
+                                              const roomCapacity =
+                                                room.capacity || 0;
+
+                                              if (!roomId || !roomName)
+                                                return null;
+
+                                              return (
+                                                <SelectItem
+                                                  key={String(roomId)}
+                                                  value={String(roomId)}
+                                                >
+                                                  {roomName}{" "}
+                                                  {roomCapacity > 0
+                                                    ? `(${roomCapacity})`
+                                                    : ""}
+                                                </SelectItem>
+                                              );
+                                            })
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Frequency</Label>
+                                      <Select
+                                        value={classTime.frequency.toString()}
+                                        onValueChange={(value) =>
+                                          updateClassTime(
+                                            index,
+                                            "frequency",
+                                            parseInt(value),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {Object.entries(FREQUENCY_LABELS).map(
+                                            ([value, label]) => (
+                                              <SelectItem
+                                                key={value}
+                                                value={value}
+                                              >
+                                                {label}
+                                              </SelectItem>
+                                            ),
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
                                   </div>
-                                  <div className="space-y-2">
-                                    <Label>Frequency</Label>
-                                    <Select
-                                      value={classTime.frequency.toString()}
-                                      onValueChange={(value) => updateClassTime(index, "frequency", parseInt(value))}
+                                  {(courseForm.classTimes || []).length > 1 && (
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => removeClassTime(index)}
                                     >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
-                                          <SelectItem key={value} value={value}>{label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Remove
+                                    </Button>
+                                  )}
                                 </div>
-                                {(courseForm.classTimes || []).length > 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => removeClassTime(index)}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    Remove
-                                  </Button>
-                                )}
-                              </div>
-                            </Card>
-                          ))}
+                              </Card>
+                            ),
+                          )}
                         </div>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsCourseDialogOpen(false)}>Cancel</Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCourseDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
                       <Button onClick={handleSaveCourse}>Save</Button>
                     </div>
                   </DialogContent>
@@ -1453,35 +1642,61 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-code">Group Code</Label>
                         <Input
-                            id="group-code"
-                            placeholder="e.g., CS-50"
-                            maxLength={20}
-                            value={groupForm.code || groupForm.groupCode || ""}
-                            onChange={(e) =>
-                                setGroupForm({ ...groupForm, code: e.target.value, groupCode: e.target.value })
-                            }
+                          id="group-code"
+                          placeholder="e.g., CS-50"
+                          maxLength={20}
+                          value={groupForm.code || groupForm.groupCode || ""}
+                          onChange={(e) =>
+                            setGroupForm({
+                              ...groupForm,
+                              code: e.target.value,
+                              groupCode: e.target.value,
+                            })
+                          }
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-specialization">Specialization</Label>
+                        <Label htmlFor="group-specialization">
+                          Specialization
+                        </Label>
                         <Select
-                            value={groupForm.specializationId || ""}
-                            onValueChange={(value) =>
-                                setGroupForm(prev => ({ ...prev, specializationId: value }))
-                            }>
+                          value={groupForm.specializationId || ""}
+                          onValueChange={(value) =>
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              specializationId: value,
+                            }))
+                          }
+                        >
                           <SelectTrigger id="group-specialization">
                             <SelectValue placeholder="Select specialization" />
                           </SelectTrigger>
                           <SelectContent>
                             {specializations.length === 0 ? (
-                              <SelectItem value="" disabled>No specializations available</SelectItem>
+                              <SelectItem value="" disabled>
+                                No specializations available
+                              </SelectItem>
                             ) : (
-                              specializations.map(spec => {
-                                const specId = spec?.id ?? spec?.Id ?? spec?.ID ?? spec?.specializationId;
-                                const specName = spec?.name ?? spec?.Name ?? spec?.title ?? spec?.Title ?? "";
+                              specializations.map((spec) => {
+                                const specId =
+                                  spec?.id ??
+                                  spec?.Id ??
+                                  spec?.ID ??
+                                  spec?.specializationId;
+                                const specName =
+                                  spec?.name ??
+                                  spec?.Name ??
+                                  spec?.title ??
+                                  spec?.Title ??
+                                  "";
                                 if (!specId || !specName) return null;
                                 return (
-                                  <SelectItem key={String(specId)} value={String(specId)}>{specName}</SelectItem>
+                                  <SelectItem
+                                    key={String(specId)}
+                                    value={String(specId)}
+                                  >
+                                    {specName}
+                                  </SelectItem>
                                 );
                               })
                             )}
@@ -1491,10 +1706,13 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-year">Year</Label>
                         <Select
-                            value={groupForm.year?.toString() || ""}
-                            onValueChange={(value) =>
-                                setGroupForm(prev => ({ ...prev, year: Number(value) }))
-                            }
+                          value={groupForm.year?.toString() || ""}
+                          onValueChange={(value) =>
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              year: Number(value),
+                            }))
+                          }
                         >
                           <SelectTrigger id="group-year">
                             <SelectValue placeholder="Select year" />
@@ -1508,12 +1726,17 @@ export function DeanManagement() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-language">Education Language</Label>
+                        <Label htmlFor="group-language">
+                          Education Language
+                        </Label>
                         <Select
-                            value={groupForm.educationLanguage?.toString() || ""}
-                            onValueChange={(value) =>
-                                setGroupForm(prev => ({ ...prev, educationLanguage: Number(value) }))
-                            }
+                          value={groupForm.educationLanguage?.toString() || ""}
+                          onValueChange={(value) =>
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              educationLanguage: Number(value),
+                            }))
+                          }
                         >
                           <SelectTrigger id="group-language">
                             <SelectValue placeholder="Select language" />
@@ -1528,10 +1751,13 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-level">Education Level</Label>
                         <Select
-                            value={groupForm.educationLevel?.toString() || ""}
-                            onValueChange={(value) =>
-                                setGroupForm(prev => ({ ...prev, educationLevel: Number(value) }))
-                            }
+                          value={groupForm.educationLevel?.toString() || ""}
+                          onValueChange={(value) =>
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              educationLevel: Number(value),
+                            }))
+                          }
                         >
                           <SelectTrigger id="group-level">
                             <SelectValue placeholder="Select level" />
@@ -1558,26 +1784,34 @@ export function DeanManagement() {
             </CardHeader>
             <CardContent>
               <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Group Code</TableHead>
-                        <TableHead>Specialization</TableHead>
-                        <TableHead>Language</TableHead>
-                        <TableHead>Student Count</TableHead>
-                        <TableHead>Education Level</TableHead>
-                        <TableHead>Year</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {groups.map((group, index) => (
-                        <TableRow key={group.id ?? `${group.code || group.groupCode}-${index}`}>
-                          <TableCell className="font-medium">{group.code || group.groupCode || "-"}</TableCell>
-                          <TableCell>{group.department || group.departmentName || "-"}</TableCell>
-                          <TableCell>{group.educationLanguage }</TableCell>
-                          <TableCell>{group.studentCount}</TableCell>
-                          <TableCell>{group.educationLevel}</TableCell>
-                          <TableCell>Year {group.year}</TableCell>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Group Code</TableHead>
+                    <TableHead>Specialization</TableHead>
+                    <TableHead>Language</TableHead>
+                    <TableHead>Student Count</TableHead>
+                    <TableHead>Education Level</TableHead>
+                    <TableHead>Year</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groups.map((group, index) => (
+                    <TableRow
+                      key={
+                        group.id ?? `${group.code || group.groupCode}-${index}`
+                      }
+                    >
+                      <TableCell className="font-medium">
+                        {group.code || group.groupCode || "-"}
+                      </TableCell>
+                      <TableCell>
+                        {group.department || group.departmentName || "-"}
+                      </TableCell>
+                      <TableCell>{group.educationLanguage}</TableCell>
+                      <TableCell>{group.studentCount}</TableCell>
+                      <TableCell>{group.educationLevel}</TableCell>
+                      <TableCell>Year {group.year}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -1838,7 +2072,9 @@ export function DeanManagement() {
                         </TableCell>
                         <TableCell>{student.name || "-"}</TableCell>
                         <TableCell>{student.groupCode || "-"}</TableCell>
-                        <TableCell>{student.year ? `Year ${student.year}` : "-"}</TableCell>
+                        <TableCell>
+                          {student.year ? `Year ${student.year}` : "-"}
+                        </TableCell>
                         <TableCell>{student.yearOfAdmission || "-"}</TableCell>
                         <TableCell>{student.admissionScore ?? "-"}</TableCell>
                       </TableRow>
@@ -1891,7 +2127,9 @@ export function DeanManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Username</Label>
-                    <p className="font-medium">{studentForm.studentId || "-"}</p>
+                    <p className="font-medium">
+                      {studentForm.studentId || "-"}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Full Name</Label>
@@ -1901,27 +2139,43 @@ export function DeanManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Group</Label>
-                    <p className="font-medium">{studentForm.groupCode || "-"}</p>
+                    <p className="font-medium">
+                      {studentForm.groupCode || "-"}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Year</Label>
-                    <p className="font-medium">{studentForm.year ? `Year ${studentForm.year}` : "-"}</p>
+                    <p className="font-medium">
+                      {studentForm.year ? `Year ${studentForm.year}` : "-"}
+                    </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Specialization</Label>
-                    <p className="font-medium">{studentForm.specialization || "-"}</p>
+                    <Label className="text-muted-foreground">
+                      Specialization
+                    </Label>
+                    <p className="font-medium">
+                      {studentForm.specialization || "-"}
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Year of Admission</Label>
-                    <p className="font-medium">{studentForm.yearOfAdmission || "-"}</p>
+                    <Label className="text-muted-foreground">
+                      Year of Admission
+                    </Label>
+                    <p className="font-medium">
+                      {studentForm.yearOfAdmission || "-"}
+                    </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Admission Score</Label>
-                    <p className="font-medium">{studentForm.admissionScore ?? "-"}</p>
+                    <Label className="text-muted-foreground">
+                      Admission Score
+                    </Label>
+                    <p className="font-medium">
+                      {studentForm.admissionScore ?? "-"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1941,7 +2195,10 @@ export function DeanManagement() {
                   <CardTitle>Teacher Management</CardTitle>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Dialog open={isTeacherFormatInfoOpen} onOpenChange={setIsTeacherFormatInfoOpen}>
+                  <Dialog
+                    open={isTeacherFormatInfoOpen}
+                    onOpenChange={setIsTeacherFormatInfoOpen}
+                  >
                     <DialogTrigger asChild>
                       <Button variant="outline">
                         <Info className="h-4 w-4 mr-2" />
@@ -1960,7 +2217,8 @@ export function DeanManagement() {
                           <FileSpreadsheet className="h-4 w-4" />
                           <AlertTitle>Required Columns</AlertTitle>
                           <AlertDescription>
-                            Your Excel file must contain the following columns in this exact order:
+                            Your Excel file must contain the following columns
+                            in this exact order:
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
@@ -2014,7 +2272,12 @@ export function DeanManagement() {
                         </Alert>
                       </div>
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsTeacherFormatInfoOpen(false)}>Close</Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsTeacherFormatInfoOpen(false)}
+                        >
+                          Close
+                        </Button>
                         <Button onClick={downloadTeacherTemplate}>
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
                           Download Template
@@ -2022,7 +2285,10 @@ export function DeanManagement() {
                       </div>
                     </DialogContent>
                   </Dialog>
-                  <Dialog open={isTeacherUploadDialogOpen} onOpenChange={setIsTeacherUploadDialogOpen}>
+                  <Dialog
+                    open={isTeacherUploadDialogOpen}
+                    onOpenChange={setIsTeacherUploadDialogOpen}
+                  >
                     <DialogTrigger asChild>
                       <Button>
                         <Upload className="h-4 w-4 mr-2" />
@@ -2033,7 +2299,8 @@ export function DeanManagement() {
                       <DialogHeader>
                         <DialogTitle>Upload Teachers from Excel</DialogTitle>
                         <DialogDescription>
-                          Upload an Excel file (.xlsx or .xls) to import multiple teachers at once
+                          Upload an Excel file (.xlsx or .xls) to import
+                          multiple teachers at once
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
@@ -2041,11 +2308,15 @@ export function DeanManagement() {
                           <Info className="h-4 w-4" />
                           <AlertTitle>Before uploading</AlertTitle>
                           <AlertDescription>
-                            Make sure your Excel file follows the required format. Click "Excel Format" to view requirements or download a template.
+                            Make sure your Excel file follows the required
+                            format. Click "Excel Format" to view requirements or
+                            download a template.
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
-                          <Label htmlFor="teacher-file">Select Excel File</Label>
+                          <Label htmlFor="teacher-file">
+                            Select Excel File
+                          </Label>
                           <Input
                             id="teacher-file"
                             type="file"
@@ -2055,7 +2326,12 @@ export function DeanManagement() {
                         </div>
                       </div>
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsTeacherUploadDialogOpen(false)}>Cancel</Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsTeacherUploadDialogOpen(false)}
+                        >
+                          Cancel
+                        </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -2112,41 +2388,55 @@ export function DeanManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTeachers.slice((teacherCurrentPage - 1) * teachersPerPage, teacherCurrentPage * teachersPerPage).map((teacher, index) => {
-                    const positionLabels: Record<number, string> = {
-                      1: "Teacher",
-                      2: "Head Teacher",
-                      3: "Docent",
-                      4: "Professor",
-                      5: "Head Of Department",
-                    };
-                    const positionLabel = teacher.position ? positionLabels[teacher.position] || "Teacher" : "Teacher";
+                  {filteredTeachers
+                    .slice(
+                      (teacherCurrentPage - 1) * teachersPerPage,
+                      teacherCurrentPage * teachersPerPage,
+                    )
+                    .map((teacher, index) => {
+                      const positionLabels: Record<number, string> = {
+                        1: "Teacher",
+                        2: "Head Teacher",
+                        3: "Docent",
+                        4: "Professor",
+                        5: "Head Of Department",
+                      };
+                      const positionLabel = teacher.position
+                        ? positionLabels[teacher.position] || "Teacher"
+                        : "Teacher";
 
-                    return (
-                      <TableRow key={`${teacher.id}-${index}`}>
-                        <TableCell className="font-medium">{teacher.name || ""}</TableCell>
-                        <TableCell>{teacher.surname || ""}</TableCell>
-                        <TableCell>{teacher.middleName || ""}</TableCell>
-                        <TableCell>{teacher.userName || ""}</TableCell>
-                        <TableCell>
-                          <Badge>{positionLabel}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                      return (
+                        <TableRow key={`${teacher.id}-${index}`}>
+                          <TableCell className="font-medium">
+                            {teacher.name || ""}
+                          </TableCell>
+                          <TableCell>{teacher.surname || ""}</TableCell>
+                          <TableCell>{teacher.middleName || ""}</TableCell>
+                          <TableCell>{teacher.userName || ""}</TableCell>
+                          <TableCell>
+                            <Badge>{positionLabel}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                 </TableBody>
               </Table>
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
-                  Showing {teacherStartIndex} to {teacherEndIndex} of {filteredTeachers.length} teachers
+                  Showing {teacherStartIndex} to {teacherEndIndex} of{" "}
+                  {filteredTeachers.length} teachers
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Page {teacherCurrentPage} of {teacherTotalPages}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Page {teacherCurrentPage} of {teacherTotalPages}
+                  </span>
                   <div className="flex gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setTeacherCurrentPage(teacherCurrentPage - 1)}
+                      onClick={() =>
+                        setTeacherCurrentPage(teacherCurrentPage - 1)
+                      }
                       disabled={teacherCurrentPage === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -2154,7 +2444,9 @@ export function DeanManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setTeacherCurrentPage(teacherCurrentPage + 1)}
+                      onClick={() =>
+                        setTeacherCurrentPage(teacherCurrentPage + 1)
+                      }
                       disabled={teacherCurrentPage >= teacherTotalPages}
                     >
                       <ChevronRight className="h-4 w-4" />

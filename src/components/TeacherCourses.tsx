@@ -10,7 +10,6 @@ import { Button } from "./ui/button";
 import { FileUp, Users, BookOpen, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-// removed AddTopics dialog-related imports (not used anymore)
 import {
   listTeacherCourses,
   uploadSyllabusFile,
@@ -18,10 +17,7 @@ import {
   toArray,
 } from "../api";
 
-// This component previously used a static list of courses.  It now
-// fetches the teacher's courses from the backend on mount.  Each
-// course may include a syllabusId if a file has already been
-// uploaded.
+
 interface TeacherCourse {
   id: number | string;
   title: string;
@@ -94,8 +90,6 @@ const mapTopicsFromApi = (raw: any): CourseTopic[] => {
   return [];
 };
 
-// AddTopicsDialog removed — feature hidden for teachers per request
-
 export function TeacherCourses({
   onCourseSelect,
 }: {
@@ -103,10 +97,8 @@ export function TeacherCourses({
     course: string | number | { id: string | number; studentCount?: number; hours?: number },
   ) => void;
 }) {
-  // Local state for courses loaded from the backend
   const [courses, setCourses] = useState<TeacherCourse[]>([]);
 
-  // Fetch teacher courses on mount
   const refreshCourses = async () => {
     try {
       const resp = await listTeacherCourses();
@@ -152,8 +144,6 @@ export function TeacherCourses({
   useEffect(() => {
     refreshCourses();
   }, []);
-  // Upload or update syllabus for a course.  Depending on whether a
-  // syllabus already exists, we call uploadSyllabus or updateSyllabus.
   const handleSyllabusUpload = (course: TeacherCourse) => {
     const input = document.createElement("input");
     input.type = "file";
