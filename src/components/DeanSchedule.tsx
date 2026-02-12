@@ -107,17 +107,16 @@ export function DeanSchedule() {
         }));
         const groupItems = toArray(groupsResp)
           .map((g: any) => {
-            // Используем ту же логику, что и в DeanManagement
             const groupCode = g.groupCode ?? g.code ?? "";
             return {
               id:
                 g.id ?? g.groupId ?? g.groupID ?? g.Id ?? `group-${groupCode}`,
               code: groupCode,
-              groupCode: groupCode, // Дублируем для совместимости
+              groupCode: groupCode,
               year: g.year ?? g.yearOfAdmission ?? 0,
             };
           })
-          .filter((g: any) => g.code && g.code.trim() !== ""); // Фильтруем только группы с кодом
+          .filter((g: any) => g.code && g.code.trim() !== "");
         const courseItems = toArray(coursesResp).map((c: any) => {
           const teacher = c.teacher ?? {};
           const group = c.group ?? {};
@@ -182,7 +181,6 @@ export function DeanSchedule() {
 
     const fetchSchedule = async () => {
       try {
-        // Находим группу по коду, чтобы получить её ID
         const group = groups.find(
           (g) => (g.code || g.groupCode) === selectedGroup,
         );
@@ -208,6 +206,7 @@ export function DeanSchedule() {
 
         const entries: ScheduleEntry[] = scheduleArray.map(
           (item: any, index: number) => {
+            // Course name and code
             const courseName =
               item.name ??
               item.courseName ??
@@ -218,6 +217,7 @@ export function DeanSchedule() {
             const courseCode =
               item.code ?? item.courseCode ?? item.course?.code ?? "";
 
+            // Teacher name
             let teacherName = item.professor ?? item.teacherName ?? "";
             if (!teacherName && item.teacher) {
               const teacherFullName =
@@ -225,56 +225,41 @@ export function DeanSchedule() {
               teacherName = teacherFullName || "";
             }
 
-            const room = item.room ?? {};
-            let roomName =
-              item.roomName ?? item.room?.name ?? item.room?.roomName ?? "";
-            const rawRoomId =
-              item.roomId ??
-              (typeof item.room === "number" || typeof item.room === "string"
-                ? item.room
-                : item.room?.id);
-            if (
-              (!roomName || roomName.trim() === "") &&
-              rawRoomId != null &&
-              Array.isArray(rooms) &&
-              rooms.length > 0
-            ) {
-              const found = rooms.find((r: any) => {
-                if (
-                  r.id != null &&
-                  rawRoomId != null &&
-                  (r.id === rawRoomId || r.id === Number(rawRoomId))
-                )
-                  return true;
-                const candidateName = (r.name ?? r.roomName ?? "").toString();
-                if (
-                  candidateName &&
-                  (candidateName === rawRoomId ||
-                    candidateName === String(rawRoomId))
-                )
-                  return true;
-                return false;
-              });
-              if (found) roomName = found.name ?? found.roomName ?? "";
+            // Room handling - backend returns UUID string in 'room' field
+            let roomName = "";
+            let roomId = "";
+            
+            if (typeof item.room === "string") {
+              // Room is a UUID string
+              roomId = item.room;
+              // Try to find room name from rooms array
+              const foundRoom = rooms.find((r: any) => r.id === item.room);
+              roomName = foundRoom ? (foundRoom.name ?? foundRoom.roomName ?? "") : "";
+            } else if (typeof item.room === "object" && item.room !== null) {
+              // Room is an object
+              roomId = item.room.id ?? "";
+              roomName = item.room.name ?? item.room.roomName ?? "";
             }
-            roomName =
-              roomName ||
-              item.location ||
-              item.locationName ||
-              item.auditorium ||
-              item.auditoriumName ||
-              "";
-            const roomId = rawRoomId ?? item.room?.id ?? item.roomId ?? "";
+            
+            // Fallback to other fields if still empty
+            if (!roomName) {
+              roomName = item.roomName ?? item.location ?? item.locationName ?? item.auditorium ?? item.auditoriumName ?? "";
+            }
+            if (!roomId) {
+              roomId = item.roomId ?? "";
+            }
 
-            let startTime = "";
-            let endTime = "";
+            // Time extraction - use start/end from backend
+            const startTime = item.start ?? item.startTime ?? item.classStartTime ?? "";
+            const endTime = item.end ?? item.endTime ?? item.classEndTime ?? "";
+
+            // Day of week extraction - use period for day
             let dayOfWeek = "Monday";
 
             if (item.period) {
               try {
                 const periodDate = new Date(item.period);
                 if (!isNaN(periodDate.getTime())) {
-                  const dayNum = periodDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
                   const dayNames = [
                     "Sunday",
                     "Monday",
@@ -284,75 +269,33 @@ export function DeanSchedule() {
                     "Friday",
                     "Saturday",
                   ];
-                  dayOfWeek = dayNames[dayNum] ?? "Monday";
-
-                  const hours = periodDate
-                    .getHours()
-                    .toString()
-                    .padStart(2, "0");
-                  const minutes = periodDate
-                    .getMinutes()
-                    .toString()
-                    .padStart(2, "0");
-                  const seconds = periodDate
-                    .getSeconds()
-                    .toString()
-                    .padStart(2, "0");
-                  startTime = `${hours}:${minutes}:${seconds}`;
-
-                  const endDate = new Date(periodDate);
-                  endDate.setMinutes(endDate.getMinutes() + 90);
-                  const endHours = endDate
-                    .getHours()
-                    .toString()
-                    .padStart(2, "0");
-                  const endMinutes = endDate
-                    .getMinutes()
-                    .toString()
-                    .padStart(2, "0");
-                  const endSeconds = endDate
-                    .getSeconds()
-                    .toString()
-                    .padStart(2, "0");
-                  endTime = `${endHours}:${endMinutes}:${endSeconds}`;
+                  dayOfWeek = dayNames[periodDate.getDay()] ?? "Monday";
                 }
-              } catch {}
+              } catch {
+                // Keep default Monday
+              }
             }
 
-            if (!startTime) {
-              startTime =
-                item.start ??
-                item.startTime ??
-                item.classStartTime ??
-                item.sessionStartTime ??
-                "";
-            }
-            if (!endTime) {
-              endTime =
-                item.end ??
-                item.endTime ??
-                item.classEndTime ??
-                item.sessionEndTime ??
-                "";
-            }
+            // Fallback: try numeric day field
             if (dayOfWeek === "Monday" && !item.period) {
-              const dayNum = item.day ?? item.dayOfWeek ?? item.dayNumber ?? 0;
-              const dayNames = [
-                "Sunday",
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-                "Saturday",
-              ];
-              dayOfWeek =
-                typeof dayNum === "number" && dayNum >= 0 && dayNum <= 6
-                  ? dayNames[dayNum]
-                  : (item.dayOfWeek ?? item.dayName ?? "Monday");
+              const dayNum = item.day ?? item.dayOfWeek ?? item.dayNumber;
+              if (typeof dayNum === "number" && dayNum >= 0 && dayNum <= 6) {
+                const dayNames = [
+                  "Sunday",
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                ];
+                dayOfWeek = dayNames[dayNum];
+              } else if (typeof (item.dayOfWeek ?? item.dayName) === "string") {
+                dayOfWeek = item.dayOfWeek ?? item.dayName ?? "Monday";
+              }
             }
 
-            // Тип занятия
+            // Class type normalization
             const type = normalizeClassType(
               item.classType ?? item.type ?? item.course?.type ?? "lecture",
             );
@@ -439,7 +382,6 @@ export function DeanSchedule() {
                         .map((group, index) => {
                           const groupCode = group.code || group.groupCode || "";
                           const groupId = group.id ?? `group-${index}`;
-                          // Убеждаемся, что value не пустое
                           if (!groupCode || groupCode.trim() === "") {
                             return null;
                           }
@@ -449,7 +391,7 @@ export function DeanSchedule() {
                             </SelectItem>
                           );
                         })
-                        .filter(Boolean) // Убираем null значения
+                        .filter(Boolean)
                     )}
                   </SelectContent>
                 </Select>

@@ -1336,13 +1336,13 @@ export function DeanManagement() {
                       <TableCell>{course.year || "-"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
+                          {/* <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleEditCourse(course)}
+                            onClick={() => handleEditCourse(course)} //EDIT TAUGHT SUBJECT
                           >
                             <Pencil className="h-4 w-4" />
-                          </Button>
+                          </Button> */}
                           <Button
                             variant="ghost"
                             size="sm"
