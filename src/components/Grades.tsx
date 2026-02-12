@@ -409,11 +409,11 @@ export function Grades() {
 
       {error && <p className="text-destructive">{error}</p>}
 
-      <Tabs defaultValue="current" className="w-full">
-        <TabsList>
+      <Tabs defaultValue="current" className="w-full">  
+        {/* <TabsList> TABS FOR STUDENT GRADES
           <TabsTrigger value="current">Current Courses</TabsTrigger>
           <TabsTrigger value="sessions">Class Sessions</TabsTrigger>
-        </TabsList>
+        </TabsList> */}
 
         <TabsContent value="current" className="space-y-4">
           {loading ? (
@@ -590,14 +590,14 @@ export function Grades() {
                                     key={idx}
                                     variant={
                                       session.attendance === "absent"
-                                        ? "destructive"
-                                        : "default"
+                                        ? "default"
+                                        : "destructive"
                                     }
                                     className="text-xs"
                                   >
                                     {session.attendance === "absent"
-                                      ? "a"
-                                      : "p"}
+                                      ? "p"
+                                      : "a"}
                                   </Badge>
                                 ),
                               )

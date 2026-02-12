@@ -1649,7 +1649,7 @@ export function TeacherCourseDetail({
                   <CardTitle>Colloquium Scores</CardTitle>
                   <CardDescription>
                     Mini exams scored 0-10 (3 per semester). Changes save when
-                    you select a grade.
+                    you select a grade. Each colloquium must be completed before the next can be graded.
                   </CardDescription>
                 </div>
                 <Button
@@ -1690,41 +1690,54 @@ export function TeacherCourseDetail({
                         <TableCell className="font-medium">
                           {student.name}
                         </TableCell>
-                        {[0, 1, 2].map((collIndex) => (
-                          <TableCell key={collIndex} className="text-center">
-                            <Select
-                              value={
-                                student.colloquium[collIndex]?.toString() ||
-                                "none"
-                              }
-                              onValueChange={(value: string) =>
-                                updateColloquium(
-                                  student.id,
-                                  collIndex,
-                                  value === "none" ? null : parseInt(value, 10),
-                                )
-                              }
-                              disabled={isLoading}
-                            >
-                              <SelectTrigger className="w-[100px] mx-auto">
-                                <SelectValue placeholder="-" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">-</SelectItem>
-                                {Array.from({ length: 11 }, (_, i) => i).map(
-                                  (grade) => (
-                                    <SelectItem
-                                      key={grade}
-                                      value={grade.toString()}
-                                    >
-                                      {grade}
-                                    </SelectItem>
-                                  ),
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                        ))}
+                        {[0, 1, 2].map((collIndex) => {
+                          // Check if previous colloquium is filled
+                          const isPreviousFilled =
+                            collIndex === 0 ||
+                            (student.colloquium[collIndex - 1] !== null &&
+                              student.colloquium[collIndex - 1] !== undefined);
+                          
+                          const isDisabled = isLoading || !isPreviousFilled;
+                          
+                          return (
+                            <TableCell key={collIndex} className="text-center">
+                              <Select
+                                value={
+                                  student.colloquium[collIndex]?.toString() ||
+                                  "none"
+                                }
+                                onValueChange={(value: string) =>
+                                  updateColloquium(
+                                    student.id,
+                                    collIndex,
+                                    value === "none" ? null : parseInt(value, 10),
+                                  )
+                                }
+                                disabled={isDisabled}
+                              >
+                                <SelectTrigger 
+                                  className={`w-[100px] mx-auto ${!isPreviousFilled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  title={!isPreviousFilled ? 'Complete previous colloquium first' : ''}
+                                >
+                                  <SelectValue placeholder="-" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">-</SelectItem>
+                                  {Array.from({ length: 11 }, (_, i) => i).map(
+                                    (grade) => (
+                                      <SelectItem
+                                        key={grade}
+                                        value={grade.toString()}
+                                      >
+                                        {grade}
+                                      </SelectItem>
+                                    ),
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     ))}
                   </TableBody>
