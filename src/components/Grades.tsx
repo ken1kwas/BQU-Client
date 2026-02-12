@@ -146,29 +146,38 @@ function normalizeCourseList(raw: any): GradeCourse[] {
       },
     );
 
-    const assignmentsPassed = Math.max(
-      0,
-      Math.round(
-        toNumber(getProp(item, "IndependentWorks", "independentWorks")),
-      ),
-    );
-    const assignmentTotalRaw = getProp(
-      item,
-      "TotalIndependentWorks",
-      "totalIndependentWorks",
-    );
-    const assignmentTotal = Math.max(
-      assignmentsPassed,
-      assignmentTotalRaw !== undefined
-        ? Math.round(toNumber(assignmentTotalRaw))
-        : assignmentsPassed,
+    // Handle new independentWorks structure
+    const independentWorksRaw = toArray(
+      getProp(item, "IndependentWorks", "independentWorks"),
     );
 
-    const assignmentScores = assignmentTotal
-      ? Array.from({ length: assignmentTotal }, (_, idx) =>
-          idx < assignmentsPassed ? 1 : 0,
-        )
-      : [];
+    // Sort by number field and map to assignment scores
+    const sortedWorks = independentWorksRaw
+      .map((work: any) => ({
+        number: toNumber(getProp(work, "Number", "number")),
+        isPassed: getProp(work, "IsPassed", "isPassed"),
+      }))
+      .sort((a, b) => a.number - b.number);
+
+    // Create array of 10 assignment scores based on isPassed
+    const assignmentScores = Array(10).fill(0);
+    let assignmentsPassed = 0;
+
+    sortedWorks.forEach((work) => {
+      const index = work.number - 1; // Convert 1-based to 0-based
+      if (index >= 0 && index < 10) {
+        if (work.isPassed === true) {
+          assignmentScores[index] = 1;
+          assignmentsPassed++;
+        } else if (work.isPassed === false) {
+          assignmentScores[index] = 0;
+        } else {
+          assignmentScores[index] = 0; // null means not completed yet
+        }
+      }
+    });
+
+    const assignmentTotal = 10; // Always 10 assignments
 
     const classCount = Math.max(
       0,
@@ -235,7 +244,6 @@ function normalizeCourseList(raw: any): GradeCourse[] {
     };
   });
 }
-
 function normalizeSessionsList(raw: any): SessionBundle[] {
   if (!raw) return [];
 
@@ -409,7 +417,7 @@ export function Grades() {
 
       {error && <p className="text-destructive">{error}</p>}
 
-      <Tabs defaultValue="current" className="w-full">  
+      <Tabs defaultValue="current" className="w-full">
         {/* <TabsList> TABS FOR STUDENT GRADES
           <TabsTrigger value="current">Current Courses</TabsTrigger>
           <TabsTrigger value="sessions">Class Sessions</TabsTrigger>
@@ -420,7 +428,7 @@ export function Grades() {
             loadingContent
           ) : grades.length === 0 ? (
             <Card className="p-6 text-sm text-muted-foreground">
-              Нет данных об оценках. Попробуйте обновить страницу позже.
+              No grades available. Please check back later.
             </Card>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -613,7 +621,7 @@ export function Grades() {
           )}
         </TabsContent>
 
-        <TabsContent value="sessions" className="space-y-4">
+        {/* <TabsContent value="sessions" className="space-y-4">
           {loading ? (
             loadingContent
           ) : grades.length === 0 ? (
@@ -668,7 +676,7 @@ export function Grades() {
               ))}
             </div>
           )}
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
     </div>
   );
