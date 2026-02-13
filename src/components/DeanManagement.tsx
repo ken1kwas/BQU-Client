@@ -1315,7 +1315,7 @@ export function DeanManagement() {
                                             if (!roomId || !roomName) return null;
 
                                             return (
-                                              <SelectItem key={String(roomId)} value={String(roomId)}>
+                                              <SelectItem key={String(roomId)} value={roomName}>
                                                 {roomName} {roomCapacity > 0 ? `(${roomCapacity})` : ""}
                                               </SelectItem>
                                             );
