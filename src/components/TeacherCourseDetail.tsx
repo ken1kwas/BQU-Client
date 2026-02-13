@@ -266,7 +266,9 @@ export function TeacherCourseDetail({
 
       for (let i = 0; i < Math.min(COLLOQUIUM_COUNT, list.length); i++) {
         const item = list[i];
-        colloquium[i] = item.grade ?? item.value ?? null;
+        const grade = item.grade ?? item.value ?? null;
+        // Treat -1 as null (not graded yet)
+        colloquium[i] = grade === -1 ? null : grade; 
         colloquiumIds[i] = item.id ?? item.colloquiumId ?? null;
       }
       for (let i = 0; i < COLLOQUIUM_COUNT; i++) {
@@ -1649,7 +1651,8 @@ export function TeacherCourseDetail({
                   <CardTitle>Colloquium Scores</CardTitle>
                   <CardDescription>
                     Mini exams scored 0-10 (3 per semester). Changes save when
-                    you select a grade. Each colloquium must be completed before the next can be graded.
+                    you select a grade. Each colloquium must be completed before
+                    the next can be graded.
                   </CardDescription>
                 </div>
                 <Button
@@ -1691,14 +1694,17 @@ export function TeacherCourseDetail({
                           {student.name}
                         </TableCell>
                         {[0, 1, 2].map((collIndex) => {
-                          // Check if previous colloquium is filled
+                          // Check if previous colloquium has a valid grade (0-10)
                           const isPreviousFilled =
                             collIndex === 0 ||
                             (student.colloquium[collIndex - 1] !== null &&
-                              student.colloquium[collIndex - 1] !== undefined);
-                          
+                              student.colloquium[collIndex - 1] !== undefined &&
+                              student.colloquium[collIndex - 1] !== -1 && 
+                              student.colloquium[collIndex - 1]! >= 0 && 
+                              student.colloquium[collIndex - 1]! <= 10); 
+
                           const isDisabled = isLoading || !isPreviousFilled;
-                          
+
                           return (
                             <TableCell key={collIndex} className="text-center">
                               <Select
@@ -1710,14 +1716,20 @@ export function TeacherCourseDetail({
                                   updateColloquium(
                                     student.id,
                                     collIndex,
-                                    value === "none" ? null : parseInt(value, 10),
+                                    value === "none"
+                                      ? null
+                                      : parseInt(value, 10),
                                   )
                                 }
                                 disabled={isDisabled}
                               >
-                                <SelectTrigger 
-                                  className={`w-[100px] mx-auto ${!isPreviousFilled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  title={!isPreviousFilled ? 'Complete previous colloquium first' : ''}
+                                <SelectTrigger
+                                  className={`w-[100px] mx-auto ${!isPreviousFilled ? "opacity-50 cursor-not-allowed" : ""}`}
+                                  title={
+                                    !isPreviousFilled
+                                      ? "Complete previous colloquium first"
+                                      : ""
+                                  }
                                 >
                                   <SelectValue placeholder="-" />
                                 </SelectTrigger>
