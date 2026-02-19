@@ -17,7 +17,6 @@ import {
   Calendar,
   BarChart3,
   User,
-  GraduationCap,
   BookOpen,
   Settings,
   LogOut,
@@ -33,6 +32,7 @@ import { DeanSchedule } from "./components/DeanSchedule";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
 import { Toaster } from "./components/ui/sonner";
+import logo from "@/assets/logo.svg";
 
 // Import the login page and API helpers
 import LoginPage from "./LoginPage";
@@ -44,10 +44,10 @@ const studentNavigation = [
   {
     title: "Main",
     items: [
-      { title: "Dashboard", icon: Home, id: "dashboard" },
-      { title: "Schedule", icon: Calendar, id: "schedule" },
-      { title: "Grades", icon: BarChart3, id: "grades" },
-      { title: "Profile", icon: User, id: "profile" },
+      { title: "Əsas səhifə", icon: Home, id: "dashboard" },
+      { title: "Cədvəl", icon: Calendar, id: "schedule" },
+      { title: "Qiymətləndirmə", icon: BarChart3, id: "grades" },
+      { title: "Profil", icon: User, id: "profile" },
     ],
   },
 ];
@@ -56,9 +56,9 @@ const teacherNavigation = [
   {
     title: "Main",
     items: [
-      { title: "My Courses", icon: BookOpen, id: "courses" },
-      { title: "Schedule", icon: Calendar, id: "schedule" },
-      { title: "Profile", icon: User, id: "profile" },
+      { title: "Fənnlərim", icon: BookOpen, id: "courses" },
+      { title: "Cədvəl", icon: Calendar, id: "schedule" },
+      { title: "Profil", icon: User, id: "profile" },
     ],
   },
 ];
@@ -67,9 +67,9 @@ const deanNavigation = [
   {
     title: "Main",
     items: [
-      { title: "Management", icon: Settings, id: "management" },
-      { title: "Schedule", icon: Calendar, id: "schedule" },
-      { title: "Profile", icon: User, id: "profile" },
+      { title: "İdarəetmə", icon: Settings, id: "management" },
+      { title: "Cədvəl", icon: Calendar, id: "schedule" },
+      { title: "Profil", icon: User, id: "profile" },
     ],
   },
 ];
@@ -275,7 +275,7 @@ export default function App() {
   if (!userRole) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <span>Loading...</span>
+        <span>Yüklənir...</span>
       </div>
     );
   }
@@ -286,13 +286,15 @@ export default function App() {
         <Sidebar>
           <SidebarHeader className="border-b border-border p-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <GraduationCap className="h-6 w-6" />
-              </div>
+                <img
+                    src={logo}
+                    alt="Logo"
+                    className="h-13 w-13 object-contain"
+                />
               <div className="flex flex-col flex-1">
-                <span className="text-base font-semibold">EduLMS</span>
+                <span className="text-base font-semibold">BQU LMS</span>
                 <span className="text-sm text-muted-foreground">
-                  Learning Management
+                  Tədrisin idarə olunması sistemi
                 </span>
               </div>
             </div>

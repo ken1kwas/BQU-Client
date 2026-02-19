@@ -409,9 +409,9 @@ export function Grades() {
   return (
     <div className="space-y-6">
       <div>
-        <h1>Grades & Performance</h1>
+        <h1>Qiymətlər & Nəticələr</h1>
         <p className="text-muted-foreground">
-          Track your academic progress and performance
+          Akademik inkişafınızı və nəticələrinizi izləyin
         </p>
       </div>
 
@@ -480,10 +480,10 @@ export function Grades() {
                           <CardDescription>
                             {[
                               course.credits
-                                ? `${course.credits} credits`
+                                ? `${course.credits} kredit`
                                 : null,
                               course.weeklyHours
-                                ? `${course.weeklyHours} hours`
+                                ? `${course.weeklyHours} saat`
                                 : null,
                             ]
                               .filter(Boolean)
@@ -495,7 +495,7 @@ export function Grades() {
                     <CardContent className="space-y-4">
                       <div className="space-y-2 -mt-4">
                         <div className="flex items-center justify-between text-sm">
-                          <span>Overall Score</span>
+                          <span>Ümumi bal</span>
                           <span>{Math.round(course.scoreOutOf50)}/50</span>
                         </div>
                         <Progress value={course.percentage} />
@@ -505,7 +505,7 @@ export function Grades() {
                         <div className="grid grid-cols-2 gap-6 text-sm">
                           <div>
                             <p className="text-muted-foreground mb-2">
-                              Seminar Grades
+                              Seminar balları
                             </p>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {seminarGradesToShow.length > 0 ? (
@@ -525,7 +525,7 @@ export function Grades() {
                           </div>
                           <div className="text-right">
                             <p className="text-muted-foreground mb-2">
-                              Colloquium
+                              Kollokvium
                             </p>
                             <div className="flex items-center gap-2 justify-end">
                               {course.colloquium.length === 0 ? (
@@ -552,7 +552,7 @@ export function Grades() {
                         <div>
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-muted-foreground text-sm">
-                              Assignments
+                              Sərbəst işlər
                             </span>
                             <span className="text-muted-foreground text-sm">
                               {assignmentRatio}
@@ -582,7 +582,7 @@ export function Grades() {
                         <div>
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-muted-foreground text-sm">
-                              Attendance
+                              Davamiyyət
                             </span>
                             <span className="text-muted-foreground text-sm">
                               {attendanceRatio}

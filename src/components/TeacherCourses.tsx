@@ -180,9 +180,9 @@ export function TeacherCourses({
   return (
     <div className="space-y-6">
       <div>
-        <h1>My Courses</h1>
+        <h1>Mənim fənnlərim</h1>
         <p className="text-muted-foreground">
-          Manage your courses, students, and materials
+          Fənnləriniz, tələbələrinizi və materiallarınızı idarə edin
         </p>
       </div>
 
@@ -212,15 +212,15 @@ export function TeacherCourses({
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4" />
-                  <span>{course.credits} credits</span>
+                  <span>{course.credits} kredit</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  <span>{course.studentCount} students</span>
+                  <span>{course.studentCount} tələbə</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  <span>{course.hours} hours</span>
+                  <span>{course.hours} saat</span>
                 </div>
               </div>
 
@@ -236,7 +236,7 @@ export function TeacherCourses({
                     })
                   }
                 >
-                  Manage Grades
+                  Qiymətləri idarə edin
                 </Button>
                 <Button
                   variant="outline"
@@ -244,7 +244,7 @@ export function TeacherCourses({
                   onClick={() => handleSyllabusUpload(course)}
                 >
                   <FileUp className="h-4 w-4 mr-1.5" />
-                  {course.hasSyllabus ? "Update" : "Add"} Syllabus
+                  Sillabusu {course.hasSyllabus ? "yeniləyin" : "əlavə edin"}
                 </Button>
                 
               </div>

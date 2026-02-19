@@ -53,9 +53,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         <div className="w-full max-w-md">
           <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border border-border">
             <div className="mb-4 text-center">
-              <h2 className="text-2xl font-semibold">LMS-ə daxil olun</h2>
+              <h2 className="text-2xl font-semibold">BQU LMS-ə daxil olun</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Korporativ hesabdan istifadə edin
+                LMS hesabınızdan istifadə edin
               </p>
             </div>
             <form onSubmit={onSubmit} className="space-y-4">
@@ -101,7 +101,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       showPassword ? "Скрыть пароль" : "Показать пароль"
                     }
                   >
-                    {showPassword ? "Скрыть" : "Показать"}
+                    {showPassword ? "Gizlət" : "Göstər"}
                   </button>
                 </div>
               </div>

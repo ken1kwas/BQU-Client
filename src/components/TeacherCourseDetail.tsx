@@ -1423,7 +1423,7 @@ export function TeacherCourseDetail({
   const loadingSpinner = (
     <div className="py-16">
       <span className="text-sm text-muted-foreground relative inline-flex items-center gap-1">
-        Loading
+        Yüklənir
         <span className="flex gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/80 animate-bounce [animation-delay:0ms]" />
           <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/80 animate-bounce [animation-delay:150ms]" />
@@ -1438,14 +1438,14 @@ export function TeacherCourseDetail({
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Courses
+          Fənnlərə qayıt
         </Button>
       </div>
 
       <div>
-        <h1>{courseTitle || "Course"}</h1>
+        <h1>{courseTitle || "Fənn"}</h1>
         <p className="text-muted-foreground">
-          Manage student grades and attendance
+          Tələbənin ballarını və davamiyyət qiymətlərini idarə edin
         </p>
       </div>
 
@@ -1453,7 +1453,7 @@ export function TeacherCourseDetail({
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-muted-foreground" />
           <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Students</span>
+            <span className="text-sm text-muted-foreground">Tələbə</span>
             <span className="font-medium">
               {students.length || initialStudentCount || 0}
             </span>
@@ -1462,7 +1462,7 @@ export function TeacherCourseDetail({
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-muted-foreground" />
           <div className="flex flex-col">
-            <span className="text-sm text-muted-foreground">Hours</span>
+            <span className="text-sm text-muted-foreground">Saat</span>
             <span className="font-medium">
               {courseHours !== undefined ? courseHours : "—"}
             </span>
@@ -1472,9 +1472,9 @@ export function TeacherCourseDetail({
 
       <Tabs defaultValue="activity" className="w-full min-w-0 overflow-hidden">
         <TabsList>
-          <TabsTrigger value="activity">Activity/Attendance</TabsTrigger>
-          <TabsTrigger value="colloquium">Colloquium</TabsTrigger>
-          <TabsTrigger value="assignments">Assignments</TabsTrigger>
+          <TabsTrigger value="activity">Fəaliyyət/İştirak</TabsTrigger>
+          <TabsTrigger value="colloquium">Kollokvium</TabsTrigger>
+          <TabsTrigger value="assignments">Sərbəst işlər</TabsTrigger>
         </TabsList>
 
         <TabsContent value="activity" className="space-y-4">
@@ -1482,10 +1482,9 @@ export function TeacherCourseDetail({
             <CardHeader className="flex-shrink-0 space-y-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <CardTitle>Activity & Attendance Tracking</CardTitle>
+                  <CardTitle>Fəaliyyət və İştirakın İzlənməsi</CardTitle>
                   <CardDescription>
-                    Mark attendance and grades for each session. Grades save
-                    automatically.
+                    Hər dərs üçün balları və davamiyyət qiymətləri qeyd edin. Tək dərs qeydləri avtomatik yadda saxlanılır.
                   </CardDescription>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
@@ -1496,7 +1495,7 @@ export function TeacherCourseDetail({
                     }
                   >
                     <SelectTrigger className="w-full min-w-[140px] sm:w-[180px]">
-                      <SelectValue placeholder="Select a class" />
+                      <SelectValue placeholder="Dərs seçin" />
                     </SelectTrigger>
                     <SelectContent>
                       {sessions.map((session, idx) => (
@@ -1515,11 +1514,11 @@ export function TeacherCourseDetail({
                     disabled={selectedColumn === null}
                   >
                     <SelectTrigger className="w-full min-w-[120px] sm:w-[140px]">
-                      <SelectValue placeholder="Bulk value" />
+                      <SelectValue placeholder="Toplu qeyd" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="present">Present</SelectItem>
-                      <SelectItem value="absent">Absent</SelectItem>
+                      <SelectItem value="present">i.e</SelectItem>
+                      <SelectItem value="absent">q.b</SelectItem>
                       {Array.from({ length: 11 }, (_, i) => i).map((grade) => (
                         <SelectItem key={grade} value={grade.toString()}>
                           {grade}
@@ -1545,7 +1544,7 @@ export function TeacherCourseDetail({
                     }
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {isSendingAttendance ? "Saving…" : "Save Attendance"}
+                    {isSendingAttendance ? "Yadda Saxlanılır…" : "Yadda Saxla"}
                   </Button>
                 </div>
               </div>
@@ -1561,7 +1560,7 @@ export function TeacherCourseDetail({
                         <TableHeader>
                           <TableRow>
                             <TableHead className="sticky left-0 bg-background z-30 min-w-[200px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                              Student Name
+                              Tələbənin Adı
                             </TableHead>
                             {sessions.map((session, idx) => (
                               <TableHead
@@ -1609,10 +1608,10 @@ export function TeacherCourseDetail({
                                       </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="present">
-                                          Present
+                                          i.e
                                         </SelectItem>
                                         <SelectItem value="absent">
-                                          Absent
+                                          q.b
                                         </SelectItem>
                                         {session.type === "S" &&
                                           Array.from(
@@ -1648,11 +1647,9 @@ export function TeacherCourseDetail({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Colloquium Scores</CardTitle>
+                  <CardTitle>Kollokvium balları</CardTitle>
                   <CardDescription>
-                    Mini exams scored 0-10 (3 per semester). Changes save when
-                    you select a grade. Each colloquium must be completed before
-                    the next can be graded.
+                    Bal seçdiyiniz zaman dəyişikliklər yadda saxlanılır. Növbəti bal verilməzdən əvvəl hər bir kollokvium tamamlanmalıdır.
                   </CardDescription>
                 </div>
                 <Button
@@ -1660,11 +1657,11 @@ export function TeacherCourseDetail({
                   size="sm"
                   onClick={async () => {
                     await refreshColloquiums();
-                    toast.success("Colloquium data refreshed");
+                    toast.success("Kollokvium məlumatları yeniləndi");
                   }}
                 >
                   <Send className="h-4 w-4 mr-2" />
-                  Refresh
+                  Yenilə
                 </Button>
               </div>
             </CardHeader>
@@ -1675,15 +1672,15 @@ export function TeacherCourseDetail({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student Name</TableHead>
+                      <TableHead>Tələbənin Adı</TableHead>
                       <TableHead className="text-center">
-                        Colloquium 1
+                        Kollokvium 1
                       </TableHead>
                       <TableHead className="text-center">
-                        Colloquium 2
+                        Kollokvium 2
                       </TableHead>
                       <TableHead className="text-center">
-                        Colloquium 3
+                        Kollokvium 3
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1764,9 +1761,9 @@ export function TeacherCourseDetail({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Assignments</CardTitle>
+                  <CardTitle>Sərbəst işlər</CardTitle>
                   <CardDescription>
-                    10 assignments per semester (click to toggle: ✓ / ✗ / -).
+                    Hər semestrdə 10 sərbəst iş (dəyişdirmək üçün klikləyin: ✓ / ✗ / -).
                   </CardDescription>
                 </div>
                 <Button
@@ -1776,7 +1773,7 @@ export function TeacherCourseDetail({
                   disabled={isSendingAssignments}
                 >
                   <Send className="h-4 w-4 mr-2" />
-                  {isSendingAssignments ? "Saving…" : "Send"}
+                  {isSendingAssignments ? "Yadda Saxlanılır…" : "Yadda saxla"}
                 </Button>
               </div>
             </CardHeader>
@@ -1787,7 +1784,7 @@ export function TeacherCourseDetail({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student Name</TableHead>
+                      <TableHead>Tələbənin Adı</TableHead>
                       {Array.from({ length: 10 }, (_, i) => i + 1).map(
                         (num) => (
                           <TableHead key={num} className="text-center">

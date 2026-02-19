@@ -300,19 +300,19 @@ const mapStudentFromApi = (s: any): Student => {
 };
 
 const FREQUENCY_LABELS: Record<number, string> = {
-  1: "Lower",
-  2: "Upper",
-  3: "Both"
+  1: "Alt",
+  2: "Üst",
+  3: "Hər ikisi"
 };
 
 const DAY_LABELS: Record<number, string> = {
-  1: "Monday",
-  2: "Tuesday",
-  3: "Wednesday",
-  4: "Thursday",
-  5: "Friday",
-  6: "Saturday",
-  7: "Sunday"
+  1: "Bazar ertəsi",
+  2: "Çərşənbə axşamı",
+  3: "Çərşənbə",
+  4: "Cümə axşamı",
+  5: "Cümə",
+  6: "Şənbə",
+  7: "Bazar günü"
 };
 
 const mapCourseFromApi = (c: any): Course => {
@@ -386,7 +386,6 @@ export function DeanManagement() {
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
 
   const [studentForm, setStudentForm] = useState<Partial<Student>>({});
-  const [isStudentDialogOpen, setIsStudentDialogOpen] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isFormatInfoOpen, setIsFormatInfoOpen] = useState(false);
@@ -826,7 +825,6 @@ export function DeanManagement() {
   const handleAddStudent = () => {
     setStudentForm({});
     setEditingStudentId(null);
-    setIsStudentDialogOpen(true);
   };
 
   const handleSaveStudent = () => {
@@ -856,7 +854,6 @@ export function DeanManagement() {
       setStudents([...students, newStudent]);
       toast.success("Student added successfully");
     }
-    setIsStudentDialogOpen(false);
     setStudentForm({});
   };
 
@@ -1037,9 +1034,9 @@ export function DeanManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h1>System Management</h1>
+        <h1>Tədris İdarəetməsi</h1>
         <p className="text-muted-foreground">
-          Manage all system entities and resources
+          Bütün sistem obyektlərini və resurslarını idarə edin
         </p>
       </div>
 
@@ -1047,19 +1044,19 @@ export function DeanManagement() {
         <TabsList>
           <TabsTrigger value="courses">
             <BookOpen className="h-4 w-4 mr-2" />
-            Courses
+            Fənnlər
           </TabsTrigger>
           <TabsTrigger value="groups">
             <Users className="h-4 w-4 mr-2" />
-            Groups
+            Qruplar
           </TabsTrigger>
           <TabsTrigger value="students">
             <UserCircle className="h-4 w-4 mr-2" />
-            Students
+            Tələbələr
           </TabsTrigger>
           <TabsTrigger value="teachers">
             <Users className="h-4 w-4 mr-2" />
-            Teachers
+            Müəllimlər
           </TabsTrigger>
         </TabsList>
 
@@ -1068,40 +1065,40 @@ export function DeanManagement() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Course Management</CardTitle>
-                  <CardDescription>Add, edit, or remove course information</CardDescription>
+                  <CardTitle>Fənnlərin idarəsi</CardTitle>
+                  <CardDescription>Fənn məlumatlarını əlavə edin, redaktə edin və ya silin</CardDescription>
                 </div>
                 <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
                   <DialogTrigger asChild>
                     <Button onClick={handleAddCourse}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Course
+                      Fənn əlavə edin
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>{editingCourseId ? "Edit Course" : "Add New Course"}</DialogTitle>
+                      <DialogTitle>{editingCourseId ? "Edit Course" : "Yeni fənn əlavə edin"}</DialogTitle>
                       <DialogDescription>
-                        {editingCourseId ? "Update course information" : "Enter details for the new course"}
+                        {editingCourseId ? "Update course information" : "Yeni fənn üçün detalları daxil edin\n"}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="course-code">Course Code</Label>
+                          <Label htmlFor="course-code">Kod</Label>
                           <Input
                             id="course-code"
-                            placeholder="e.g., MAT-AN"
+                            placeholder="m.ü, TRX-1"
                             maxLength={20}
                             value={courseForm.code || ""}
                             onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="course-title">Course Title</Label>
+                          <Label htmlFor="course-title">Ad</Label>
                           <Input
                             id="course-title"
-                            placeholder="e.g., Mat. Analiz"
+                            placeholder="m.ü, Tarix"
                             maxLength={100}
                             value={courseForm.title || ""}
                             onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
@@ -1110,13 +1107,13 @@ export function DeanManagement() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="course-department">Department</Label>
+                          <Label htmlFor="course-department">Kafedra</Label>
                           <Select
                             value={courseForm.departmentId?.toString() || ""}
                             onValueChange={(value) => setCourseForm({ ...courseForm, departmentId: value })}
                           >
                             <SelectTrigger id="course-department">
-                              <SelectValue placeholder="Select department" />
+                              <SelectValue placeholder="Kafedra seçin" />
                             </SelectTrigger>
                             <SelectContent>
                               {departments.map(dept => {
@@ -1131,13 +1128,13 @@ export function DeanManagement() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="course-teacher">Teacher</Label>
+                          <Label htmlFor="course-teacher">Müəllim</Label>
                           <Select
                             value={courseForm.teacherId?.toString() || ""}
                             onValueChange={(value) => setCourseForm({ ...courseForm, teacherId: value })}
                           >
                             <SelectTrigger id="course-teacher">
-                              <SelectValue placeholder="Select teacher" />
+                              <SelectValue placeholder="Müəllim seçin" />
                             </SelectTrigger>
                             <SelectContent>
                               {teachers.map(teacher => {
@@ -1154,13 +1151,13 @@ export function DeanManagement() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="course-group">Group</Label>
+                          <Label htmlFor="course-group">Qrup</Label>
                           <Select
                             value={courseForm.groupId?.toString() || ""}
                             onValueChange={(value) => setCourseForm({ ...courseForm, groupId: value })}
                           >
                             <SelectTrigger id="course-group">
-                              <SelectValue placeholder="Select group" />
+                              <SelectValue placeholder="Qrup seçin" />
                             </SelectTrigger>
                             <SelectContent>
                               {groups.map(group => (
@@ -1170,12 +1167,12 @@ export function DeanManagement() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="course-credits">Credits</Label>
+                          <Label htmlFor="course-credits">Kredit sayı</Label>
                           <Input
                             id="course-credits"
                             type="number"
                             min="0"
-                            placeholder="e.g., 5"
+                            placeholder="m.ü, 5"
                             value={courseForm.credits || ""}
                             onChange={(e) => {
                               const value = e.target.value;
@@ -1193,12 +1190,12 @@ export function DeanManagement() {
                       </div>
                       <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="course-hours">Hours</Label>
+                          <Label htmlFor="course-hours">Saat</Label>
                           <Input
                             id="course-hours"
                             type="number"
                             min="0"
-                            placeholder="e.g., 60"
+                            placeholder="m.ü, 60"
                             value={courseForm.hours || ""}
                             onChange={(e) => {
                               const value = e.target.value;
@@ -1214,7 +1211,7 @@ export function DeanManagement() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="course-year">Year</Label>
+                          <Label htmlFor="course-year">Kurs</Label>
                           <Select
                             value={courseForm.year?.toString() || ""}
                             onValueChange={(value: string) => setCourseForm({ ...courseForm, year: parseInt(value) })}
@@ -1223,25 +1220,25 @@ export function DeanManagement() {
                               <SelectValue placeholder="Select year" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="1">Year 1</SelectItem>
-                              <SelectItem value="2">Year 2</SelectItem>
-                              <SelectItem value="3">Year 3</SelectItem>
-                              <SelectItem value="4">Year 4</SelectItem>
+                              <SelectItem value="1">1 kurs</SelectItem>
+                              <SelectItem value="2">2 kurs</SelectItem>
+                              <SelectItem value="3">3 kurs</SelectItem>
+                              <SelectItem value="4">4 kurs</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="course-semester">Semester</Label>
+                          <Label htmlFor="course-semester">Semestr</Label>
                           <Select
                             value={courseForm.semester?.toString() || ""}
                             onValueChange={(value) => setCourseForm({ ...courseForm, semester: parseInt(value) })}
                           >
                             <SelectTrigger id="course-semester">
-                              <SelectValue placeholder="Select semester" />
+                              <SelectValue placeholder="Semestr seçin" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="1">Semester 1</SelectItem>
-                              <SelectItem value="2">Semester 2</SelectItem>
+                              <SelectItem value="1">Semestr 1</SelectItem>
+                              <SelectItem value="2">Semestr 2</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1249,10 +1246,10 @@ export function DeanManagement() {
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label>Class Times</Label>
+                          <Label>Dərs Vaxtları</Label>
                           <Button type="button" variant="outline" size="sm" onClick={addClassTime}>
                             <Plus className="h-4 w-4 mr-1" />
-                            Add Time Slot
+                            Dərs vaxtları əlavə edin
                           </Button>
                         </div>
                         <div className="space-y-3">
@@ -1261,7 +1258,7 @@ export function DeanManagement() {
                               <div className="space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                   <div className="space-y-2">
-                                    <Label>Start Time</Label>
+                                    <Label>Başlanma Saatı</Label>
                                     <Input
                                       type="time"
                                       value={classTime.start}
@@ -1269,7 +1266,7 @@ export function DeanManagement() {
                                     />
                                   </div>
                                   <div className="space-y-2">
-                                    <Label>End Time</Label>
+                                    <Label>Bitmə Saatı</Label>
                                     <Input
                                       type="time"
                                       value={classTime.end}
@@ -1279,7 +1276,7 @@ export function DeanManagement() {
                                 </div>
                                 <div className="grid grid-cols-3 gap-3">
                                   <div className="space-y-2">
-                                    <Label>Day</Label>
+                                    <Label>Gün</Label>
                                     <Select
                                       value={classTime.day.toString()}
                                       onValueChange={(value) => updateClassTime(index, "day", parseInt(value))}
@@ -1295,13 +1292,13 @@ export function DeanManagement() {
                                     </Select>
                                   </div>
                                   <div className="space-y-2">
-                                    <Label>Room</Label>
+                                    <Label>Otaq</Label>
                                     <Select
                                       value={classTime.room}
                                       onValueChange={(value) => updateClassTime(index, "room", value)}
                                     >
                                       <SelectTrigger>
-                                        <SelectValue placeholder="Select room" />
+                                        <SelectValue placeholder="Otaq seçin" />
                                       </SelectTrigger>
                                       <SelectContent>
                                         {rooms.length === 0 ? (
@@ -1325,7 +1322,7 @@ export function DeanManagement() {
                                     </Select>
                                   </div>
                                   <div className="space-y-2">
-                                    <Label>Frequency</Label>
+                                    <Label>Həftə</Label>
                                     <Select
                                       value={classTime.frequency.toString()}
                                       onValueChange={(value) => updateClassTime(index, "frequency", parseInt(value))}
@@ -1359,7 +1356,7 @@ export function DeanManagement() {
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsCourseDialogOpen(false)}>Cancel</Button>
+                      <Button variant="outline" onClick={() => setIsCourseDialogOpen(false)}>Bağla</Button>
                       <Button onClick={handleSaveCourse}>Save</Button>
                     </div>
                   </DialogContent>
@@ -1370,14 +1367,14 @@ export function DeanManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Teacher</TableHead>
-                    <TableHead>Group</TableHead>
-                    <TableHead>Credits</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Kod</TableHead>
+                    <TableHead>Ad</TableHead>
+                    <TableHead>Kafedra</TableHead>
+                    <TableHead>Müəllim</TableHead>
+                    <TableHead>Qrup</TableHead>
+                    <TableHead>Kredit sayı</TableHead>
+                    <TableHead>Kurs</TableHead>
+                    <TableHead className="text-right">Əməllər</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1423,9 +1420,9 @@ export function DeanManagement() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Group Management</CardTitle>
+                  <CardTitle>Qrupların idarəsi</CardTitle>
                   <CardDescription>
-                    Add, edit, or remove student group information
+                    Qrup məlumatlarını əlavə edin, redaktə edin və ya silin
                   </CardDescription>
                 </div>
                 <Dialog
@@ -1435,26 +1432,26 @@ export function DeanManagement() {
                   <DialogTrigger asChild>
                     <Button onClick={handleAddGroup}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Group
+                      Qrup əlavə edin
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>
-                        {editingGroupId ? "Edit Group" : "Add New Group"}
+                        {editingGroupId ? "Edit Group" : "Yeni qrup əlavə edin"}
                       </DialogTitle>
                       <DialogDescription>
                         {editingGroupId
                           ? "Update group information"
-                          : "Enter details for the new group"}
+                          : "Yeni qrup üçün detalları daxil edin "}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label htmlFor="group-code">Group Code</Label>
+                        <Label htmlFor="group-code">Kod</Label>
                         <Input
                             id="group-code"
-                            placeholder="e.g., CS-50"
+                            placeholder="m.ü, C-25"
                             maxLength={20}
                             value={groupForm.code || groupForm.groupCode || ""}
                             onChange={(e) =>
@@ -1463,14 +1460,14 @@ export function DeanManagement() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-specialization">Specialization</Label>
+                        <Label htmlFor="group-specialization">İxtisas</Label>
                         <Select
                             value={groupForm.specializationId || ""}
                             onValueChange={(value) =>
                                 setGroupForm(prev => ({ ...prev, specializationId: value }))
                             }>
                           <SelectTrigger id="group-specialization">
-                            <SelectValue placeholder="Select specialization" />
+                            <SelectValue placeholder="İxtisas seçin" />
                           </SelectTrigger>
                           <SelectContent>
                             {specializations.length === 0 ? (
@@ -1489,7 +1486,7 @@ export function DeanManagement() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-year">Year</Label>
+                        <Label htmlFor="group-year">Kurs</Label>
                         <Select
                             value={groupForm.year?.toString() || ""}
                             onValueChange={(value) =>
@@ -1497,18 +1494,18 @@ export function DeanManagement() {
                             }
                         >
                           <SelectTrigger id="group-year">
-                            <SelectValue placeholder="Select year" />
+                            <SelectValue placeholder="Kurs seçin" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">Year 1</SelectItem>
-                            <SelectItem value="2">Year 2</SelectItem>
-                            <SelectItem value="3">Year 3</SelectItem>
-                            <SelectItem value="4">Year 4</SelectItem>
+                            <SelectItem value="1">1 kurs</SelectItem>
+                            <SelectItem value="2">2 kurs</SelectItem>
+                            <SelectItem value="3">3 kurs</SelectItem>
+                            <SelectItem value="4">4 kurs</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-language">Education Language</Label>
+                        <Label htmlFor="group-language">Təhsil dili</Label>
                         <Select
                             value={groupForm.educationLanguage?.toString() || ""}
                             onValueChange={(value) =>
@@ -1516,17 +1513,17 @@ export function DeanManagement() {
                             }
                         >
                           <SelectTrigger id="group-language">
-                            <SelectValue placeholder="Select language" />
+                            <SelectValue placeholder="Dil seçin" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">Azerbaijani</SelectItem>
-                            <SelectItem value="2">Russian</SelectItem>
-                            <SelectItem value="3">English</SelectItem>
+                            <SelectItem value="1">Azərbaycan</SelectItem>
+                            <SelectItem value="2">Rus</SelectItem>
+                            <SelectItem value="3">İngilis</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="group-level">Education Level</Label>
+                        <Label htmlFor="group-level">Təhsil səviyyəsi</Label>
                         <Select
                             value={groupForm.educationLevel?.toString() || ""}
                             onValueChange={(value) =>
@@ -1534,11 +1531,11 @@ export function DeanManagement() {
                             }
                         >
                           <SelectTrigger id="group-level">
-                            <SelectValue placeholder="Select level" />
+                            <SelectValue placeholder="Səviyyə seçin" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">Bachelor</SelectItem>
-                            <SelectItem value="2">Master</SelectItem>
+                            <SelectItem value="1">Bakalavr</SelectItem>
+                            <SelectItem value="2">Magistr</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1548,7 +1545,7 @@ export function DeanManagement() {
                         variant="outline"
                         onClick={() => setIsGroupDialogOpen(false)}
                       >
-                        Cancel
+                        Bağla
                       </Button>
                       <Button onClick={handleSaveGroup}>Save</Button>
                     </div>
@@ -1560,13 +1557,13 @@ export function DeanManagement() {
               <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Group Code</TableHead>
-                        <TableHead>Specialization</TableHead>
-                        <TableHead>Language</TableHead>
-                        <TableHead>Student Count</TableHead>
-                        <TableHead>Education Level</TableHead>
-                        <TableHead>Year</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>Kod</TableHead>
+                        <TableHead>İxtisas</TableHead>
+                        <TableHead>Dil</TableHead>
+                        <TableHead>Tələbə Sayı</TableHead>
+                        <TableHead>Təhsil Səviyyəsi</TableHead>
+                        <TableHead>Kurs</TableHead>
+                        <TableHead className="text-right">Əməllər</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1577,7 +1574,7 @@ export function DeanManagement() {
                           <TableCell>{group.educationLanguage }</TableCell>
                           <TableCell>{group.studentCount}</TableCell>
                           <TableCell>{group.educationLevel}</TableCell>
-                          <TableCell>Year {group.year}</TableCell>
+                          <TableCell>{group.year} kurs</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -1602,7 +1599,7 @@ export function DeanManagement() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Student Management</CardTitle>
+                  <CardTitle>Tələbələrin idarəsi</CardTitle>
                 </div>
                 <div className="flex items-center gap-2">
                   <Dialog
@@ -1612,58 +1609,57 @@ export function DeanManagement() {
                     <DialogTrigger asChild>
                       <Button variant="outline">
                         <Info className="h-4 w-4 mr-2" />
-                        Excel Format
+                        Excel Formatı
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Excel File Format Information</DialogTitle>
+                        <DialogTitle>Excel Fayl Format Məlumatı</DialogTitle>
                         <DialogDescription>
-                          Required format for Excel student import
+                          Tələbələrin Excel vasitəsi ilə əlavə olunması üçün tələb olunan format
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <Alert>
                           <FileSpreadsheet className="h-4 w-4" />
-                          <AlertTitle>Required Columns</AlertTitle>
+                          <AlertTitle>Tələb olunan sütunlar</AlertTitle>
                           <AlertDescription>
-                            Your Excel file must include the columns below in
-                            this exact order:
+                            Excel faylınız bu dəqiq ardıcıllıqla aşağıdakı sütunları daxil etməlidir:
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Name</span>
+                            <span className="font-medium">Ad</span>
                             <span className="text-sm text-muted-foreground">
-                              John
+                              Əli
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Surname</span>
+                            <span className="font-medium">Soyad</span>
                             <span className="text-sm text-muted-foreground">
-                              Doe
+                              Əliyev
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">MiddleName</span>
+                            <span className="font-medium">Ata adı</span>
                             <span className="text-sm text-muted-foreground">
-                              Smith
+                              Əli
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">UserName</span>
+                            <span className="font-medium">FIN kod</span>
                             <span className="text-sm text-muted-foreground">
                               7ABCQWE
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">GroupName</span>
+                            <span className="font-medium">Qrupun kodu</span>
                             <span className="text-sm text-muted-foreground">
                               TK-109
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">AdmissionScore</span>
+                            <span className="font-medium">Qəbul balı</span>
                             <span className="text-sm text-muted-foreground">
                               650,5
                             </span>
@@ -1674,13 +1670,12 @@ export function DeanManagement() {
                           <AlertTitle>Important Notes</AlertTitle>
                           <AlertDescription>
                             <ul className="list-disc list-inside space-y-1 text-sm">
-                              <li>The first row must contain column headers</li>
+                              <li>Birinci sətirdə sütun başlıqları olmalıdır ya boş olmalıdır</li>
+                              <li>Bütün sahələr mütləqdir</li>
+                              <li>Fayl formatı: yalnız .xlsx və ya .xls</li>
                               <li>
-                                GroupName must match an existing group in the
-                                system
+                                Qrup adı sistemdəki mövcud qrupa uyğun olmalıdır
                               </li>
-                              <li>All fields are required</li>
-                              <li>File format: .xlsx or .xls</li>
                             </ul>
                           </AlertDescription>
                         </Alert>
@@ -1690,11 +1685,11 @@ export function DeanManagement() {
                           variant="outline"
                           onClick={() => setIsFormatInfoOpen(false)}
                         >
-                          Close
+                          Bağla
                         </Button>
                         <Button onClick={downloadTemplate}>
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          Download Template
+                          Şablonu yükləyin
                         </Button>
                       </div>
                     </DialogContent>
@@ -1706,30 +1701,27 @@ export function DeanManagement() {
                     <DialogTrigger asChild>
                       <Button>
                         <Upload className="h-4 w-4 mr-2" />
-                        Upload Excel
+                        Yüklə
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Upload Students from Excel</DialogTitle>
+                        <DialogTitle>Excel vasitəsi ilə tələbələri yüklə</DialogTitle>
                         <DialogDescription>
-                          Upload an Excel file (.xlsx or .xls) to import
-                          multiple students at once
+                          Bir neçə tələbələni əlavə etmək üçün Excel faylını yükləyin
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <Alert>
                           <Info className="h-4 w-4" />
-                          <AlertTitle>Before uploading</AlertTitle>
+                          <AlertTitle>Yükləmədən əvvəl</AlertTitle>
                           <AlertDescription>
-                            Make sure your Excel file follows the required
-                            format. Click "Excel Format" to view requirements or
-                            download a template.
+                            Excel faylınızın tələb olunan formata uyğun olduğundan əmin olun. Tələblərə baxmaq və ya şablonu yükləmək üçün "Excel Formatı" üzərinə klikləyin.
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
                           <Label htmlFor="student-file">
-                            Select Excel File
+                            Excel faylını seçin
                           </Label>
                           <Input
                             id="student-file"
@@ -1744,7 +1736,7 @@ export function DeanManagement() {
                           variant="outline"
                           onClick={() => setIsUploadDialogOpen(false)}
                         >
-                          Cancel
+                          Bağla
                         </Button>
                       </div>
                     </DialogContent>
@@ -1755,15 +1747,15 @@ export function DeanManagement() {
             <CardContent>
               <Alert className="mb-4">
                 <Info className="h-4 w-4" />
-                <AlertTitle>Student Import</AlertTitle>
+                <AlertTitle>Tələbə əlavə edilməsi</AlertTitle>
                 <AlertDescription>
-                  Students can only be added in bulk via Excel file upload.
+                  Tələbələr yalnız Excel faylı yükləmə yolu ilə toplu şəkildə əlavə edilə bilər.
                 </AlertDescription>
               </Alert>
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex-1">
                   <Input
-                    placeholder="Search by name..."
+                    placeholder="Ada görə axtarın..."
                     value={studentSearchQuery}
                     onChange={(e) => {
                       setStudentSearchQuery(e.target.value);
@@ -1782,7 +1774,7 @@ export function DeanManagement() {
                     <SelectValue placeholder="Filter by group" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Groups</SelectItem>
+                    <SelectItem value="all">Bütün Qruplar</SelectItem>
                     {groups
                       .filter((group) => group.code || group.groupCode)
                       .map((group, index) => {
@@ -1806,26 +1798,26 @@ export function DeanManagement() {
                   }}
                 >
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by year" />
+                    <SelectValue placeholder="İllərə görə filtr" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    <SelectItem value="1">Year 1</SelectItem>
-                    <SelectItem value="2">Year 2</SelectItem>
-                    <SelectItem value="3">Year 3</SelectItem>
-                    <SelectItem value="4">Year 4</SelectItem>
+                    <SelectItem value="all">Bütün Kurslar</SelectItem>
+                    <SelectItem value="1">1 kurs</SelectItem>
+                    <SelectItem value="2">2 kurs</SelectItem>
+                    <SelectItem value="3">3 kurs</SelectItem>
+                    <SelectItem value="4">4 kurs</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Full Name</TableHead>
-                    <TableHead>Group</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Year of Admission</TableHead>
-                    <TableHead>Admission Score</TableHead>
+                    <TableHead>FIN kod</TableHead>
+                    <TableHead>Tam adı</TableHead>
+                    <TableHead>Qrup</TableHead>
+                    <TableHead>Kurs</TableHead>
+                    <TableHead>Qəbul ili</TableHead>
+                    <TableHead>Qəbul balı</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1838,7 +1830,7 @@ export function DeanManagement() {
                         </TableCell>
                         <TableCell>{student.name || "-"}</TableCell>
                         <TableCell>{student.groupCode || "-"}</TableCell>
-                        <TableCell>{student.year ? `Year ${student.year}` : "-"}</TableCell>
+                        <TableCell>{student.year ? `${student.year} kurs` : "-"}</TableCell>
                         <TableCell>{student.yearOfAdmission || "-"}</TableCell>
                         <TableCell>{student.admissionScore ?? "-"}</TableCell>
                       </TableRow>
@@ -1847,12 +1839,11 @@ export function DeanManagement() {
               </Table>
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
-                  Showing {startIndex + 1} to {endIndex} of{" "}
-                  {filteredStudents.length} students
+                  Ümumi {filteredStudents.length} tələbədən {startIndex + 1}-dən {endIndex}-a qədəri göstərilir
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">
-                    Page {currentPage} of {totalPages}
+                    Səhifə {currentPage}/{totalPages}
                   </span>
                   <div className="flex gap-1">
                     <Button
@@ -1876,126 +1867,71 @@ export function DeanManagement() {
               </div>
             </CardContent>
           </Card>
-          <Dialog
-            open={isStudentDialogOpen}
-            onOpenChange={setIsStudentDialogOpen}
-          >
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Student Information</DialogTitle>
-                <DialogDescription>
-                  View complete student details
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Username</Label>
-                    <p className="font-medium">{studentForm.studentId || "-"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Full Name</Label>
-                    <p className="font-medium">{studentForm.name || "-"}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Group</Label>
-                    <p className="font-medium">{studentForm.groupCode || "-"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Year</Label>
-                    <p className="font-medium">{studentForm.year ? `Year ${studentForm.year}` : "-"}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Specialization</Label>
-                    <p className="font-medium">{studentForm.specialization || "-"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Year of Admission</Label>
-                    <p className="font-medium">{studentForm.yearOfAdmission || "-"}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Admission Score</Label>
-                    <p className="font-medium">{studentForm.admissionScore ?? "-"}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button onClick={() => setIsStudentDialogOpen(false)}>
-                  Close
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+
         </TabsContent>
         <TabsContent value="teachers" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Teacher Management</CardTitle>
+                  <CardTitle>Müəllimlərin İdarəsi</CardTitle>
                 </div>
                 <div className="flex items-center gap-2">
                   <Dialog open={isTeacherFormatInfoOpen} onOpenChange={setIsTeacherFormatInfoOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline">
                         <Info className="h-4 w-4 mr-2" />
-                        Excel Format
+                        Excel Formatı
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Excel File Format Information</DialogTitle>
+                        <DialogTitle>Excel Fayl Format Məlumatı</DialogTitle>
                         <DialogDescription>
-                          Required format for Excel teacher import
+                          Müəllimlərin Excel vasitəsi ilə əlavə olunması üçün tələb olunan format
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <Alert>
                           <FileSpreadsheet className="h-4 w-4" />
-                          <AlertTitle>Required Columns</AlertTitle>
+                          <AlertTitle>Tələb olunan sütunlar</AlertTitle>
                           <AlertDescription>
-                            Your Excel file must contain the following columns in this exact order:
+                            Excel faylınız bu dəqiq ardıcıllıqla aşağıdakı sütunları daxil etməlidir:
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Name</span>
+                            <span className="font-medium">Ad</span>
                             <span className="text-sm text-muted-foreground">
-                              Abbas
+                              Əli
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Surname</span>
+                            <span className="font-medium">Soyad</span>
                             <span className="text-sm text-muted-foreground">
-                              Mehdiyev
+                              Əliyev
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">MiddleName</span>
+                            <span className="font-medium">Ata adı</span>
                             <span className="text-sm text-muted-foreground">
-                              Ali
+                              Əli
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">UserName</span>
+                            <span className="font-medium">FIN kod</span>
                             <span className="text-sm text-muted-foreground">
                               K2L3MRW
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">DepartmentName</span>
+                            <span className="font-medium">Kafedra adı</span>
                             <span className="text-sm text-muted-foreground">
-                              Riyazi Kiberneti
+                              Tarix kafedrası
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 p-2 bg-muted rounded">
-                            <span className="font-medium">Position</span>
+                            <span className="font-medium">Vəzifə</span>
                             <span className="text-sm text-muted-foreground">
                               Docent
                             </span>
@@ -2005,19 +1941,30 @@ export function DeanManagement() {
                           <Info className="h-4 w-4" />
                           <AlertTitle>Important Notes</AlertTitle>
                           <AlertDescription>
-                            <ul className="list-disc list-inside space-y-1 text-sm">
-                              <li>The first row must contain column headers</li>
-                              <li>All fields are required</li>
-                              <li>File format: .xlsx or .xls</li>
+                            <ul className="list-disc list-outside pl-5 space-y-1 text-sm">
+                              <li>Birinci sətirdə sütun başlıqları olmalıdır ya boş olmalıdır</li>
+                              <li>Bütün sahələr mütləqdir</li>
+                              <li>Fayl formatı: yalnız .xlsx və ya .xls</li>
+                              <li>
+                                <span>Müəllimin vəzifələri yalnız bunlar ola bilər:</span>
+
+                                <ul className="mt-1 list-[circle] list-outside pl-5 space-y-1">
+                                  <li>Teacher</li>
+                                  <li>Head Teacher</li>
+                                  <li>Docent</li>
+                                  <li>Professor</li>
+                                  <li>Head Of Department</li>
+                                </ul>
+                              </li>
                             </ul>
                           </AlertDescription>
                         </Alert>
                       </div>
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsTeacherFormatInfoOpen(false)}>Close</Button>
+                        <Button variant="outline" onClick={() => setIsTeacherFormatInfoOpen(false)}>Bağla</Button>
                         <Button onClick={downloadTeacherTemplate}>
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
-                          Download Template
+                          Şablonu yükləyin
                         </Button>
                       </div>
                     </DialogContent>
@@ -2026,26 +1973,26 @@ export function DeanManagement() {
                     <DialogTrigger asChild>
                       <Button>
                         <Upload className="h-4 w-4 mr-2" />
-                        Upload Excel
+                        Yüklə
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Upload Teachers from Excel</DialogTitle>
+                        <DialogTitle>Excel vasitəsi ilə müəllimləri yüklə</DialogTitle>
                         <DialogDescription>
-                          Upload an Excel file (.xlsx or .xls) to import multiple teachers at once
+                          Bir neçə müəllimi əlavə etmək üçün Excel faylını yükləyin
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <Alert>
                           <Info className="h-4 w-4" />
-                          <AlertTitle>Before uploading</AlertTitle>
+                          <AlertTitle>Yükləmədən əvvəl</AlertTitle>
                           <AlertDescription>
-                            Make sure your Excel file follows the required format. Click "Excel Format" to view requirements or download a template.
+                            Excel faylınızın tələb olunan formata uyğun olduğundan əmin olun. Tələblərə baxmaq və ya şablonu yükləmək üçün "Excel Formatı" üzərinə klikləyin.
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
-                          <Label htmlFor="teacher-file">Select Excel File</Label>
+                          <Label htmlFor="teacher-file">Excel faylını seçin</Label>
                           <Input
                             id="teacher-file"
                             type="file"
@@ -2055,7 +2002,7 @@ export function DeanManagement() {
                         </div>
                       </div>
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsTeacherUploadDialogOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setIsTeacherUploadDialogOpen(false)}>Bağla</Button>
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -2065,15 +2012,15 @@ export function DeanManagement() {
             <CardContent>
               <Alert className="mb-4">
                 <Info className="h-4 w-4" />
-                <AlertTitle>Teacher Import</AlertTitle>
+                <AlertTitle>Müəllim əlavə edilməsi</AlertTitle>
                 <AlertDescription>
-                  Teachers can only be added in bulk via Excel file upload.
+                  Müəllimlər yalnız Excel faylı yükləmə yolu ilə toplu şəkildə əlavə edilə bilər.
                 </AlertDescription>
               </Alert>
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex-1">
                   <Input
-                    placeholder="Search by name..."
+                    placeholder="Ada görə axtarın..."
                     value={teacherSearchQuery}
                     onChange={(e) => {
                       setTeacherSearchQuery(e.target.value);
@@ -2092,7 +2039,7 @@ export function DeanManagement() {
                     <SelectValue placeholder="Filter by position" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Positions</SelectItem>
+                    <SelectItem value="all">Bütün Vəzifələr</SelectItem>
                     <SelectItem value="1">Teacher</SelectItem>
                     <SelectItem value="2">Head Teacher</SelectItem>
                     <SelectItem value="3">Docent</SelectItem>
@@ -2104,11 +2051,11 @@ export function DeanManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Surname</TableHead>
-                    <TableHead>Middle Name</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Position</TableHead>
+                    <TableHead>Ad</TableHead>
+                    <TableHead>Soyad</TableHead>
+                    <TableHead>Ata adı</TableHead>
+                    <TableHead>FIN kod</TableHead>
+                    <TableHead>Vəzifə</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2138,10 +2085,10 @@ export function DeanManagement() {
               </Table>
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
-                  Showing {teacherStartIndex} to {teacherEndIndex} of {filteredTeachers.length} teachers
+                  Ümumi {filteredTeachers.length} müəllimdən {teacherStartIndex + 1}-dən {teacherEndIndex}-a qədəri göstərilir
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Page {teacherCurrentPage} of {teacherTotalPages}</span>
+                  <span className="text-sm text-muted-foreground">Səhifə {teacherCurrentPage}/{teacherTotalPages}</span>
                   <div className="flex gap-1">
                     <Button
                       variant="outline"

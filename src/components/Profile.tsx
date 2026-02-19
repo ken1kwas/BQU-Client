@@ -124,9 +124,9 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="mb-2">{isDean ? "Dean Profile" : isTeacher ? "Teacher Profile" : "Student Profile"}</h1>
+          <h1 className="mb-2">{isDean ? "Admin Profile" : isTeacher ? "Müəllim Profili" : "Tələbə Profili"}</h1>
           <p className="text-muted-foreground">
-            View and manage your profile information
+            Profil məlumatınıza baxın və idarə edin
           </p>
         </div>
         <Button
@@ -151,18 +151,18 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
             </Avatar>
             <div className="flex-1">
               <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-                <h2>{loading ? "Loading..." : fullName}</h2>
+                <h2>{loading ? "Yüklənir..." : fullName}</h2>
                 <Badge variant="default">{info.status}</Badge>
               </div>
               <div className="space-y-1 text-muted-foreground">
                 {isDean ? (
                   <>
-                    <p>FIN Code: {info.finCode || "—"}</p>
+                    <p>FIN kod: {info.finCode || "—"}</p>
                     <p>{info.roleName || "—"}</p>
                   </>
                 ) : isTeacher ? (
                   <>
-                    <p>FIN code:  {info.userName || "—"}</p>
+                    <p>FIN kod:  {info.userName || "—"}</p>
                   </>
                 ) : (
                   <>
@@ -188,7 +188,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
                 <div className="flex items-start gap-3">
                   <IdCard className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">User Name</p>
+                    <p className="text-sm text-muted-foreground">FIN kod</p>
                     <p>{info.userName || "—"}</p>
                   </div>
                 </div>
@@ -198,7 +198,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
             <div className="flex items-start gap-3">
               <Building className="h-4 w-4 text-muted-foreground mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Faculty</p>
+                <p className="text-sm text-muted-foreground">Fakültə</p>
                 <p>{info.faculty || "—"}</p>
               </div>
             </div>
@@ -206,7 +206,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
               <Award className="h-4 w-4 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">
-                  {isDean ? "Role" : isTeacher ? "Department" : "Specialization"}
+                  {isDean ? "Role" : isTeacher ? "Kafedra" : "İxtisas"}
                 </p>
                 <p>{isDean ? info.roleName : isTeacher ? info.stateName : info.specialization || "—"}</p>
               </div>
