@@ -543,10 +543,16 @@ export function TeacherCourseDetail({
                 : "present";
               const gradeValue =
                 source?.grade ?? source?.score ?? source?.value;
-              const grade =
+              const parsedGrade =
                 gradeValue === null || gradeValue === undefined
                   ? null
                   : Number(gradeValue);
+              const grade =
+                parsedGrade !== null &&
+                !Number.isNaN(parsedGrade) &&
+                parsedGrade >= 0
+                  ? parsedGrade
+                  : null;
               if (
                 session.type === "S" &&
                 grade !== null &&
@@ -556,7 +562,7 @@ export function TeacherCourseDetail({
               }
               return {
                 attendance,
-                grade: grade !== null && !Number.isNaN(grade) ? grade : null,
+                grade,
               };
             });
           })();
@@ -726,15 +732,23 @@ export function TeacherCourseDetail({
                 }
               }
 
+              const parsedGrade =
+                gradeVal !== undefined && gradeVal !== null
+                  ? Number(gradeVal)
+                  : null;
+              const normalizedGrade =
+                parsedGrade !== null &&
+                !Number.isNaN(parsedGrade) &&
+                parsedGrade >= 0
+                  ? parsedGrade
+                  : null;
+
               const result: {
                 attendance: "present" | "absent";
                 grade: number | null;
               } = {
                 attendance: attendanceState,
-                grade:
-                  gradeVal !== undefined && gradeVal !== null
-                    ? Number(gradeVal)
-                    : null,
+                grade: normalizedGrade,
               };
 
               // If there's a grade > 0 (1-10), student must be present
@@ -1280,7 +1294,12 @@ export function TeacherCourseDetail({
   ) => {
     if (!data) return "absent";
     if (data.attendance === "absent") return "absent";
-    if (data.grade !== null && data.grade !== undefined) {
+    if (
+      data.grade !== null &&
+      data.grade !== undefined &&
+      !Number.isNaN(data.grade) &&
+      data.grade >= 0
+    ) {
       // If grade is 0, show attendance state instead of "0"
       if (data.grade === 0) {
         return data.attendance;
