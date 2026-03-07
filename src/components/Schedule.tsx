@@ -69,6 +69,13 @@ const formatTimeValue = (value: any): string => {
   return str;
 };
 
+const capitalizeFirst = (s: string, locale = "az-Latn-AZ") => {
+  if (!s) return s;
+  const chars = Array.from(s);          // чтобы не сломаться на юникод-символах
+  chars[0] = chars[0].toLocaleUpperCase(locale);
+  return chars.join("");
+};
+
 const toTimeRange = (start: any, end: any): string => {
   if (!start && !end) return "";
 
@@ -304,46 +311,19 @@ const toWeekSchedule = (raw: any): ScheduleDay[] => {
   }
 
   if (raw?.classes && Array.isArray(raw.classes)) {
-    const classesByDay = new Map<string, any[]>();
-    const dayNames = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    const dayNamesShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
+    const locale = "az-Latn-AZ"; // или из настроек/пропсов
+    const dayLong = new Intl.DateTimeFormat(locale, { weekday: "long" });
+    const dayShort = new Intl.DateTimeFormat(locale, { weekday: "short" });
+    const monthDay = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" });
+
+    const classesByDay = new Map<number, any[]>();
 
     for (const item of raw.classes) {
       if (!item?.period) continue;
-      try {
-        const classDate = new Date(item.period);
-        const dayIndex = classDate.getDay();
-        const dayName = dayNames[dayIndex];
-
-        if (!classesByDay.has(dayName)) {
-          classesByDay.set(dayName, []);
-        }
-        classesByDay.get(dayName)!.push(item);
-      } catch {
-        continue;
-      }
+      const classDate = new Date(item.period);
+      const dayIndex = classDate.getDay(); // 0..6
+      if (!classesByDay.has(dayIndex)) classesByDay.set(dayIndex, []);
+      classesByDay.get(dayIndex)!.push(item);
     }
 
     const scheduleDays: ScheduleDay[] = [];
@@ -354,26 +334,23 @@ const toWeekSchedule = (raw: any): ScheduleDay[] => {
     for (let i = 0; i < 7; i++) {
       const dayDate = new Date(currentWeekStart);
       dayDate.setDate(currentWeekStart.getDate() + i);
-      const dayName = dayNames[i];
-      const dayClasses = classesByDay.get(dayName) || [];
+
+      const dayClasses = classesByDay.get(i) || [];
 
       if (dayClasses.length > 0 || i === today.getDay()) {
-        const entries = toScheduleEntries(dayClasses);
-
-        entries.sort((a, b) => {
-          if (!a.time || !b.time) return 0;
-          return a.time.localeCompare(b.time);
-        });
+        const entries = toScheduleEntries(dayClasses).sort((a,b) =>
+            (a.time || "").localeCompare(b.time || "")
+        );
 
         scheduleDays.push({
-          day: dayName,
-          date: `${dayNamesShort[i]}, ${months[dayDate.getMonth()]} ${dayDate.getDate()}`,
+          day: capitalizeFirst(dayLong.format(dayDate), locale),
+          date: `${capitalizeFirst(dayShort.format(dayDate), locale)}, ${monthDay.format(dayDate)}`,
           classes: entries,
         });
       }
     }
 
-    return scheduleDays.filter((day) => day.classes.length > 0);
+    return scheduleDays.filter((d) => d.classes.length > 0);
   }
 
   const candidates = [raw?.week, raw?.days, raw?.schedule, raw?.items, raw];
@@ -497,34 +474,13 @@ interface ScheduleProps {
 }
 
 const formatTodayDate = (): string => {
-  const today = new Date();
-  const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const dayName = days[today.getDay()];
-  const month = months[today.getMonth()];
-  const day = today.getDate();
-  return `${dayName}, ${month} ${day}`;
+  const locale = "az-Latn-AZ";
+  const s = new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(new Date());
+  return capitalizeFirst(s, locale);
 };
 
 const unwrapSchedulePayload = (raw: any): any => {
@@ -625,9 +581,9 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
   return (
     <div className="space-y-6">
       <div>
-        <h1>Schedule</h1>
+        <h1>Cədvəl</h1>
         <p className="text-muted-foreground">
-          Your classes, events, and upcoming deadlines
+          Dərslərinizin cədvəli ilə burada tanış ola bilərsiz
         </p>
       </div>
 
@@ -635,24 +591,24 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
 
       <Tabs defaultValue="today" className="w-full">
         <TabsList>
-          <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="week">This Week</TabsTrigger>
+          <TabsTrigger value="today">Bu gün</TabsTrigger>
+          <TabsTrigger value="week">Bu həftə</TabsTrigger>
           {/* <TabsTrigger value="events">Upcoming Events</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="today" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Today's Schedule - {formatTodayDate()}</CardTitle>
+              <CardTitle>{formatTodayDate()}</CardTitle>
               <CardDescription>
-                Your classes and activities for today
+                Bugünkü dərsləriniz və fəaliyyətləriniz
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {loading ? (
-                <p>Loading…</p>
+                <p>Yüklənir…</p>
               ) : todaySchedule.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No classes.</p>
+                <p className="text-muted-foreground text-sm">Dərs yoxdur.</p>
               ) : (
                 todaySchedule.map((item) => (
                   <CourseCard
@@ -676,10 +632,10 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
 
         <TabsContent value="week" className="space-y-4">
           {loading ? (
-            <p>Loading…</p>
+            <p>Yüklənir…</p>
           ) : weekSchedule.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              No classes for the week.
+              Bu həftə dərs yoxdur.
             </p>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -694,7 +650,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                   <CardContent className="space-y-3">
                     {day.classes.length === 0 ? (
                       <p className="text-sm text-muted-foreground">
-                        No classes scheduled
+                        Dərs yoxdur.
                       </p>
                     ) : (
                       day.classes.map((classItem, idx) => (

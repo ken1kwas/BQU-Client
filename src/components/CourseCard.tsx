@@ -77,7 +77,7 @@ export function CourseCard({ title, code, time, location, instructor, type, vari
           <Badge variant="outline" className="absolute bottom-3 left-3 text-xs">{code}</Badge>
           {userRole === "student" && (
             <Button variant="outline" size="sm" className="absolute bottom-3 right-3 shadow-md hover:shadow-lg transition-shadow">
-              Syllabus
+              Sillabus
             </Button>
           )}
         </div>
@@ -123,7 +123,7 @@ export function CourseCard({ title, code, time, location, instructor, type, vari
         <Badge variant="outline" className="absolute bottom-3 left-3 text-xs">{code}</Badge>
         {userRole === "student" && (
           <Button variant="outline" size="sm" className="absolute bottom-3 right-3 shadow-md hover:shadow-lg transition-shadow">
-            Syllabus
+            Sillabus
           </Button>
         )}
       </div>

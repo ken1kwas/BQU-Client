@@ -406,23 +406,23 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1>Welcome back{studentName ? `, ${studentName}` : ""}!</h1>
+        <h1>Xoş gəlmisiz{studentName ? `, ${studentName}` : ""}!</h1>
         <p className="text-muted-foreground">
-          Here's what's happening with your courses today.
+          Burada bu gün nə baş verdiyini görə bilərsiniz.
         </p>
       </div>
       {error && <p className="text-destructive">{error}</p>}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Your Courses</CardTitle>
-            <CardDescription>Today's schedule</CardDescription>
+            <CardTitle>Mənim fənnlərim</CardTitle>
+            <CardDescription>Bu günün cədvəli</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
-              <p>Loading…</p>
+              <p>Yüklənir…</p>
             ) : courses.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No classes.</p>
+              <p className="text-muted-foreground text-sm">Dərs yoxdur.</p>
             ) : (
               courses.map((classItem) => (
                 <CourseCard
@@ -441,14 +441,14 @@ export function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>Recent updates</CardDescription>
+            <CardTitle>Bildirişlər</CardTitle>
+            <CardDescription>Son yeniləmələr</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
-              <p>Loading…</p>
+              <p>Yüklənir…</p>
             ) : notifications.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No notifications.</p>
+              <p className="text-muted-foreground text-sm">Yeniləmələr yoxdur.</p>
             ) : (
               notifications.map((notification) => {
                 let Icon = AlertCircle;

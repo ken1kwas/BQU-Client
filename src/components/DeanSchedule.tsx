@@ -40,14 +40,25 @@ interface ScheduleEntry {
   topic?: string;
 }
 
-const daysOfWeek = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const dayKeys = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+
+const dayLabel: Record<(typeof dayKeys)[number], string> = {
+  Monday: "Bazar ertəsi",
+  Tuesday: "Çərşənbə axşamı",
+  Wednesday: "Çərşənbə",
+  Thursday: "Cümə axşamı",
+  Friday: "Cümə",
+  Saturday: "Şənbə",
+};
+
+// const daysOfWeek = [
+//   "Bazar ertəsi",
+//   "Çərşənbə axşamı",
+//   "Çərşənbə",
+//   "Cümə axşamı",
+//   "Cümə",
+//   "Şənbə"
+// ];
 
 const normalizeClassType = (value: any): string => {
   if (value === undefined || value === null) return "lecture";
@@ -88,8 +99,8 @@ export function DeanSchedule() {
   const [selectedGroup, setSelectedGroup] = useState<string>("");
 
   // Get today's day of week
-  const today = new Date().getDay();
-  const todayName = daysOfWeek[(today + 6) % 7] || "Monday";
+  const today = new Date().getDay(); // 0..6 (Sun..Sat)
+  const todayKey = dayKeys[(today + 6) % 7] || "Monday";
 
   // On mount, fetch lists of courses, rooms and groups from the backend.
   useEffect(() => {
@@ -146,13 +157,10 @@ export function DeanSchedule() {
     fetchLists();
   }, []);
 
-  const getEntriesForDay = (day: string) => {
-    return scheduleEntries
-      .filter(
-        (entry) => entry.dayOfWeek === day && entry.groupCode === selectedGroup,
-      )
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  };
+  const getEntriesForDay = (dayKey: string) =>
+      scheduleEntries
+          .filter((e) => e.dayOfWeek === dayKey && e.groupCode === selectedGroup)
+          .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(":");
@@ -331,9 +339,9 @@ export function DeanSchedule() {
   return (
     <div className="space-y-6">
       <div>
-        <h1>Schedule Management</h1>
+        <h1>Cədvəlin İdarəetməsi</h1>
         <p className="text-muted-foreground">
-          Manage academic schedules for all courses and groups
+          Bütün kurslar və qruplar üçün akademik cədvəlləri idarə edin
         </p>
       </div>
 
@@ -343,15 +351,15 @@ export function DeanSchedule() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>
-                  Weekly Schedule for {selectedGroup || "..."}
+                  {selectedGroup || "..."} üçün həftəlik cədvəl
                 </CardTitle>
                 <CardDescription>
-                  View schedule organized by day of week
+                  Həftənin gününə görə təşkil edilmiş cədvələ baxın
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Label htmlFor="group-select" className="text-sm">
-                  Group:
+                  Qrup:
                 </Label>
                 <Select
                   value={selectedGroup}
@@ -400,35 +408,26 @@ export function DeanSchedule() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {daysOfWeek.map((day) => (
-                <Card
-                  key={day}
-                  className={
-                    day === todayName ? "border-primary bg-primary/5" : ""
-                  }
-                >
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center justify-between">
-                      {day}
-                      {day === todayName && (
-                        <Badge variant="default" className="text-xs">
-                          Today
-                        </Badge>
-                      )}
-                      {day !== todayName && (
-                        <Badge variant="secondary">
-                          {getEntriesForDay(day).length}
-                        </Badge>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {getEntriesForDay(day).length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4 text-center">
-                        No classes scheduled
-                      </p>
-                    ) : (
-                      getEntriesForDay(day).map((entry) => (
+              {dayKeys.map((dayKey) => (
+                  <Card key={dayKey} className={dayKey === todayKey ? "border-primary bg-primary/5" : ""}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center justify-between">
+                        {dayLabel[dayKey]}
+                        {dayKey === todayKey ? (
+                            <Badge variant="default" className="text-xs">Today</Badge>
+                        ) : (
+                            <Badge variant="secondary">{getEntriesForDay(dayKey).length}</Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+
+                    <CardContent className="space-y-2">
+                      {getEntriesForDay(dayKey).length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-4 text-center">
+                            Dərs yoxdur.
+                          </p>
+                      ) : (
+                      getEntriesForDay(dayKey).map((entry) => (
                         <div
                           key={entry.id}
                           className="p-3 rounded-lg border relative pb-10"
