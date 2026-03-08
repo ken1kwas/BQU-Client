@@ -31,6 +31,28 @@ interface ScheduleEntry {
   group?: string;
 }
 
+const extractWeekMeta = (
+  raw: any,
+): { isUpperWeek: boolean | null; todayLabel: string } => {
+  const isUpperWeek =
+    typeof raw?.isUpperWeek === "boolean" ? raw.isUpperWeek : null;
+  const todayLabel = typeof raw?.today === "string" ? raw.today : "";
+  return { isUpperWeek, todayLabel };
+};
+
+const filterClassesByWeek = (raw: any, isUpperWeek: boolean | null): any => {
+  if (!raw || typeof raw !== "object" || isUpperWeek === null) return raw;
+  if (!Array.isArray(raw.classes)) return raw;
+
+  return {
+    ...raw,
+    classes: raw.classes.filter((item: any) => {
+      if (typeof item?.isUpperWeek !== "boolean") return true;
+      return item.isUpperWeek === isUpperWeek;
+    }),
+  };
+};
+
 const formatTimeValue = (value: any): string => {
   if (!value) return "";
 
@@ -519,7 +541,7 @@ const unwrapSchedulePayload = (raw: any): any => {
   }
 
   if (current && Array.isArray(current.classes)) {
-    return { classes: current.classes };
+    return current;
   }
 
   return current;
@@ -528,6 +550,10 @@ const unwrapSchedulePayload = (raw: any): any => {
 export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
   const [todaySchedule, setTodaySchedule] = useState<ScheduleEntry[]>([]);
   const [weekSchedule, setWeekSchedule] = useState<ScheduleDay[]>([]);
+  const [currentWeekIsUpper, setCurrentWeekIsUpper] = useState<boolean | null>(
+    null,
+  );
+  const [scheduleTodayLabel, setScheduleTodayLabel] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -550,16 +576,48 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
         if (!mounted) return;
 
         const processedToday = unwrapSchedulePayload(todayRaw);
+        const processedWeek = unwrapSchedulePayload(weekRaw);
 
-        const todayEntries = toTodaySchedule(processedToday);
+        const shouldApplyWeekFilter = true;
+        const todayMeta = shouldApplyWeekFilter
+          ? extractWeekMeta(processedToday)
+          : { isUpperWeek: null, todayLabel: "" };
+        const weekMeta = shouldApplyWeekFilter
+          ? extractWeekMeta(processedWeek)
+          : { isUpperWeek: null, todayLabel: "" };
+        const resolvedIsUpperWeek = shouldApplyWeekFilter
+          ? weekMeta.isUpperWeek !== null
+            ? weekMeta.isUpperWeek
+            : todayMeta.isUpperWeek
+          : null;
+        const resolvedTodayLabel = shouldApplyWeekFilter
+          ? weekMeta.todayLabel || todayMeta.todayLabel
+          : "";
+
+        setCurrentWeekIsUpper(resolvedIsUpperWeek);
+        setScheduleTodayLabel(resolvedTodayLabel);
+
+        const filteredTodayRaw = filterClassesByWeek(
+          processedToday,
+          resolvedIsUpperWeek,
+        );
+        const filteredWeekRaw = filterClassesByWeek(
+          processedWeek,
+          resolvedIsUpperWeek,
+        );
+
+        const todayEntries = toTodaySchedule(filteredTodayRaw);
         setTodaySchedule(todayEntries);
 
-        const processedWeek = unwrapSchedulePayload(weekRaw);
-        const weekEntries = toWeekSchedule(processedWeek);
+        const weekEntries = toWeekSchedule(filteredWeekRaw);
 
         setWeekSchedule(weekEntries);
       } catch (err: any) {
-        if (mounted) setError(err.message || "Не удалось загрузить расписание");
+        if (mounted) {
+          setCurrentWeekIsUpper(null);
+          setScheduleTodayLabel("");
+          setError(err.message || "Не удалось загрузить расписание");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -585,6 +643,23 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
         <p className="text-muted-foreground">
           Dərslərinizin cədvəli ilə burada tanış ola bilərsiz
         </p>
+        <div className="mt-2 flex items-center gap-2">
+          <Badge
+            variant={currentWeekIsUpper ? "default" : "secondary"}
+            className="text-xs"
+          >
+            {currentWeekIsUpper === null
+              ? "Həftə: Naməlum"
+              : currentWeekIsUpper
+                ? "Həftə: Yuxarı"
+                : "Həftə: Aşağı"}
+          </Badge>
+          {scheduleTodayLabel ? (
+            <span className="text-xs text-muted-foreground">
+              Bu gün: {scheduleTodayLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
@@ -617,7 +692,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                     code={item.code}
                     time={item.time}
                     location={item.location}
-                    instructor={item.instructor || "Not specified"}
+                    instructor={item.instructor || "Qeyd olunmayıb"}
                     type={item.type}
                     variant="today"
                     topic={item.topic}
@@ -660,7 +735,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                           code={classItem.code}
                           time={classItem.time}
                           location={classItem.location}
-                          instructor={classItem.instructor || "Not specified"}
+                          instructor={classItem.instructor || "Qeyd olunmayıb"}
                           type={classItem.type}
                           variant="week"
                           topic={classItem.topic}
