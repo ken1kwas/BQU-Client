@@ -25,7 +25,7 @@ import {
 } from "../api";
 
 interface ScheduleEntry {
-  id: number;
+  id: string | number;
   courseId: number;
   courseName: string;
   courseCode: string;
@@ -38,6 +38,7 @@ interface ScheduleEntry {
   endTime: string;
   type: string;
   topic?: string;
+  isUpperWeek?: boolean;
 }
 
 const dayKeys = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
@@ -97,6 +98,10 @@ export function DeanSchedule() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>("");
+  const [currentWeekIsUpper, setCurrentWeekIsUpper] = useState<boolean | null>(
+    null,
+  );
+  const [scheduleTodayLabel, setScheduleTodayLabel] = useState<string>("");
 
   // Get today's day of week
   const today = new Date().getDay(); // 0..6 (Sun..Sat)
@@ -184,6 +189,8 @@ export function DeanSchedule() {
   useEffect(() => {
     if (!selectedGroup) {
       setScheduleEntries([]);
+      setCurrentWeekIsUpper(null);
+      setScheduleTodayLabel("");
       return;
     }
 
@@ -198,6 +205,15 @@ export function DeanSchedule() {
         }
 
         const scheduleResp = await getGroupSchedule(group.id.toString());
+        const scheduleRoot = scheduleResp?.groupSchedule ?? scheduleResp ?? {};
+        const currentWeekValue = scheduleRoot?.isUpperWeek;
+
+        setCurrentWeekIsUpper(
+          typeof currentWeekValue === "boolean" ? currentWeekValue : null,
+        );
+        setScheduleTodayLabel(
+          typeof scheduleRoot?.today === "string" ? scheduleRoot.today : "",
+        );
 
         let scheduleArray: any[] = [];
         if (scheduleResp?.groupSchedule?.classes) {
@@ -210,6 +226,13 @@ export function DeanSchedule() {
             : [];
         } else {
           scheduleArray = toArray(scheduleResp);
+        }
+
+        if (typeof currentWeekValue === "boolean") {
+          scheduleArray = scheduleArray.filter((item: any) => {
+            if (typeof item?.isUpperWeek !== "boolean") return true;
+            return item.isUpperWeek === currentWeekValue;
+          });
         }
 
         const entries: ScheduleEntry[] = scheduleArray.map(
@@ -323,6 +346,10 @@ export function DeanSchedule() {
               endTime: typeof endTime === "string" ? endTime : "",
               type,
               topic: item.topic ?? item.title ?? undefined,
+              isUpperWeek:
+                typeof item.isUpperWeek === "boolean"
+                  ? item.isUpperWeek
+                  : undefined,
             };
           },
         );
@@ -330,6 +357,8 @@ export function DeanSchedule() {
         setScheduleEntries(entries);
       } catch {
         setScheduleEntries([]);
+        setCurrentWeekIsUpper(null);
+        setScheduleTodayLabel("");
       }
     };
 
@@ -356,6 +385,23 @@ export function DeanSchedule() {
                 <CardDescription>
                   Həftənin gününə görə təşkil edilmiş cədvələ baxın
                 </CardDescription>
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge
+                    variant={currentWeekIsUpper ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {currentWeekIsUpper === null
+                      ? "Həftə: Naməlum"
+                      : currentWeekIsUpper
+                        ? "Həftə: Yuxarı"
+                        : "Həftə: Aşağı"}
+                  </Badge>
+                  {scheduleTodayLabel ? (
+                    <span className="text-xs text-muted-foreground">
+                      Bu gün: {scheduleTodayLabel}
+                    </span>
+                  ) : null}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Label htmlFor="group-select" className="text-sm">
@@ -414,7 +460,7 @@ export function DeanSchedule() {
                       <CardTitle className="text-base flex items-center justify-between">
                         {dayLabel[dayKey]}
                         {dayKey === todayKey ? (
-                            <Badge variant="default" className="text-xs">Today</Badge>
+                            <Badge variant="default" className="text-xs">Bu gün</Badge>
                         ) : (
                             <Badge variant="secondary">{getEntriesForDay(dayKey).length}</Badge>
                         )}
