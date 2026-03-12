@@ -261,11 +261,15 @@ export function DeanSchedule() {
             let roomId = "";
             
             if (typeof item.room === "string") {
-              // Room is a UUID string
+              // Room is a UUID string or a display name
               roomId = item.room;
               // Try to find room name from rooms array
               const foundRoom = rooms.find((r: any) => r.id === item.room);
               roomName = foundRoom ? (foundRoom.name ?? foundRoom.roomName ?? "") : "";
+              if (!roomName) {
+                roomName = item.room;
+                roomId = "";
+              }
             } else if (typeof item.room === "object" && item.room !== null) {
               // Room is an object
               roomId = item.room.id ?? "";
