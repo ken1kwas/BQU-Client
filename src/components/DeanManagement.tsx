@@ -672,6 +672,18 @@ export function DeanManagement() {
           toast.error("Semester is required");
           return;
         }
+        const selectedGroup = groups.find(
+          (g) => String(g.id) === String(courseForm.groupId),
+        );
+        const selectedGroupYear =
+          typeof selectedGroup?.year === "number" ? selectedGroup.year : undefined;
+        if (
+          typeof selectedGroupYear === "number" &&
+          Number(courseForm.year) < selectedGroupYear
+        ) {
+          toast.error(`Year can't be less than group's current year (${selectedGroupYear})`);
+          return;
+        }
 
         const validClassTimes = (courseForm.classTimes || [])
           .filter((ct: any) => {
@@ -1154,7 +1166,23 @@ export function DeanManagement() {
                           <Label htmlFor="course-group">Qrup</Label>
                           <Select
                             value={courseForm.groupId?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, groupId: value })}
+                            onValueChange={(value) => {
+                              const nextGroup = groups.find((g) => String(g.id) === String(value));
+                              const nextGroupYear =
+                                typeof nextGroup?.year === "number" ? nextGroup.year : undefined;
+                              setCourseForm((prev) => {
+                                const nextForm: any = { ...prev, groupId: value };
+                                if (
+                                  typeof nextGroupYear === "number" &&
+                                  (nextForm.year === undefined ||
+                                    nextForm.year === null ||
+                                    Number(nextForm.year) < nextGroupYear)
+                                ) {
+                                  nextForm.year = nextGroupYear;
+                                }
+                                return nextForm;
+                              });
+                            }}
                           >
                             <SelectTrigger id="course-group">
                               <SelectValue placeholder="Qrup seçin" />

@@ -1,6 +1,6 @@
 const BASE_URL =
-  (import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5000";
-  // "https://localhost:7085";
+  // (import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5000";
+  "https://localhost:7085";
 
 function getToken(): string | null {
   return (
@@ -98,6 +98,8 @@ async function parseError(resp: Response): Promise<string> {
       return (
         j?.responseMessage ??
         j?.ResponseMessage ??
+        j?.errorMessage ??
+        j?.ErrorMessage ??
         j?.message ??
         j?.Message ??
         j?.error ??
