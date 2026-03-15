@@ -16,6 +16,22 @@ function authHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function extractFileNameFromDisposition(
+  disposition: string | null,
+): string | null {
+  if (!disposition) return null;
+  const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utfMatch?.[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1]);
+    } catch {
+      return utfMatch[1];
+    }
+  }
+  const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+  return match?.[1] ?? null;
+}
+
 async function fetchOrThrow(input: RequestInfo, init?: RequestInit) {
   const resp = await fetch(input, init);
   if (!resp.ok) {
@@ -688,10 +704,29 @@ export function updateSyllabusFile(syllabusId: string, file: File) {
   });
 }
 
-export function deleteSyllabusFile(id: string) {
-  return apiJson<any>(`/api/syllabus/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+export function deleteSyllabusFile(taughtSubjectId: string) {
+  return apiJson<any>(
+    `/api/taught-subjects/${encodeURIComponent(taughtSubjectId)}/syllabus`,
+    { method: "DELETE" },
+  );
+}
+
+export async function downloadSyllabusFile(taughtSubjectId: string): Promise<{
+  blob: Blob;
+  fileName: string;
+  contentType: string;
+}> {
+  const resp = await fetchOrThrow(
+    `${BASE_URL}/api/taught-subjects/${encodeURIComponent(taughtSubjectId)}/syllabus`,
+    { method: "GET", headers: authHeader() },
+  );
+  const blob = await resp.blob();
+  const contentType =
+    resp.headers.get("content-type") || "application/pdf";
+  const fileName =
+    extractFileNameFromDisposition(resp.headers.get("content-disposition")) ||
+    `syllabus-${taughtSubjectId}.pdf`;
+  return { blob, fileName, contentType };
 }
 
 // -------------------- helpers --------------------

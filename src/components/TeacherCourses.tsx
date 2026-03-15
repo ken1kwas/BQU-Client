@@ -14,7 +14,8 @@ import { toast } from "sonner";
 import {
   listTeacherCourses,
   uploadSyllabusFile,
-  updateSyllabusFile,
+  downloadSyllabusFile,
+  deleteSyllabusFile,
   toArray,
 } from "../api";
 
@@ -115,6 +116,7 @@ export function TeacherCourses({
           c.courseId ?? c.id ?? c.taughtSubjectId ?? c.taughtSubject?.id;
         const syllabusId =
           c.syllabusId ?? c.syllabus?.id ?? c.syllabus?.syllabusId ?? null;
+        const hasSyllabus = c.hasSyllabus ?? Boolean(syllabusId);
 
         const teacherCourse: TeacherCourse = {
           id,
@@ -137,7 +139,7 @@ export function TeacherCourses({
             c.studentCount ?? c.studentsCount ?? c.students?.length ?? 0,
           hours: c.hours ?? c.weeklyHours ?? c.totalHours ?? 0,
           credits: c.creditCount ?? c.credits ?? c.credit ?? 0,
-          hasSyllabus: Boolean(syllabusId),
+          hasSyllabus,
           syllabusId,
           topics: mapTopicsFromApi(c),
         };
@@ -152,8 +154,7 @@ export function TeacherCourses({
   useEffect(() => {
     refreshCourses();
   }, []);
-  // Upload or update syllabus for a course.  Depending on whether a
-  // syllabus already exists, we call uploadSyllabus or updateSyllabus.
+  // Upload syllabus for a course using taughtSubjectId.
   const handleSyllabusUpload = (course: TeacherCourse) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -162,11 +163,7 @@ export function TeacherCourses({
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         try {
-          if (course.hasSyllabus && course.syllabusId) {
-            await updateSyllabusFile(String(course.syllabusId), file);
-          } else {
-            await uploadSyllabusFile(String(course.id), file);
-          }
+          await uploadSyllabusFile(String(course.id), file);
           toast.success("Syllabus uploaded successfully");
           await refreshCourses();
         } catch (error: any) {
@@ -175,6 +172,44 @@ export function TeacherCourses({
       }
     };
     input.click();
+  };
+
+  const handleSyllabusDownload = async (course: TeacherCourse) => {
+    try {
+      const { blob, fileName } = await downloadSyllabusFile(String(course.id));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName || `syllabus-${course.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to download syllabus");
+    }
+  };
+
+  const handleSyllabusView = async (course: TeacherCourse) => {
+    try {
+      const { blob } = await downloadSyllabusFile(String(course.id));
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener");
+      // Let the browser load before revoking.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to open syllabus");
+    }
+  };
+
+  const handleSyllabusDelete = async (course: TeacherCourse) => {
+    try {
+      await deleteSyllabusFile(String(course.id));
+      toast.success("Syllabus deleted successfully");
+      await refreshCourses();
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to delete syllabus");
+    }
   };
 
   return (
@@ -238,15 +273,41 @@ export function TeacherCourses({
                 >
                   Qiymətləri idarə edin
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSyllabusUpload(course)}
-                >
-                  <FileUp className="h-4 w-4 mr-1.5" />
-                  Sillabusu {course.hasSyllabus ? "yeniləyin" : "əlavə edin"}
-                </Button>
-                
+                {!course.hasSyllabus && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSyllabusUpload(course)}
+                  >
+                    <FileUp className="h-4 w-4 mr-1.5" />
+                    Sillabusu əlavə edin
+                  </Button>
+                )}
+                {course.hasSyllabus && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleSyllabusView(course)}
+                    >
+                      Sillabusu bax
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleSyllabusDownload(course)}
+                    >
+                      Sillabusu yükləyin
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleSyllabusDelete(course)}
+                    >
+                      Sillabusu sil
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
