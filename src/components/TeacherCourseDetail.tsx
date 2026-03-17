@@ -1720,14 +1720,17 @@ export function TeacherCourseDetail({
                               student.colloquium[collIndex - 1]! <= 10); 
 
                           const isDisabled = isLoading || !isPreviousFilled;
+                          const currentValue = student.colloquium[collIndex];
+                          const selectedValue =
+                            currentValue === null || currentValue === undefined
+                              ? "none"
+                              : String(currentValue);
 
                           return (
                             <TableCell key={collIndex} className="text-center">
                               <Select
-                                value={
-                                  student.colloquium[collIndex]?.toString() ||
-                                  "none"
-                                }
+                                key={`${student.id}-${collIndex}`}
+                                value={selectedValue}
                                 onValueChange={(value: string) =>
                                   updateColloquium(
                                     student.id,
