@@ -1,5 +1,6 @@
 const BASE_URL =
-  // (import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5000";
+  (import.meta as any).env?.VITE_API_BASE_URL ||
+  "http://localhost:5000" ||
   "https://localhost:7085";
 
 function getToken(): string | null {
@@ -721,8 +722,7 @@ export async function downloadSyllabusFile(taughtSubjectId: string): Promise<{
     { method: "GET", headers: authHeader() },
   );
   const blob = await resp.blob();
-  const contentType =
-    resp.headers.get("content-type") || "application/pdf";
+  const contentType = resp.headers.get("content-type") || "application/pdf";
   const fileName =
     extractFileNameFromDisposition(resp.headers.get("content-disposition")) ||
     `syllabus-${taughtSubjectId}.pdf`;
