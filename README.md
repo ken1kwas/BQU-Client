@@ -1,5 +1,5 @@
 
-  # LMS System (Copy)
+  # LMS System 
 
   This is a code bundle for LMS System (Copy). The original project is available at https://www.figma.com/design/Np4Zy5EdENdDlUmqJ6kgqo/LMS-System--Copy-.
 
