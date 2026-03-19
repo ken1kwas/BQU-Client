@@ -29,6 +29,7 @@ interface ScheduleEntry {
   instructor?: string;
   topic?: string;
   group?: string;
+  taughtSubjectId?: string | number;
 }
 
 const extractWeekMeta = (
@@ -223,6 +224,16 @@ const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
     raw?.entryId,
   );
 
+  const taughtSubjectId =
+    raw?.taughtSubjectId ??
+    raw?.taughtSubject?.id ??
+    raw?.taughtSubject?.taughtSubjectId ??
+    raw?.subjectId ??
+    raw?.subject?.id ??
+    raw?.courseId ??
+    raw?.course?.id ??
+    null;
+
   const periodStr = raw?.period ? String(raw.period) : "";
   const nameStr = pickString(raw?.name, raw?.title, raw?.courseName) || "";
   const codeStr = pickString(raw?.code, raw?.courseCode) || "";
@@ -274,6 +285,10 @@ const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
       raw?.groupDto?.name,
       raw?.groupInfo?.name,
     ),
+    taughtSubjectId:
+      typeof taughtSubjectId === "string" || typeof taughtSubjectId === "number"
+        ? taughtSubjectId
+        : undefined,
   };
 };
 
@@ -698,6 +713,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                     topic={item.topic}
                     group={item.group}
                     userRole={userRole}
+                    syllabusTaughtSubjectId={item.taughtSubjectId ?? item.id}
                   />
                 ))
               )}
@@ -741,6 +757,9 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                           topic={classItem.topic}
                           group={classItem.group}
                           userRole={userRole}
+                          syllabusTaughtSubjectId={
+                            classItem.taughtSubjectId ?? classItem.id
+                          }
                         />
                       ))
                     )}

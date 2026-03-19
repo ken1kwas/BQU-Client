@@ -1,6 +1,14 @@
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { Clock, MapPin, User, Users } from "lucide-react";
+import { downloadSyllabusFile } from "../api";
+import { toast } from "sonner";
 
 interface CourseCardProps {
   title: string;
@@ -13,6 +21,7 @@ interface CourseCardProps {
   topic?: string;
   group?: string;
   userRole?: "student" | "teacher";
+  syllabusTaughtSubjectId?: string | number;
 }
 
 const getTypeLabel = (type: string) => {
@@ -28,7 +37,81 @@ const getTypeBadgeVariant = (type: string) => {
   return type === "seminar" ? "default" : "secondary";
 };
 
-export function CourseCard({ title, code, time, location, instructor, type, variant = "today", topic, group, userRole = "student" }: CourseCardProps) {
+export function CourseCard({
+  title,
+  code,
+  time,
+  location,
+  instructor,
+  type,
+  variant = "today",
+  topic,
+  group,
+  userRole = "student",
+  syllabusTaughtSubjectId,
+}: CourseCardProps) {
+  const handleSyllabusView = async () => {
+    if (!syllabusTaughtSubjectId) {
+      toast.info("Syllabus not available for this course.");
+      return;
+    }
+    try {
+      const { blob } = await downloadSyllabusFile(
+        String(syllabusTaughtSubjectId),
+      );
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to open syllabus");
+    }
+  };
+
+  const handleSyllabusDownload = async () => {
+    if (!syllabusTaughtSubjectId) {
+      toast.info("Syllabus not available for this course.");
+      return;
+    }
+    try {
+      const { blob, fileName } = await downloadSyllabusFile(
+        String(syllabusTaughtSubjectId),
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName || `syllabus-${syllabusTaughtSubjectId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to download syllabus");
+    }
+  };
+
+  const syllabusButton = userRole === "student" ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="absolute bottom-3 right-3 shadow-md hover:shadow-lg transition-shadow"
+          disabled={!syllabusTaughtSubjectId}
+        >
+          Syllabus
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={handleSyllabusView}>
+          View
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSyllabusDownload}>
+          Download
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
   if (variant === "week") {
     return (
       <div className="p-3 rounded-lg border relative pb-10">
@@ -75,11 +158,7 @@ export function CourseCard({ title, code, time, location, instructor, type, vari
           </div>
           <Badge variant={getTypeBadgeVariant(type)} className="absolute top-3 right-3 text-xs">{getTypeLabel(type)}</Badge>
           <Badge variant="outline" className="absolute bottom-3 left-3 text-xs">{code}</Badge>
-          {userRole === "student" && (
-            <Button variant="outline" size="sm" className="absolute bottom-3 right-3 shadow-md hover:shadow-lg transition-shadow">
-              Sillabus
-            </Button>
-          )}
+          {syllabusButton}
         </div>
       </div>
     );
@@ -88,10 +167,15 @@ export function CourseCard({ title, code, time, location, instructor, type, vari
   return (
     <div className="p-3 rounded-lg border relative pb-10">
       <div className="space-y-2 pr-20">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2">
           <span className="font-medium overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{title}</span>
-          <Badge variant={getTypeBadgeVariant(type)} className="shrink-0 px-4 py-1.5 text-xs">{getTypeLabel(type)}</Badge>
         </div>
+        <Badge
+          variant={getTypeBadgeVariant(type)}
+          className="absolute right-3 top-3 px-4 py-1.5 text-xs"
+        >
+          {getTypeLabel(type)}
+        </Badge>
         {topic && (
           <div className="text-sm text-muted-foreground italic">
             {topic}
@@ -121,11 +205,7 @@ export function CourseCard({ title, code, time, location, instructor, type, vari
           </div>
         </div>
         <Badge variant="outline" className="absolute bottom-3 left-3 text-xs">{code}</Badge>
-        {userRole === "student" && (
-          <Button variant="outline" size="sm" className="absolute bottom-3 right-3 shadow-md hover:shadow-lg transition-shadow">
-            Sillabus
-          </Button>
-        )}
+        {syllabusButton}
       </div>
     </div>
   );

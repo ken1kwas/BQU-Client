@@ -25,6 +25,7 @@ interface DashboardCourse {
   location: string;
   type: string;
   instructor?: string;
+  taughtSubjectId?: string | number;
 }
 
 interface DashboardNotification {
@@ -155,12 +156,22 @@ function toDashboardCourse(raw: any, index: number): DashboardCourse {
     raw?.roomInfo?.roomName,
   );
 
+  const taughtSubjectId =
+    raw?.taughtSubjectId ??
+    raw?.taughtSubject?.id ??
+    raw?.taughtSubject?.taughtSubjectId ??
+    raw?.subjectId ??
+    raw?.subject?.id ??
+    raw?.courseId ??
+    raw?.course?.id ??
+    null;
+
   const idCandidate =
     raw?.id ??
     raw?.classId ??
     raw?.scheduleId ??
     raw?.entryId ??
-    raw?.taughtSubjectId ??
+    taughtSubjectId ??
     raw?.code ??
     `course-${index}`;
 
@@ -202,6 +213,10 @@ function toDashboardCourse(raw: any, index: number): DashboardCourse {
       raw?.classType ?? raw?.type ?? raw?.lessonType ?? raw?.sessionType,
     ),
     instructor,
+    taughtSubjectId:
+      typeof taughtSubjectId === "string" || typeof taughtSubjectId === "number"
+        ? taughtSubjectId
+        : undefined,
   };
 }
 
@@ -433,6 +448,9 @@ export function Dashboard() {
                   location={classItem.location}
                   instructor={classItem.instructor ?? ""}
                   type={classItem.type}
+                  syllabusTaughtSubjectId={
+                    classItem.taughtSubjectId ?? classItem.id
+                  }
                 />
               ))
             )}

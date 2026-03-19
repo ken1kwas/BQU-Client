@@ -261,15 +261,70 @@ export function TeacherCourseDetail({
         [];
       const prevColloquium = s.colloquium ?? Array(COLLOQUIUM_COUNT).fill(null);
       const prevIds = s.colloquiumIds ?? Array(COLLOQUIUM_COUNT).fill(null);
-      const colloquium = [...prevColloquium] as (number | null)[];
-      const colloquiumIds = [...prevIds] as (string | null)[];
+      const colloquium = Array(COLLOQUIUM_COUNT).fill(null) as (number | null)[];
+      const colloquiumIds = Array(COLLOQUIUM_COUNT).fill(
+        null,
+      ) as (string | null)[];
 
-      for (let i = 0; i < Math.min(COLLOQUIUM_COUNT, list.length); i++) {
-        const item = list[i];
+      const remaining = [...list];
+      const idToItem = new Map<string, any>();
+      for (const item of remaining) {
+        const id = item.id ?? item.colloquiumId ?? null;
+        if (id) idToItem.set(String(id), item);
+      }
+
+      // 1) Preserve existing column-to-id mapping to avoid shifting columns.
+      for (let i = 0; i < COLLOQUIUM_COUNT; i++) {
+        const prevId = prevIds[i];
+        if (!prevId) continue;
+        const item = idToItem.get(String(prevId));
+        if (!item) continue;
         const grade = item.grade ?? item.value ?? null;
-        // Treat -1 as null (not graded yet)
-        colloquium[i] = grade === -1 ? null : grade; 
-        colloquiumIds[i] = item.id ?? item.colloquiumId ?? null;
+        colloquium[i] = grade === -1 ? null : grade;
+        colloquiumIds[i] = String(prevId);
+        const idx = remaining.indexOf(item);
+        if (idx >= 0) remaining.splice(idx, 1);
+      }
+
+      // 2) If backend sends an explicit slot/index, honor it.
+      for (const item of [...remaining]) {
+        const rawSlot =
+          item.orderNumber ??
+          item.OrderNumber ??
+          item.colloquiumNumber ??
+          item.number ??
+          item.index ??
+          item.slot ??
+          item.sequence ??
+          item.order ??
+          item.colloquiumIndex ??
+          null;
+        if (rawSlot === null || rawSlot === undefined) continue;
+        const slotNum = Number(rawSlot);
+        if (Number.isNaN(slotNum)) continue;
+        const isOneBased =
+          slotNum >= 1 && slotNum <= COLLOQUIUM_COUNT && slotNum % 1 === 0;
+        const isZeroBased =
+          slotNum >= 0 &&
+          slotNum < COLLOQUIUM_COUNT &&
+          slotNum % 1 === 0;
+        const slot = isOneBased ? slotNum - 1 : isZeroBased ? slotNum : -1;
+        if (slot < 0 || slot >= COLLOQUIUM_COUNT) continue;
+        if (colloquiumIds[slot]) continue;
+        const grade = item.grade ?? item.value ?? null;
+        colloquium[slot] = grade === -1 ? null : grade;
+        colloquiumIds[slot] = item.id ?? item.colloquiumId ?? null;
+        const idx = remaining.indexOf(item);
+        if (idx >= 0) remaining.splice(idx, 1);
+      }
+
+      // 3) Fill the rest by date order (remaining list already sorted).
+      for (const item of remaining) {
+        const slot = colloquiumIds.findIndex((v) => v === null);
+        if (slot === -1) break;
+        const grade = item.grade ?? item.value ?? null;
+        colloquium[slot] = grade === -1 ? null : grade;
+        colloquiumIds[slot] = item.id ?? item.colloquiumId ?? null;
       }
       for (let i = 0; i < COLLOQUIUM_COUNT; i++) {
         if (colloquium[i] === null && prevColloquium[i] != null)
@@ -530,6 +585,8 @@ export function TeacherCourseDetail({
               const attendanceValue = String(
                 source?.attendance ??
                   source?.status ??
+                  source?.isPresent ??
+                  source?.IsPresent ??
                   source?.present ??
                   defaultAttendance,
               ).toLowerCase();
@@ -700,13 +757,24 @@ export function TeacherCourseDetail({
             const cls = classes[i];
 
             if (cls) {
-              const absentRaw = cls.isAbsent ?? cls.IsAbsent;
               const presentRaw = cls.isPresent ?? cls.IsPresent;
+              const absentRaw = cls.isAbsent ?? cls.IsAbsent;
               const gradeVal = cls.grade ?? cls.Grade;
 
               let attendanceState: "present" | "absent" = "absent";
 
-              if (typeof absentRaw === "boolean") {
+              if (typeof presentRaw === "boolean") {
+                attendanceState = presentRaw ? "present" : "absent";
+              } else if (typeof presentRaw === "number") {
+                attendanceState = presentRaw > 0 ? "present" : "absent";
+              } else if (typeof presentRaw === "string") {
+                const normalized = presentRaw.trim().toLowerCase();
+                if (["true", "1", "present", "p"].includes(normalized)) {
+                  attendanceState = "present";
+                } else if (["false", "0", "absent", "a"].includes(normalized)) {
+                  attendanceState = "absent";
+                }
+              } else if (typeof absentRaw === "boolean") {
                 attendanceState = absentRaw ? "absent" : "present";
               } else if (typeof absentRaw === "number") {
                 attendanceState = absentRaw > 0 ? "absent" : "present";
@@ -718,17 +786,6 @@ export function TeacherCourseDetail({
                   ["false", "0", "present", "p"].includes(normalized)
                 ) {
                   attendanceState = "present";
-                }
-              } else if (typeof presentRaw === "boolean") {
-                attendanceState = presentRaw ? "present" : "absent";
-              } else if (typeof presentRaw === "number") {
-                attendanceState = presentRaw > 0 ? "present" : "absent";
-              } else if (typeof presentRaw === "string") {
-                const normalized = presentRaw.trim().toLowerCase();
-                if (["true", "1", "present", "p"].includes(normalized)) {
-                  attendanceState = "present";
-                } else if (["false", "0", "absent", "a"].includes(normalized)) {
-                  attendanceState = "absent";
                 }
               }
 
