@@ -1,6 +1,6 @@
 const BASE_URL =
-  (import.meta as any).env?.VITE_API_BASE_URL ||
-  "http://localhost:5000" ||
+  // (import.meta as any).env?.VITE_API_BASE_URL ||
+  // "http://localhost:5000"
   "https://localhost:7085";
 
 function getToken(): string | null {
@@ -106,29 +106,87 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
   return headers;
 }
 
+function normalizeErrorValue(value: unknown): string | null {
+  if (value == null) return null;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (
+      (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+      (trimmed.startsWith("{") && trimmed.endsWith("}"))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const normalized = normalizeErrorValue(parsed);
+        if (normalized) return normalized;
+      } catch {
+        // Keep the original string when it is not valid JSON.
+      }
+    }
+
+    return trimmed;
+  }
+
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => normalizeErrorValue(item))
+      .filter((item): item is string => Boolean(item));
+    if (!parts.length) return null;
+    return [...new Set(parts)].join(" ");
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const directMessage =
+      normalizeErrorValue(record.responseMessage) ??
+      normalizeErrorValue(record.ResponseMessage) ??
+      normalizeErrorValue(record.errorMessage) ??
+      normalizeErrorValue(record.ErrorMessage) ??
+      normalizeErrorValue(record.message) ??
+      normalizeErrorValue(record.Message) ??
+      normalizeErrorValue(record.error) ??
+      normalizeErrorValue(record.Error);
+
+    if (directMessage) return directMessage;
+
+    if (record.errors && typeof record.errors === "object") {
+      const nestedErrors = Object.entries(record.errors as Record<string, unknown>)
+        .map(([key, val]) => {
+          const normalized = normalizeErrorValue(val);
+          if (!normalized) return null;
+          return /^\d+$/.test(key) ? normalized : `${key}: ${normalized}`;
+        })
+        .filter((item): item is string => Boolean(item));
+
+      if (nestedErrors.length) return nestedErrors.join(" ");
+    }
+
+    const title =
+      normalizeErrorValue(record.title) ?? normalizeErrorValue(record.detail);
+    if (title) return title;
+
+    const values = Object.values(record)
+      .map((item) => normalizeErrorValue(item))
+      .filter((item): item is string => Boolean(item));
+
+    if (values.length) return [...new Set(values)].join(" ");
+  }
+
+  return String(value).trim() || null;
+}
+
 async function parseError(resp: Response): Promise<string> {
   try {
     const ct = resp.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       const j = await resp.json();
-      // Try various possible error message fields
-      return (
-        j?.responseMessage ??
-        j?.ResponseMessage ??
-        j?.errorMessage ??
-        j?.ErrorMessage ??
-        j?.message ??
-        j?.Message ??
-        j?.error ??
-        j?.Error ??
-        (j?.errors && typeof j.errors === "object"
-          ? JSON.stringify(j.errors)
-          : null) ??
-        (j?.title ? `${j.title}${j.detail ? ": " + j.detail : ""}` : null) ??
-        JSON.stringify(j)
-      );
+      return normalizeErrorValue(j) ?? `HTTP ${resp.status} ${resp.statusText}`;
     }
-    return await resp.text();
+
+    const text = await resp.text();
+    return normalizeErrorValue(text) ?? `HTTP ${resp.status} ${resp.statusText}`;
   } catch {
     return `HTTP ${resp.status} ${resp.statusText}`;
   }
@@ -266,6 +324,20 @@ export function logout() {
   localStorage.removeItem("accessToken");
   localStorage.removeItem("jwt");
   localStorage.removeItem("tokenExpiry");
+}
+
+export function checkUserPassword(password: string) {
+  return apiJson<any>("/api/user/check-password", {
+    method: "POST",
+    json: { password },
+  });
+}
+
+export function resetMyPassword(newPassword: string) {
+  return apiJson<any>("/api/user/me/reset-password", {
+    method: "PUT",
+    json: { newPassword },
+  });
 }
 
 export async function getStudentDashboard() {
