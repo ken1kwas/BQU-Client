@@ -293,7 +293,17 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
                   <IdCard className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground">FIN kod</p>
-                    <p>{info.userName || EMPTY_VALUE}</p>
+                    <div className="mt-1">
+                      <p>{info.userName || EMPTY_VALUE}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePasswordDialogChange(true)} className="hidden"
+                      >
+                        <KeyRound className="mr-2 h-4 w-4" />
+                        Şifrəni dəyiş
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

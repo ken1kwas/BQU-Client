@@ -1,6 +1,6 @@
 const BASE_URL =
-  // (import.meta as any).env?.VITE_API_BASE_URL ||
-  // "http://localhost:5000"
+  (import.meta as any).env?.VITE_API_BASE_URL ||
+  "http://localhost:5000" ||
   "https://localhost:7085";
 
 function getToken(): string | null {
@@ -152,7 +152,9 @@ function normalizeErrorValue(value: unknown): string | null {
     if (directMessage) return directMessage;
 
     if (record.errors && typeof record.errors === "object") {
-      const nestedErrors = Object.entries(record.errors as Record<string, unknown>)
+      const nestedErrors = Object.entries(
+        record.errors as Record<string, unknown>,
+      )
         .map(([key, val]) => {
           const normalized = normalizeErrorValue(val);
           if (!normalized) return null;
@@ -186,7 +188,9 @@ async function parseError(resp: Response): Promise<string> {
     }
 
     const text = await resp.text();
-    return normalizeErrorValue(text) ?? `HTTP ${resp.status} ${resp.statusText}`;
+    return (
+      normalizeErrorValue(text) ?? `HTTP ${resp.status} ${resp.statusText}`
+    );
   } catch {
     return `HTTP ${resp.status} ${resp.statusText}`;
   }
