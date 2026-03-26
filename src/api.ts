@@ -1,6 +1,6 @@
 const BASE_URL =
-  (import.meta as any).env?.VITE_API_BASE_URL ||
-  "http://localhost:5000" ||
+  // (import.meta as any).env?.VITE_API_BASE_URL ||
+  // "http://localhost:5000" ||
   "https://localhost:7085";
 
 function getToken(): string | null {
@@ -501,6 +501,11 @@ export async function filterStudents(groupId?: string, year?: number) {
     ? `/api/students/filter-by?${queryString}`
     : `/api/students/filter-by`;
   const raw = await apiJson<any>(url);
+  return unwrapApiResult(raw);
+}
+
+export async function getStudentById(id: string | number) {
+  const raw = await apiJson<any>(`/api/students/${encodeURIComponent(String(id))}`);
   return unwrapApiResult(raw);
 }
 

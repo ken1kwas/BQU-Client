@@ -52,6 +52,10 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Badge } from "./ui/badge";
 import {
+  DeanStudentDetail,
+  type DeanStudentDetailStudent,
+} from "./DeanStudentDetail";
+import {
   listRooms,
   listTeachers,
   listGroups,
@@ -131,7 +135,7 @@ interface Group {
 }
 
 interface Student {
-  id: number;
+  id: string;
   studentId: string;
   name: string;
   email?: string;
@@ -282,7 +286,15 @@ const mapStudentFromApi = (s: any): Student => {
   const fullName = s.fullName ?? constructedName ?? s.name ?? "";
 
   return {
-    id: s.id ?? s.Id ?? s.studentId ?? s.userId ?? 0,
+    id: String(
+      s.id ??
+        s.Id ??
+        s.studentUserId ??
+        s.studentGuid ??
+        s.userId ??
+        s.studentId ??
+        "",
+    ),
     studentId: s.userName ?? s.username ?? s.studentId ?? s.userId ?? "",
     name: fullName,
     email: s.email ?? s.emailAddress ?? "",
@@ -386,9 +398,11 @@ export function DeanManagement() {
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
 
   const [studentForm, setStudentForm] = useState<Partial<Student>>({});
-  const [editingStudentId, setEditingStudentId] = useState<number | null>(null);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isFormatInfoOpen, setIsFormatInfoOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] =
+    useState<DeanStudentDetailStudent | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 10;
@@ -440,14 +454,16 @@ export function DeanManagement() {
   }, []);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [studentSearchQuery, studentGroupFilter, studentYearFilter]);
+
+  useEffect(() => {
     const fetchFilteredStudents = async () => {
       try {
         if (studentSearchQuery) {
           const resp = await searchStudents(studentSearchQuery);
           const studentsArray = toArray(resp);
-          if (studentsArray.length > 0) {
-            setStudents(studentsArray.map(mapStudentFromApi));
-          }
+          setStudents(studentsArray.map(mapStudentFromApi));
         } else if (
           studentGroupFilter !== "all" ||
           studentYearFilter !== "all"
@@ -465,9 +481,7 @@ export function DeanManagement() {
               : undefined;
           const resp = await filterStudents(groupId, year);
           const studentsArray = toArray(resp);
-          if (studentsArray.length > 0) {
-            setStudents(studentsArray.map(mapStudentFromApi));
-          }
+          setStudents(studentsArray.map(mapStudentFromApi));
         } else {
           // Загружаем всех студентов
           let studentsLoaded = false;
@@ -861,17 +875,12 @@ export function DeanManagement() {
     } else {
       const newStudent = {
         ...completeForm,
-        id: Math.max(...students.map((s) => s.id), 0) + 1,
+        id: `local-${Date.now()}`,
       } as Student;
       setStudents([...students, newStudent]);
       toast.success("Student added successfully");
     }
     setStudentForm({});
-  };
-
-  const handleDeleteStudent = (id: number) => {
-    setStudents(students.filter((s) => s.id !== id));
-    toast.success("Student deleted successfully");
   };
 
   const handleFileUpload = async (
@@ -1022,10 +1031,14 @@ export function DeanManagement() {
     }
   };
   const filteredStudents = students;
-  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
-  const startIndex = (currentPage - 1) * studentsPerPage;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredStudents.length / studentsPerPage),
+  );
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * studentsPerPage;
   const endIndex = Math.min(
-    currentPage * studentsPerPage,
+    safeCurrentPage * studentsPerPage,
     filteredStudents.length,
   );
 
@@ -1042,6 +1055,15 @@ export function DeanManagement() {
   const teacherTotalPages = Math.ceil(filteredTeachers.length / teachersPerPage);
   const teacherStartIndex = (teacherCurrentPage - 1) * teachersPerPage + 1;
   const teacherEndIndex = Math.min(teacherCurrentPage * teachersPerPage, filteredTeachers.length);
+
+  if (selectedStudent) {
+    return (
+      <DeanStudentDetail
+        student={selectedStudent}
+        onBack={() => setSelectedStudent(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -1852,7 +1874,13 @@ export function DeanManagement() {
                   {filteredStudents
                     .slice(startIndex, endIndex)
                     .map((student) => (
-                      <TableRow key={student.id}>
+                      <TableRow
+                        key={student.id}
+                        className="cursor-pointer"
+                        onClick={() =>
+                          setSelectedStudent({ id: String(student.id) })
+                        }
+                      >
                         <TableCell className="font-medium">
                           {student.studentId || "-"}
                         </TableCell>
@@ -1861,6 +1889,19 @@ export function DeanManagement() {
                         <TableCell>{student.year ? `${student.year} kurs` : "-"}</TableCell>
                         <TableCell>{student.yearOfAdmission || "-"}</TableCell>
                         <TableCell>{student.admissionScore ?? "-"}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedStudent({ id: String(student.id) });
+                            }}
+                            aria-label={`View ${student.name || "student"}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                 </TableBody>
@@ -1871,22 +1912,22 @@ export function DeanManagement() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">
-                    Səhifə {currentPage}/{totalPages}
+                    Səhifə {safeCurrentPage}/{totalPages}
                   </span>
                   <div className="flex gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(safeCurrentPage - 1)}
+                      disabled={safeCurrentPage === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage(safeCurrentPage + 1)}
+                      disabled={safeCurrentPage >= totalPages}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
