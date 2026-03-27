@@ -25,6 +25,7 @@ import { Dashboard } from "./components/Dashboard";
 import { Schedule } from "./components/Schedule";
 import { Grades } from "./components/Grades";
 import { Profile } from "./components/Profile";
+import { ConfirmEmailPage } from "./components/ConfirmEmailPage";
 import { TeacherCourses } from "./components/TeacherCourses";
 import { TeacherCourseDetail } from "./components/TeacherCourseDetail";
 import { DeanManagement } from "./components/DeanManagement";
@@ -75,6 +76,8 @@ const deanNavigation = [
 ];
 
 export default function App() {
+  const isConfirmEmailRoute = window.location.pathname.endsWith("/confirm-email");
+
   // Control which main view is displayed (dashboard, schedule, etc.)
   const [activeView, setActiveView] = useState("dashboard");
   // Retrieve the JWT from localStorage on initial render.  When the
@@ -239,6 +242,15 @@ export default function App() {
       : userRole === "teacher"
         ? teacherNavigation
         : deanNavigation;
+
+  if (isConfirmEmailRoute) {
+    return (
+      <>
+        <ConfirmEmailPage />
+        <Toaster />
+      </>
+    );
+  }
 
   // If there is no authentication token present then render the
   // LoginPage.  Upon successful login the token will be stored in

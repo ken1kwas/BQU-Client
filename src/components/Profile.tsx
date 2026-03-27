@@ -3,22 +3,29 @@ import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Separator } from "./ui/separator";
 import {
-  Building,
   Award,
-  LogOut,
-  KeyRound,
+  Building,
+  CalendarDays,
+  GraduationCap,
   IdCard,
+  KeyRound,
+  Landmark,
+  LogOut,
+  Mail,
+  Phone,
+  UserSquare2,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import {
+  addMyEmail,
+  changeMyPassword,
   checkUserPassword,
   getDeanProfile,
   getStudentProfile,
   getTeacherProfile,
   logout,
-  resetMyPassword,
 } from "../api";
 import {
   Dialog,
@@ -28,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { toast } from "sonner";
 
 interface ProfileProps {
@@ -66,7 +74,29 @@ function formatDate(value: any): string {
   }
 }
 
-const EMPTY_VALUE = "—";
+const EMPTY_VALUE = "-";
+
+function ProfileInfoTile({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border bg-muted/20 p-4">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 text-muted-foreground">{icon}</div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="mt-1 break-words font-medium text-foreground">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Profile({ userRole = "student" }: ProfileProps = {}) {
   const [raw, setRaw] = useState<any | null>(null);
@@ -79,6 +109,11 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
   const [repeatPassword, setRepeatPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [emailSuccess, setEmailSuccess] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
 
   const isTeacher = userRole === "teacher";
   const isDean = userRole === "dean";
@@ -95,7 +130,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
         else data = await getStudentProfile();
         if (mounted) setRaw(data);
       } catch (err: any) {
-        if (mounted) setError(err?.message || "Profil yüklənmədi");
+        if (mounted) setError(err?.message || "Profil yuklenmedi");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -110,7 +145,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
   const info = useMemo(() => {
     const name = pick(profile, ["name", "firstName", "givenName"]);
     const surname = pick(profile, ["surname", "lastName", "familyName"]);
-    const email = pick(profile, ["email", "mail"]);
+    const email = pick(profile, ["email", "Email", "mail"]);
     const phone = pick(profile, ["phone", "phoneNumber", "mobile", "mobilePhone"]);
     const dateOfBirth = pick(profile, ["dateOfBirth", "birthDate", "dob"]);
     const employeeId = pick(profile, ["employeeId", "employeeID", "staffId", "staffID"]);
@@ -142,6 +177,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
   }, [profile]);
 
   const fullName = `${info.name} ${info.surname}`.trim() || EMPTY_VALUE;
+  const hasEmail = Boolean(String(info.email || "").trim());
   const initials = (fullName === EMPTY_VALUE ? "U" : fullName)
     .split(" ")
     .filter(Boolean)
@@ -163,6 +199,18 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
     if (!open) resetPasswordDialog();
   }
 
+  function resetEmailDialog(nextEmail = info.email || "") {
+    setEmailInput(nextEmail);
+    setEmailError("");
+    setEmailSuccess("");
+    setEmailLoading(false);
+  }
+
+  function handleEmailDialogChange(open: boolean) {
+    setIsEmailDialogOpen(open);
+    resetEmailDialog();
+  }
+
   const handleLogout = () => {
     logout();
     window.location.reload();
@@ -170,7 +218,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
 
   async function handleCheckPassword() {
     if (!currentPassword.trim()) {
-      setPasswordError("Cari şifrəni daxil edin.");
+      setPasswordError("Cari sifreni daxil edin.");
       return;
     }
 
@@ -179,9 +227,9 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
       setPasswordError("");
       await checkUserPassword(currentPassword);
       setPasswordStep("reset");
-      toast.success("Cari şifrə təsdiqləndi.");
+      toast.success("Cari sifre tesdiqlendi.");
     } catch (err: any) {
-      setPasswordError(err?.message || "Cari şifrə yanlışdır.");
+      setPasswordError(err?.message || "Cari sifre yanlisdir.");
     } finally {
       setPasswordLoading(false);
     }
@@ -189,53 +237,91 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
 
   async function handleResetPassword() {
     if (!newPassword.trim() || !repeatPassword.trim()) {
-      setPasswordError("Yeni şifrəni və təkrarını daxil edin.");
+      setPasswordError("Yeni sifreni ve tekrarini daxil edin.");
       return;
     }
 
     if (newPassword !== repeatPassword) {
-      setPasswordError("Yeni şifrələr eyni deyil.");
+      setPasswordError("Yeni sifreler eyni deyil.");
       return;
     }
 
     try {
       setPasswordLoading(true);
       setPasswordError("");
-      await resetMyPassword(newPassword);
-      toast.success("Şifrə uğurla dəyişdirildi.");
+      await changeMyPassword(newPassword);
+      toast.success("Sifre ugurla deyisdirildi.");
       handlePasswordDialogChange(false);
     } catch (err: any) {
-      setPasswordError(err?.message || "Şifrə dəyişdirilmədi.");
+      setPasswordError(err?.message || "Sifre deyisdirilmedi.");
     } finally {
       setPasswordLoading(false);
+    }
+  }
+
+  async function handleAddEmail() {
+    const trimmedEmail = emailInput.trim();
+
+    if (!trimmedEmail) {
+      setEmailError("Email daxil edin.");
+      return;
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(trimmedEmail)) {
+      setEmailError("Duzgun email daxil edin.");
+      return;
+    }
+
+    try {
+      setEmailLoading(true);
+      setEmailError("");
+      setEmailSuccess("");
+      await addMyEmail(trimmedEmail);
+      const successMessage =
+        "Confirmation link sent. Please check your inbox and confirm your email.";
+      setEmailSuccess(successMessage);
+      toast.success(successMessage);
+    } catch (err: any) {
+      setEmailError(err?.message || "Email elave edilmedi.");
+    } finally {
+      setEmailLoading(false);
     }
   }
 
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="mb-2">
               {isDean
                 ? "Admin Profile"
                 : isTeacher
-                  ? "Müəllim Profili"
-                  : "Tələbə Profili"}
+                  ? "Muellim Profili"
+                  : "Telebe Profili"}
             </h1>
-            <p className="text-muted-foreground">
-              Profil məlumatınıza baxın və idarə edin
-            </p>
+            <p className="text-muted-foreground">Profil melumatlariniza baxin ve idare edin</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {!hasEmail && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleEmailDialogChange(true)}
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Add Email
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
               onClick={() => handlePasswordDialogChange(true)}
             >
               <KeyRound className="mr-2 h-4 w-4" />
-              Şifrəni dəyiş
+              Sifreni deyis
             </Button>
             <Button
               variant="outline"
@@ -244,7 +330,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
               className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Çıxış
+              Cixis
             </Button>
           </div>
         </div>
@@ -253,129 +339,121 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
 
         <Card>
           <CardContent className="pt-6">
-            <div className="mb-4 flex flex-col items-start gap-6 md:flex-row">
+            <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
               <Avatar className="h-24 w-24">
                 <AvatarImage src="" alt={fullName} />
                 <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
               </Avatar>
-              <div className="flex-1">
-                <div className="mb-2 flex flex-col gap-3 md:flex-row md:items-center">
-                  <h2>{loading ? "Yüklənir..." : fullName}</h2>
-                  <Badge variant="default">{info.status}</Badge>
+
+              <div className="min-w-0 space-y-6">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                      <h2 className="truncate">{loading ? "Yuklenir..." : fullName}</h2>
+                      <Badge variant="default" className="w-fit">
+                        {info.status}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-1 text-muted-foreground">
+                      {isDean ? (
+                        <>
+                          <p>FIN kod: {info.finCode || EMPTY_VALUE}</p>
+                          <p>{info.roleName || EMPTY_VALUE}</p>
+                        </>
+                      ) : isTeacher ? (
+                        <p>FIN kod: {info.userName || EMPTY_VALUE}</p>
+                      ) : (
+                        <p>{info.faculty || EMPTY_VALUE}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {(isTeacher || isDean) && (
+                    <p className="text-sm text-muted-foreground">
+                      {isDean ? info.roleName || EMPTY_VALUE : info.faculty || EMPTY_VALUE}
+                    </p>
+                  )}
                 </div>
-                <div className="space-y-1 text-muted-foreground">
-                  {isDean ? (
-                    <>
-                      <p>FIN kod: {info.finCode || EMPTY_VALUE}</p>
-                      <p>{info.roleName || EMPTY_VALUE}</p>
-                    </>
-                  ) : isTeacher ? (
-                    <p>FIN kod: {info.userName || EMPTY_VALUE}</p>
-                  ) : (
-                    <p>{info.faculty || EMPTY_VALUE}</p>
+
+                <Separator />
+
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {!isTeacher && !isDean && (
+                    <ProfileInfoTile
+                      icon={<IdCard className="h-4 w-4" />}
+                      label="FIN kod"
+                      value={info.userName || EMPTY_VALUE}
+                    />
+                  )}
+
+                  <ProfileInfoTile
+                    icon={<Building className="h-4 w-4" />}
+                    label="Fakulte"
+                    value={info.faculty || EMPTY_VALUE}
+                  />
+
+                  <ProfileInfoTile
+                    icon={
+                      isDean ? (
+                        <UserSquare2 className="h-4 w-4" />
+                      ) : isTeacher ? (
+                        <Landmark className="h-4 w-4" />
+                      ) : (
+                        <GraduationCap className="h-4 w-4" />
+                      )
+                    }
+                    label={isDean ? "Rol" : isTeacher ? "Kafedra" : "Ixtisas"}
+                    value={
+                      isDean
+                        ? info.roleName || EMPTY_VALUE
+                        : isTeacher
+                          ? info.stateName || EMPTY_VALUE
+                          : info.specialization || EMPTY_VALUE
+                    }
+                  />
+
+                  {info.email && (
+                    <ProfileInfoTile
+                      icon={<Mail className="h-4 w-4" />}
+                      label="Email"
+                      value={info.email}
+                    />
+                  )}
+
+                  {info.phone && (
+                    <ProfileInfoTile
+                      icon={<Phone className="h-4 w-4" />}
+                      label="Telefon"
+                      value={info.phone}
+                    />
+                  )}
+
+                  {info.dateOfBirth && (
+                    <ProfileInfoTile
+                      icon={<CalendarDays className="h-4 w-4" />}
+                      label="Dogum tarixi"
+                      value={formatDate(info.dateOfBirth)}
+                    />
+                  )}
+
+                  {info.admissionYear && !isTeacher && !isDean && (
+                    <ProfileInfoTile
+                      icon={<CalendarDays className="h-4 w-4" />}
+                      label="Qebul ili"
+                      value={info.admissionYear}
+                    />
+                  )}
+
+                  {info.employeeId && (isTeacher || isDean) && (
+                    <ProfileInfoTile
+                      icon={<Award className="h-4 w-4" />}
+                      label="Isci ID"
+                      value={info.employeeId}
+                    />
                   )}
                 </div>
               </div>
-              <div className="flex flex-col gap-2 md:text-right">
-                {(isTeacher || isDean) && (
-                  <p className="text-sm text-muted-foreground">
-                    {isDean ? info.roleName || EMPTY_VALUE : info.faculty || EMPTY_VALUE}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            <div className="grid gap-6 pt-2 md:grid-cols-2">
-              {!isTeacher && !isDean && (
-                <div className="flex items-start gap-3">
-                  <IdCard className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">FIN kod</p>
-                    <div className="mt-1">
-                      <p>{info.userName || EMPTY_VALUE}</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePasswordDialogChange(true)} className="hidden"
-                      >
-                        <KeyRound className="mr-2 h-4 w-4" />
-                        Şifrəni dəyiş
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-start gap-3">
-                <Building className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">Fakültə</p>
-                  <p>{info.faculty || EMPTY_VALUE}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Award className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">
-                    {isDean ? "Rol" : isTeacher ? "Kafedra" : "İxtisas"}
-                  </p>
-                  <p>
-                    {isDean
-                      ? info.roleName || EMPTY_VALUE
-                      : isTeacher
-                        ? info.stateName || EMPTY_VALUE
-                        : info.specialization || EMPTY_VALUE}
-                  </p>
-                </div>
-              </div>
-
-              {info.email && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p>{info.email}</p>
-                  </div>
-                </div>
-              )}
-
-              {info.phone && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Telefon</p>
-                    <p>{info.phone}</p>
-                  </div>
-                </div>
-              )}
-
-              {info.dateOfBirth && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Doğum tarixi</p>
-                    <p>{formatDate(info.dateOfBirth)}</p>
-                  </div>
-                </div>
-              )}
-
-              {info.admissionYear && !isTeacher && !isDean && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Qəbul ili</p>
-                    <p>{info.admissionYear}</p>
-                  </div>
-                </div>
-              )}
-
-              {info.employeeId && (isTeacher || isDean) && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">İşçi ID</p>
-                    <p>{info.employeeId}</p>
-                  </div>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -384,11 +462,11 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
       <Dialog open={isPasswordDialogOpen} onOpenChange={handlePasswordDialogChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Şifrəni dəyiş</DialogTitle>
+            <DialogTitle>Sifreni deyis</DialogTitle>
             <DialogDescription>
               {passwordStep === "check"
-                ? "Əvvəlcə cari şifrənizi təsdiqləyin."
-                : "Yeni şifrənizi daxil edin və təkrarlayın."}
+                ? "Evvelce cari sifrenizi tesdiqleyin."
+                : "Yeni sifrenizi daxil edin ve tekrarini yazin."}
             </DialogDescription>
           </DialogHeader>
 
@@ -396,41 +474,41 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
             {passwordStep === "check" ? (
               <div className="space-y-2">
                 <label htmlFor="current-password" className="text-sm font-medium">
-                  Cari şifrə
+                  Cari sifre
                 </label>
                 <Input
                   id="current-password"
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Cari şifrənizi daxil edin"
+                  placeholder="Cari sifrenizi daxil edin"
                 />
               </div>
             ) : (
               <>
                 <div className="space-y-2">
                   <label htmlFor="new-password" className="text-sm font-medium">
-                    Yeni şifrə
+                    Yeni sifre
                   </label>
                   <Input
                     id="new-password"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Yeni şifrə"
+                    placeholder="Yeni sifre"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label htmlFor="repeat-password" className="text-sm font-medium">
-                    Yeni şifrəni təkrar edin
+                    Yeni sifreni tekrar edin
                   </label>
                   <Input
                     id="repeat-password"
                     type="password"
                     value={repeatPassword}
                     onChange={(e) => setRepeatPassword(e.target.value)}
-                    placeholder="Yeni şifrəni yenidən daxil edin"
+                    placeholder="Yeni sifreni yeniden daxil edin"
                   />
                 </div>
               </>
@@ -465,7 +543,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
               onClick={() => handlePasswordDialogChange(false)}
               disabled={passwordLoading}
             >
-              Bağla
+              Bagla
             </Button>
             <Button
               type="button"
@@ -473,10 +551,65 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
               disabled={passwordLoading}
             >
               {passwordLoading
-                ? "Yoxlanılır..."
+                ? "Yoxlanilir..."
                 : passwordStep === "check"
-                  ? "Şifrəni yoxla"
-                  : "Şifrəni dəyiş"}
+                  ? "Sifreni yoxla"
+                  : "Sifreni deyis"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEmailDialogOpen} onOpenChange={handleEmailDialogChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Email</DialogTitle>
+            <DialogDescription>
+              Enter the email address you want to connect to your account. We will send
+              a confirmation link to that inbox.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="profile-email" className="text-sm font-medium">
+                Email
+              </label>
+              <Input
+                id="profile-email"
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="user@example.com"
+              />
+            </div>
+
+            {emailSuccess && (
+              <Alert>
+                <AlertTitle>Confirmation email sent</AlertTitle>
+                <AlertDescription>{emailSuccess}</AlertDescription>
+              </Alert>
+            )}
+
+            {emailError && (
+              <Alert variant="destructive">
+                <AlertTitle>Unable to add email</AlertTitle>
+                <AlertDescription>{emailError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleEmailDialogChange(false)}
+              disabled={emailLoading}
+            >
+              Close
+            </Button>
+            <Button type="button" onClick={handleAddEmail} disabled={emailLoading}>
+              {emailLoading ? "Sending..." : "Send confirmation link"}
             </Button>
           </DialogFooter>
         </DialogContent>

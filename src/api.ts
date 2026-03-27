@@ -337,10 +337,24 @@ export function checkUserPassword(password: string) {
   });
 }
 
-export function resetMyPassword(newPassword: string) {
-  return apiJson<any>("/api/user/me/reset-password", {
+export function changeMyPassword(newPassword: string) {
+  return apiJson<any>("/api/user/me/change-password", {
     method: "PUT",
     json: { newPassword },
+  });
+}
+
+export function addMyEmail(email: string) {
+  return apiJson<any>("/api/user/me/add-email", {
+    method: "POST",
+    json: { email },
+  });
+}
+
+export function confirmMyEmail(userId: string, token: string) {
+  const query = new URLSearchParams({ userId, token }).toString();
+  return apiJson<any>(`/api/user/me/confirm-email?${query}`, {
+    method: "GET",
   });
 }
 
