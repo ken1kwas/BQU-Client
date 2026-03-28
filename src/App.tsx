@@ -18,6 +18,7 @@ import {
   BarChart3,
   User,
   BookOpen,
+  History,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import { Dashboard } from "./components/Dashboard";
 import { Schedule } from "./components/Schedule";
 import { Grades } from "./components/Grades";
 import { Profile } from "./components/Profile";
+import { StudentSubjectsHistory } from "./components/StudentSubjectsHistory";
 import { ConfirmEmailPage } from "./components/ConfirmEmailPage";
 import { TeacherCourses } from "./components/TeacherCourses";
 import { TeacherCourseDetail } from "./components/TeacherCourseDetail";
@@ -48,6 +50,7 @@ const studentNavigation = [
       { title: "Əsas səhifə", icon: Home, id: "dashboard" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Qiymətləndirmə", icon: BarChart3, id: "grades" },
+      { title: "Subjects History", icon: History, id: "subjects-history" },
       { title: "Profil", icon: User, id: "profile" },
     ],
   },
@@ -229,6 +232,8 @@ export default function App() {
         return <Schedule userRole="student" />;
       case "grades":
         return <Grades />;
+      case "subjects-history":
+        return <StudentSubjectsHistory />;
       case "profile":
         return <Profile />;
       default:

@@ -1,6 +1,6 @@
 const BASE_URL =
-  (import.meta as any).env?.VITE_API_BASE_URL ||
-  "http://localhost:5000" ||
+  // (import.meta as any).env?.VITE_API_BASE_URL ||
+  // "http://localhost:5000" ||
   "https://localhost:7085";
 
 function getToken(): string | null {
@@ -378,6 +378,10 @@ export async function getStudentGrades(scope: string) {
     ? `/api/students/me/grades?${suffix}`
     : `/api/students/me/grades`;
   return apiJson<any>(url);
+}
+
+export async function getStudentAcademicHistory() {
+  return apiJson<any>("/api/students/me/academic-history");
 }
 
 export function markStudentAbsence(studentId: string, classId: string) {
