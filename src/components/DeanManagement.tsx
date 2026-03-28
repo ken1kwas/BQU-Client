@@ -151,6 +151,8 @@ interface Student {
   admissionScore?: number;
 }
 
+const ALLOWED_COURSE_HOURS = [15, 30, 45, 50, 60, 75, 90, 105] as const;
+
 const mapRoomFromApi = (r: any): Room => {
   const typeCode = r.roomType ?? r.type;
   let type: string;
@@ -1241,24 +1243,26 @@ export function DeanManagement() {
                       <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="course-hours">Saat</Label>
-                          <Input
-                            id="course-hours"
-                            type="number"
-                            min="0"
-                            placeholder="m.ü, 60"
-                            value={courseForm.hours || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (value === "") {
-                                setCourseForm({ ...courseForm, hours: undefined });
-                                return;
-                              }
-                              const numValue = parseInt(value, 10);
-                              if (!isNaN(numValue) && numValue >= 0) {
-                                setCourseForm({ ...courseForm, hours: numValue });
-                              }
-                            }}
-                          />
+                          <Select
+                            value={courseForm.hours?.toString() || ""}
+                            onValueChange={(value) =>
+                              setCourseForm({
+                                ...courseForm,
+                                hours: value ? parseInt(value, 10) : undefined,
+                              })
+                            }
+                          >
+                            <SelectTrigger id="course-hours">
+                              <SelectValue placeholder="Saat seçin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ALLOWED_COURSE_HOURS.map((hours) => (
+                                <SelectItem key={hours} value={hours.toString()}>
+                                  {hours}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="course-year">Kurs</Label>
