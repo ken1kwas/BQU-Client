@@ -1256,6 +1256,92 @@ export function TeacherCourseDetail({
     );
   };
 
+  const buildAssignmentSavePayload = () => {
+    return Array.from(pendingAssignmentChanges.current.values())
+      .filter((change) => change.independentWorkId !== null)
+      .map((change) => ({
+        independentWorkId: change.independentWorkId!,
+        isPassed: change.isPassed,
+      }));
+  };
+
+  const markStudentAssignmentsPassed = async (studentId: string | number) => {
+    const targetStudent = students.find(
+      (student) => String(student.id) === String(studentId),
+    );
+
+    if (!targetStudent) {
+      toast.error("Student not found");
+      return;
+    }
+
+    let updatedCount = 0;
+    let missingIdsCount = 0;
+
+    setStudents((prevStudents) =>
+      prevStudents.map((student) => {
+        if (String(student.id) !== String(studentId)) {
+          return student;
+        }
+
+        const nextAssignments = [...student.assignments];
+        const nextAssignmentIds =
+          student.assignmentIds ?? Array(ASSIGNMENTS_COUNT).fill(null);
+
+        for (let index = 0; index < ASSIGNMENTS_COUNT; index++) {
+          const independentWorkId = nextAssignmentIds[index] ?? null;
+          nextAssignments[index] = 1;
+
+          if (independentWorkId) {
+            updatedCount += 1;
+            pendingAssignmentChanges.current.set(independentWorkId, {
+              studentId: String(student.id),
+              assignmentIndex: index,
+              independentWorkId,
+              isPassed: true,
+            });
+          } else {
+            missingIdsCount += 1;
+          }
+        }
+
+        return { ...student, assignments: nextAssignments };
+      }),
+    );
+
+    const changesWithIds = buildAssignmentSavePayload();
+
+    if (changesWithIds.length === 0) {
+      toast.error("No independent work IDs found. Please refresh the page.");
+      return;
+    }
+
+    setIsSendingAssignments(true);
+
+    try {
+      await markIndependentWorkGrade(changesWithIds);
+
+      for (let index = 0; index < ASSIGNMENTS_COUNT; index++) {
+        const independentWorkId = targetStudent.assignmentIds?.[index] ?? null;
+        const changeKey = independentWorkId || `${targetStudent.id}:${index}`;
+        pendingAssignmentChanges.current.delete(changeKey);
+      }
+
+      if (missingIdsCount > 0) {
+        toast.success(
+          `${targetStudent.name}: marked ${updatedCount} independent work(s) as passed. ${missingIdsCount} item(s) could not be sent because their IDs are missing.`,
+        );
+      } else {
+        toast.success(`${targetStudent.name}: marked all works as passed.`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to mark student's assignments as passed");
+      await loadCourseData();
+    } finally {
+      setIsSendingAssignments(false);
+    }
+  };
+
   const applyBulkValue = useCallback(
     async (value: string) => {
       if (selectedColumn === null || !value) return;
@@ -1458,22 +1544,14 @@ export function TeacherCourseDetail({
   const sendAssignments = async () => {
     setIsSendingAssignments(true);
 
-    const changes = Array.from(pendingAssignmentChanges.current.values());
-
-    if (changes.length === 0) {
+    if (pendingAssignmentChanges.current.size === 0) {
       toast.info("No changes to save");
       setIsSendingAssignments(false);
       return;
     }
 
     try {
-      // Filter out only changes that have independentWorkId
-      const changesWithIds = changes
-        .filter((change) => change.independentWorkId !== null)
-        .map((change) => ({
-          independentWorkId: change.independentWorkId!,
-          isPassed: change.isPassed,
-        }));
+      const changesWithIds = buildAssignmentSavePayload();
 
       if (changesWithIds.length === 0) {
         toast.error("No independent work IDs found. Please refresh the page.");
@@ -1871,6 +1949,7 @@ export function TeacherCourseDetail({
                           </TableHead>
                         ),
                       )}
+                      <TableHead className="text-center">Pass</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1904,6 +1983,19 @@ export function TeacherCourseDetail({
                             </Button>
                           </TableCell>
                         ))}
+                        <TableCell className="text-center">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              markStudentAssignmentsPassed(student.id)
+                            }
+                            disabled={isSendingAssignments || isLoading}
+                          >
+                            <Check className="h-4 w-4 mr-2" />
+                            Pass all
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
