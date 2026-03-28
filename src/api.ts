@@ -1,6 +1,6 @@
 const BASE_URL =
-  // (import.meta as any).env?.VITE_API_BASE_URL ||
-  // "http://localhost:5000" ||
+  (import.meta as any).env?.VITE_API_BASE_URL ||
+  "http://localhost:5000" ||
   "https://localhost:7085";
 
 function getToken(): string | null {
@@ -321,6 +321,24 @@ export async function signIn(username: string, password: string) {
   }
 
   return res;
+}
+
+export function forgotPassword(email: string) {
+  return apiJson<any>("/api/auth/forgot-password", {
+    method: "POST",
+    json: { email },
+  });
+}
+
+export function resetPassword(
+  userId: string,
+  token: string,
+  newPassword: string,
+) {
+  return apiJson<any>("/api/auth/reset-password", {
+    method: "POST",
+    json: { userId, token, newPassword },
+  });
 }
 
 export function logout() {

@@ -1,22 +1,16 @@
 import { useState } from "react";
-import { signIn } from "./api";
+
+import { forgotPassword, signIn } from "./api";
+import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
+import { Button } from "./components/ui/button";
+import { Card, CardContent } from "./components/ui/card";
+import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
 
 interface LoginPageProps {
-  /**
-   * Called when a user successfully authenticates.  The caller
-   * should update application state (e.g. store role) and navigate
-   * away from the login screen.
-   */
   onLoginSuccess: (role: string | undefined) => void;
 }
 
-/**
- * Login screen for the LMS application.  This component is largely
- * based off of a design provided in another project.  The colours
- * and typography have been adapted to match the existing LMS
- * styling by leaning on our CSS variables.  Tailwind classes are
- * used for layout and spacing.
- */
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -24,111 +18,203 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState("");
+  const [forgotError, setForgotError] = useState("");
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
     if (!login || !password) {
       setError("Enter login and password");
       return;
     }
+
     try {
       setLoading(true);
       const res = await signIn(login, password);
-      // Attempt to derive the role from the response.  Some
-      // implementations return it explicitly as `roleName`.  If it
-      // isn't present we fall back to undefined and allow the app
-      // component to probe the appropriate profile endpoints.
       const role = (res as any).roleName as string | undefined;
       onLoginSuccess(role);
     } catch (err: any) {
-      setError(err.message || "Ошибка входа. Попробуйте ещё раз.");
+      setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  async function onForgotPasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotError("");
+    setForgotMessage("");
+
+    if (!email.trim()) {
+      setForgotError("Please enter your email address.");
+      return;
+    }
+
+    try {
+      setForgotLoading(true);
+      await forgotPassword(email.trim());
+      setForgotMessage(
+        "If this email exists, a reset link has been sent.",
+      );
+    } catch (err: any) {
+      setForgotError(
+        err?.message || "We could not process your request right now.",
+      );
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <div className="flex-1 flex items-center justify-center px-4">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <div className="flex flex-1 items-center justify-center px-4">
         <div className="w-full max-w-md">
-          <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border border-border">
-            <div className="mb-4 text-center">
-              <h2 className="text-2xl font-semibold">BQU LMS-ə daxil olun</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                LMS hesabınızdan istifadə edin
-              </p>
-            </div>
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="text"
-                  className="block text-sm font-medium mb-1"
-                >
-                  Daxil ol
-                </label>
-                <input
-                  id="pin"
-                  type="text"
-                  autoComplete="username"
-                  value={login}
-                  onChange={(e) => setLogin(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-input-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="FIN kodunuzu daxil edin"
-                />
+          <Card className="rounded-2xl border border-border shadow-lg">
+            <CardContent className="p-6 sm:p-8">
+              <div className="mb-6 text-center">
+                <h2 className="text-2xl font-semibold">BQU LMS-ə daxil olun</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  LMS hesabınızdan istifadə edin
+                </p>
               </div>
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium mb-1"
-                >
-                  Şifrə
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-input-background px-3 py-2 pr-12 outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute inset-y-0 right-2 my-auto h-10 px-2 text-xs text-muted-foreground hover:text-foreground"
-                    aria-label={
-                      showPassword ? "Скрыть пароль" : "Показать пароль"
-                    }
-                  >
-                    {showPassword ? "Gizlət" : "Göstər"}
-                  </button>
-                </div>
-              </div>
-              {error && (
-                <div className="text-sm text-destructive" role="alert">
-                  {error}
-                </div>
+
+              {!showForgotPassword ? (
+                <form onSubmit={onSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login">Daxil ol</Label>
+                    <Input
+                      id="login"
+                      type="text"
+                      autoComplete="username"
+                      value={login}
+                      onChange={(e) => setLogin(e.target.value)}
+                      placeholder="FIN kodunuzu daxil edin"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Şifrə</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pr-20"
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((value) => !value)}
+                        className="absolute inset-y-0 right-2 my-auto h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? "Gizlət" : "Göstər"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div className="text-sm text-destructive" role="alert">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-sm">
+                    <label className="inline-flex select-none items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      Yadda Saxla
+                    </label>
+                    <button
+                      type="button"
+                      className="font-medium text-primary hover:underline"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setError("");
+                        setForgotError("");
+                        setForgotMessage("");
+                      }}
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Daxil oluruq..." : "Daxil ol"}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={onForgotPasswordSubmit} className="space-y-4">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-semibold">Forgot password</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Enter your email and we&apos;ll send you a reset link.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="user@example.com"
+                    />
+                  </div>
+
+                  {forgotMessage && (
+                    <Alert>
+                      <AlertTitle>Check your inbox</AlertTitle>
+                      <AlertDescription>{forgotMessage}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {forgotError && (
+                    <Alert variant="destructive">
+                      <AlertTitle>Unable to send reset link</AlertTitle>
+                      <AlertDescription>{forgotError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="flex gap-3">
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={forgotLoading}
+                    >
+                      {forgotLoading ? "Sending..." : "Send reset link"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setForgotError("");
+                      }}
+                    >
+                      Back to login
+                    </Button>
+                  </div>
+                </form>
               )}
-              <div className="flex items-center justify-between text-sm">
-                <label className="inline-flex items-center gap-2 select-none">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-border"
-                  />
-                  Yadda Saxla
-                </label>
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-xl bg-primary text-primary-foreground py-2 font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-              >
-                {loading ? "Daxil oluruq…" : "Daxil ol"}
-              </button>
-            </form>
-          </div>
-          <div className="text-center text-xs text-muted-foreground mt-4">
+            </CardContent>
+          </Card>
+
+          <div className="mt-4 text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} Bakı Qızlar Universiteti
           </div>
         </div>

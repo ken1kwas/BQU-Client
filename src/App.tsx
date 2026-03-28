@@ -28,6 +28,7 @@ import { Grades } from "./components/Grades";
 import { Profile } from "./components/Profile";
 import { StudentSubjectsHistory } from "./components/StudentSubjectsHistory";
 import { ConfirmEmailPage } from "./components/ConfirmEmailPage";
+import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { TeacherCourses } from "./components/TeacherCourses";
 import { TeacherCourseDetail } from "./components/TeacherCourseDetail";
 import { DeanManagement } from "./components/DeanManagement";
@@ -80,6 +81,8 @@ const deanNavigation = [
 
 export default function App() {
   const isConfirmEmailRoute = window.location.pathname.endsWith("/confirm-email");
+  const isResetPasswordRoute =
+    window.location.pathname.endsWith("/reset-password");
 
   // Control which main view is displayed (dashboard, schedule, etc.)
   const [activeView, setActiveView] = useState("dashboard");
@@ -252,6 +255,15 @@ export default function App() {
     return (
       <>
         <ConfirmEmailPage />
+        <Toaster />
+      </>
+    );
+  }
+
+  if (isResetPasswordRoute) {
+    return (
+      <>
+        <ResetPasswordPage />
         <Toaster />
       </>
     );
