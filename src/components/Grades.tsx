@@ -347,7 +347,7 @@ export function GradesOverview({
                               : null,
                           ]
                             .filter(Boolean)
-                            .join(" â€¢ ") || ""}
+                            .join(" -- ") || ""}
                         </CardDescription>
                       </div>
                     </div>
@@ -355,7 +355,7 @@ export function GradesOverview({
                   <CardContent className="space-y-4">
                     <div className="-mt-4 space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span>Ãœmumi bal</span>
+                        <span>Ümumi bal</span>
                         <span>{Math.round(course.scoreOutOf50)}/50</span>
                       </div>
                       <Progress value={course.percentage} />
@@ -365,7 +365,7 @@ export function GradesOverview({
                       <div className="grid grid-cols-2 gap-6 text-sm">
                         <div>
                           <p className="mb-2 text-muted-foreground">
-                            Seminar ballarÄ±
+                            Seminar balları
                           </p>
                           <div className="flex flex-wrap items-center gap-1.5">
                             {course.seminarGrades.length > 0 ? (
@@ -410,7 +410,7 @@ export function GradesOverview({
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="text-sm text-muted-foreground">
-                            SÉ™rbÉ™st iÅŸlÉ™r
+                            Sərbəst işlər
                           </span>
                           <span className="text-sm text-muted-foreground">
                             {assignmentRatio}
@@ -440,7 +440,7 @@ export function GradesOverview({
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="text-sm text-muted-foreground">
-                            DavamiyyÉ™t
+                            Davamiyyət
                           </span>
                           <span className="text-sm text-muted-foreground">
                             {attendanceRatio}

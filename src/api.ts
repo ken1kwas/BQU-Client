@@ -709,6 +709,7 @@ export function createTaughtSubject(req: {
     day: number;
     room: string;
     frequency: number;
+    classType: number | null;
   }>;
   year: number;
   semester: number;

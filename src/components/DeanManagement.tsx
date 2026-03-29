@@ -41,6 +41,7 @@ import {
 } from "./ui/table";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Checkbox } from "./ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -150,6 +151,27 @@ interface Student {
   yearOfAdmission?: string;
   admissionScore?: number;
 }
+
+type CourseFormClassTime = {
+  start: string;
+  end: string;
+  day: number;
+  room: string;
+  frequency: number;
+  classType?: number | null;
+};
+
+type GeneratedClassPreview = {
+  key: string;
+  sourceIndex: number;
+  sequence: number;
+  dateLabel: string;
+  day: number;
+  room: string;
+  start: string;
+  end: string;
+  classType: number;
+};
 
 const ALLOWED_COURSE_HOURS = [15, 30, 45, 50, 60, 75, 90, 105] as const;
 
@@ -381,6 +403,100 @@ const DAY_LABELS: Record<number, string> = {
   7: "Bazar günü"
 };
 
+const CLASS_TYPE_OPTIONS = [
+  { value: 0, label: "Lecture" },
+  { value: 1, label: "Seminar" },
+] as const;
+
+function formatGeneratedClassDate(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function buildGeneratedClassPreview(
+  classTimes: CourseFormClassTime[],
+  hours?: number,
+  year?: number,
+  semester?: number,
+): GeneratedClassPreview[] {
+  const totalClasses = Math.floor(Number(hours ?? 0) / 2);
+  if (totalClasses <= 0 || !year || !semester) return [];
+
+  const usableClassTimes = classTimes.filter(
+    (dto) =>
+      Boolean(dto.start) &&
+      Boolean(dto.end) &&
+      Boolean(dto.room?.trim()) &&
+      Number(dto.day) >= 1 &&
+      Number(dto.day) <= 7 &&
+      Number(dto.frequency) >= 1 &&
+      Number(dto.frequency) <= 3,
+  );
+  if (usableClassTimes.length === 0) return [];
+
+  const yearToUse = new Date().getFullYear();
+  const semesterStartDate =
+    semester % 2 === 1
+      ? new Date(Date.UTC(yearToUse, 8, 14))
+      : new Date(Date.UTC(yearToUse, 1, 14));
+
+  let startDayOfWeek = semesterStartDate.getUTCDay();
+  if (startDayOfWeek === 0) startDayOfWeek = 7;
+  const daysUntilMonday = startDayOfWeek === 1 ? 0 : 8 - startDayOfWeek;
+  const firstMonday = new Date(semesterStartDate);
+  firstMonday.setUTCDate(firstMonday.getUTCDate() + daysUntilMonday);
+
+  const preview: GeneratedClassPreview[] = [];
+  let isLecturer = true;
+  let classesCreated = 0;
+  let weekNumber = 1;
+
+  while (classesCreated < totalClasses && weekNumber <= 200) {
+    const isUpperWeek = weekNumber % 2 === 1;
+    const currentWeekMonday = new Date(firstMonday);
+    currentWeekMonday.setUTCDate(
+      currentWeekMonday.getUTCDate() + (weekNumber - 1) * 7,
+    );
+
+    usableClassTimes.forEach((dto, sourceIndex) => {
+      if (classesCreated >= totalClasses) return;
+
+      const fires =
+        dto.frequency === 3 ||
+        (dto.frequency === 2 && isUpperWeek) ||
+        (dto.frequency === 1 && !isUpperWeek);
+
+      if (!fires) return;
+
+      const classDate = new Date(currentWeekMonday);
+      classDate.setUTCDate(classDate.getUTCDate() + Number(dto.day) - 1);
+      const sequence = classesCreated + 1;
+
+      preview.push({
+        key: `${sourceIndex}-${weekNumber}-${sequence}`,
+        sourceIndex,
+        sequence,
+        dateLabel: formatGeneratedClassDate(classDate),
+        day: Number(dto.day),
+        room: dto.room,
+        start: dto.start,
+        end: dto.end,
+        classType: dto.classType ?? (isLecturer ? 0 : 1),
+      });
+
+      isLecturer = !isLecturer;
+      classesCreated++;
+    });
+
+    weekNumber++;
+  }
+
+  return preview;
+}
+
 const mapCourseFromApi = (c: any): Course => {
   const teacher = c.teacher ?? {};
   const group = c.group ?? {};
@@ -440,7 +556,8 @@ export function DeanManagement() {
         hours?: number;
         year?: number;
         semester?: number;
-        classTimes?: any[];
+        classTimes?: CourseFormClassTime[];
+        autoCreateClassTypes?: boolean;
       }
     >
   >({});
@@ -659,11 +776,14 @@ export function DeanManagement() {
 
   const handleAddCourse = () => {
     setCourseForm({
-      classTimes: [{ start: "", end: "", day: 1, room: "", frequency: 3 }],
+      classTimes: [
+        { start: "", end: "", day: 1, room: "", frequency: 3, classType: null },
+      ],
       credits: 0,
       hours: 0,
       year: 1,
       semester: 1,
+      autoCreateClassTypes: true,
     });
     setEditingCourseId(null);
     setIsCourseDialogOpen(true);
@@ -672,7 +792,10 @@ export function DeanManagement() {
   const addClassTime = () => {
     setCourseForm({
       ...courseForm,
-      classTimes: [...(courseForm.classTimes || []), { start: "", end: "", day: 1, room: "", frequency: 3 }]
+      classTimes: [
+        ...(courseForm.classTimes || []),
+        { start: "", end: "", day: 1, room: "", frequency: 3, classType: null },
+      ]
     });
   };
 
@@ -682,7 +805,11 @@ export function DeanManagement() {
     setCourseForm({ ...courseForm, classTimes: newClassTimes });
   };
 
-  const updateClassTime = (index: number, field: keyof any, value: string | number) => {
+  const updateClassTime = (
+    index: number,
+    field: keyof CourseFormClassTime,
+    value: string | number | null,
+  ) => {
     const newClassTimes = [...(courseForm.classTimes || [])];
     newClassTimes[index] = { ...newClassTimes[index], [field]: value };
     setCourseForm({ ...courseForm, classTimes: newClassTimes });
@@ -706,6 +833,7 @@ export function DeanManagement() {
     setCourseForm({
       ...course,
       departmentId: dept?.id?.toString(),
+      autoCreateClassTypes: true,
     });
     setEditingCourseId(course.id);
     setIsCourseDialogOpen(true);
@@ -766,11 +894,19 @@ export function DeanManagement() {
           return;
         }
 
+        const autoCreateClassTypes = courseForm.autoCreateClassTypes !== false;
+        const generatedClasses = buildGeneratedClassPreview(
+          courseForm.classTimes || [],
+          courseForm.hours,
+          courseForm.year,
+          courseForm.semester,
+        );
+
         const validClassTimes = (courseForm.classTimes || [])
-          .filter((ct: any) => {
+          .filter((ct: CourseFormClassTime) => {
             return ct.start && ct.end && ct.room && ct.room.trim() && ct.day && ct.frequency !== undefined;
           })
-          .map((ct: any) => {
+          .map((ct: CourseFormClassTime) => {
             const startTime = ensureHHMMSS(ct.start);
             const endTime = ensureHHMMSS(ct.end);
             const day = Number(ct.day);
@@ -796,8 +932,20 @@ export function DeanManagement() {
               day: day,
               room: room,
               frequency: frequency,
+              classType: autoCreateClassTypes ? null : (ct.classType ?? null),
             };
           });
+
+        if (!autoCreateClassTypes) {
+          if (generatedClasses.length === 0) {
+            toast.error("Add hours and complete class times to generate classes");
+            return;
+          }
+          if (validClassTimes.some((classTime) => classTime.classType === null || classTime.classType === undefined)) {
+            toast.error("Select a class type for each class time");
+            return;
+          }
+        }
 
         const requestPayload = {
           code: String(courseForm.code).trim(),
@@ -1122,6 +1270,12 @@ export function DeanManagement() {
   const teacherTotalPages = Math.ceil(filteredTeachers.length / teachersPerPage);
   const teacherStartIndex = (teacherCurrentPage - 1) * teachersPerPage + 1;
   const teacherEndIndex = Math.min(teacherCurrentPage * teachersPerPage, filteredTeachers.length);
+  const generatedClassPreview = buildGeneratedClassPreview(
+    courseForm.classTimes || [],
+    courseForm.hours,
+    courseForm.year,
+    courseForm.semester,
+  );
 
   if (selectedStudent) {
     return (
@@ -1363,6 +1517,35 @@ export function DeanManagement() {
                         </div>
                       </div>
 
+                      {!editingCourseId && (
+                        <div className="space-y-2">
+                          <Label className="text-sm">Class type mode</Label>
+                          <div className="flex items-start gap-3 rounded-md border p-3">
+                            <Checkbox
+                              id="course-auto-create-class-types"
+                              checked={courseForm.autoCreateClassTypes !== false}
+                              onCheckedChange={(checked) =>
+                                setCourseForm({
+                                  ...courseForm,
+                                  autoCreateClassTypes: checked !== false,
+                                })
+                              }
+                            />
+                            <div className="space-y-1">
+                              <Label
+                                htmlFor="course-auto-create-class-types"
+                                className="cursor-pointer"
+                              >
+                                Auto create class types
+                              </Label>
+                              <p className="text-sm text-muted-foreground">
+                                Checked sends <code>classType: null</code>. Unchecked lets you set a type for each schedule slot and preview the generated classes below.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label>Dərs Vaxtları</Label>
@@ -1480,6 +1663,32 @@ export function DeanManagement() {
                                     </Select>
                                   </div>
                                 </div>
+                                {courseForm.autoCreateClassTypes === false && (
+                                  <div className="space-y-2">
+                                    <Label>Class type for this schedule slot</Label>
+                                    <Select
+                                      value={
+                                        classTime.classType === null || classTime.classType === undefined
+                                          ? ""
+                                          : String(classTime.classType)
+                                      }
+                                      onValueChange={(value) =>
+                                        updateClassTime(index, "classType", Number(value))
+                                      }
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select class type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {CLASS_TYPE_OPTIONS.map((option) => (
+                                          <SelectItem key={option.value} value={String(option.value)}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
                                 {(courseForm.classTimes || []).length > 1 && (
                                   <Button
                                     type="button"
@@ -1496,6 +1705,42 @@ export function DeanManagement() {
                           ))}
                         </div>
                       </div>
+                      {!editingCourseId && courseForm.autoCreateClassTypes === false && (
+                        <div className="space-y-3">
+                          <div>
+                            <Label>Generated classes</Label>
+                            <p className="text-sm text-muted-foreground">
+                              Preview of the classes that will be created from the schedule slots above.
+                            </p>
+                          </div>
+                          {generatedClassPreview.length === 0 ? (
+                            <Card className="p-4 text-sm text-muted-foreground">
+                              Add hours and at least one complete class time to see generated classes.
+                            </Card>
+                          ) : (
+                            <div className="space-y-3">
+                              {generatedClassPreview.map((generatedClass) => (
+                                <Card key={generatedClass.key} className="p-4">
+                                  <div className="grid gap-3 md:grid-cols-[1.2fr_1fr] md:items-end">
+                                    <div className="space-y-1">
+                                      <p className="font-medium">Class {generatedClass.sequence}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {generatedClass.dateLabel} • {DAY_LABELS[generatedClass.day]} • {generatedClass.start}-{generatedClass.end} • {generatedClass.room}
+                                      </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label>Class type</Label>
+                                      <p className="text-sm font-medium">
+                                        {generatedClass.classType === 0 ? "Lecture" : "Seminar"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" onClick={() => setIsCourseDialogOpen(false)}>Bağla</Button>

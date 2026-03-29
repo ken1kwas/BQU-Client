@@ -11,17 +11,13 @@ import {
   Users,
 } from "lucide-react";
 import { getStudentById } from "../api";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import {
-  GradesOverview,
-  type GradeCourse,
-  normalizeCourseList,
-} from "./Grades";
+import type { GradeCourse } from "./Grades";
+import * as GradesModule from "./Grades";
 
 export interface DeanStudentDetailStudent {
   id: string;
@@ -154,7 +150,7 @@ export function DeanStudentDetail({
   }, [details]);
 
   const grades = useMemo<GradeCourse[]>(
-    () => normalizeCourseList(details?.grades ?? null),
+    () => GradesModule.normalizeCourseList(details?.grades ?? null),
     [details],
   );
 
@@ -348,7 +344,7 @@ export function DeanStudentDetail({
               </div>
             </CardHeader>
             <CardContent>
-              <GradesOverview
+              <GradesModule.GradesOverview
                 grades={grades}
                 loading={loading}
                 emptyMessage="No grades available for this student."
