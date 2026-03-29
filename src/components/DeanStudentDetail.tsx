@@ -17,7 +17,11 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { GradesOverview, normalizeCourseList } from "./Grades";
+import {
+  GradesOverview,
+  type GradeCourse,
+  normalizeCourseList,
+} from "./Grades";
 
 export interface DeanStudentDetailStudent {
   id: string;
@@ -46,7 +50,11 @@ interface StudentDetailResponse {
   admissionScore?: number;
   email?: string | null;
   todayClasses?: StudentClass[];
-  grades?: any;
+  grades?: StudentGradesDto | null;
+}
+
+interface StudentGradesDto {
+  academicPerformance?: unknown[];
 }
 
 interface DeanStudentDetailProps {
@@ -145,7 +153,10 @@ export function DeanStudentDetail({
     };
   }, [details]);
 
-  const grades = useMemo(() => normalizeCourseList(details?.grades), [details]);
+  const grades = useMemo<GradeCourse[]>(
+    () => normalizeCourseList(details?.grades ?? null),
+    [details],
+  );
 
   const fullName = info.name || "Student";
   const courseLabel = info.course ? `${info.course} course` : EMPTY_VALUE;
