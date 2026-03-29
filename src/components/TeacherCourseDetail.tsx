@@ -1265,6 +1265,17 @@ export function TeacherCourseDetail({
       }));
   };
 
+  const saveIndependentWorkGrades = async (
+    grades: Array<{
+      independentWorkId: string;
+      isPassed: boolean | null;
+    }>,
+  ) => {
+    for (const grade of grades) {
+      await markIndependentWorkGrade([grade]);
+    }
+  };
+
   const markStudentAssignmentsPassed = async (studentId: string | number) => {
     const targetStudent = students.find(
       (student) => String(student.id) === String(studentId),
@@ -1275,41 +1286,44 @@ export function TeacherCourseDetail({
       return;
     }
 
+    const nextAssignmentIds =
+      targetStudent.assignmentIds ?? Array(ASSIGNMENTS_COUNT).fill(null);
+    const nextAssignments = [...targetStudent.assignments];
+    const changesWithIds: Array<{
+      independentWorkId: string;
+      isPassed: boolean | null;
+    }> = [];
     let updatedCount = 0;
     let missingIdsCount = 0;
 
+    for (let index = 0; index < ASSIGNMENTS_COUNT; index++) {
+      const independentWorkId = nextAssignmentIds[index] ?? null;
+      nextAssignments[index] = 1;
+
+      if (independentWorkId) {
+        updatedCount += 1;
+        pendingAssignmentChanges.current.set(independentWorkId, {
+          studentId: String(targetStudent.id),
+          assignmentIndex: index,
+          independentWorkId,
+          isPassed: true,
+        });
+        changesWithIds.push({
+          independentWorkId,
+          isPassed: true,
+        });
+      } else {
+        missingIdsCount += 1;
+      }
+    }
+
     setStudents((prevStudents) =>
-      prevStudents.map((student) => {
-        if (String(student.id) !== String(studentId)) {
-          return student;
-        }
-
-        const nextAssignments = [...student.assignments];
-        const nextAssignmentIds =
-          student.assignmentIds ?? Array(ASSIGNMENTS_COUNT).fill(null);
-
-        for (let index = 0; index < ASSIGNMENTS_COUNT; index++) {
-          const independentWorkId = nextAssignmentIds[index] ?? null;
-          nextAssignments[index] = 1;
-
-          if (independentWorkId) {
-            updatedCount += 1;
-            pendingAssignmentChanges.current.set(independentWorkId, {
-              studentId: String(student.id),
-              assignmentIndex: index,
-              independentWorkId,
-              isPassed: true,
-            });
-          } else {
-            missingIdsCount += 1;
-          }
-        }
-
-        return { ...student, assignments: nextAssignments };
-      }),
+      prevStudents.map((student) =>
+        String(student.id) === String(studentId)
+          ? { ...student, assignments: nextAssignments }
+          : student,
+      ),
     );
-
-    const changesWithIds = buildAssignmentSavePayload();
 
     if (changesWithIds.length === 0) {
       toast.error("No independent work IDs found. Please refresh the page.");
@@ -1319,7 +1333,7 @@ export function TeacherCourseDetail({
     setIsSendingAssignments(true);
 
     try {
-      await markIndependentWorkGrade(changesWithIds);
+      await saveIndependentWorkGrades(changesWithIds);
 
       for (let index = 0; index < ASSIGNMENTS_COUNT; index++) {
         const independentWorkId = targetStudent.assignmentIds?.[index] ?? null;
@@ -1559,7 +1573,7 @@ export function TeacherCourseDetail({
         return;
       }
 
-      await markIndependentWorkGrade(changesWithIds);
+      await saveIndependentWorkGrades(changesWithIds);
 
       toast.success(
         `Successfully saved ${changesWithIds.length} assignment(s)`,

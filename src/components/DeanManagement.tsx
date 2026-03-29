@@ -153,6 +153,58 @@ interface Student {
 
 const ALLOWED_COURSE_HOURS = [15, 30, 45, 50, 60, 75, 90, 105] as const;
 
+const CLASS_TIME_PRESETS = [
+  {
+    id: "shift-1-slot-1",
+    label: "1-ci novbe 1",
+    description: "Kurs 1,3",
+    start: "08:30",
+    end: "10:05",
+  },
+  {
+    id: "shift-1-slot-2",
+    label: "1-ci novbe 2",
+    description: "Kurs 1,3",
+    start: "10:15",
+    end: "11:50",
+  },
+  {
+    id: "shift-1-slot-3",
+    label: "1-ci novbe 3",
+    description: "Kurs 1,3",
+    start: "12:00",
+    end: "13:35",
+  },
+  {
+    id: "shift-2-slot-1",
+    label: "2-ci novbe 1",
+    description: "Kurs 2,4",
+    start: "13:50",
+    end: "15:25",
+  },
+  {
+    id: "shift-2-slot-2",
+    label: "2-ci novbe 2",
+    description: "Kurs 2,4",
+    start: "15:35",
+    end: "17:10",
+  },
+  {
+    id: "shift-2-slot-3",
+    label: "2-ci novbe 3",
+    description: "Kurs 2,4",
+    start: "17:20",
+    end: "18:55",
+  },
+] as const;
+
+const findClassTimePreset = (start?: string, end?: string) =>
+  CLASS_TIME_PRESETS.find(
+    (preset) =>
+      ensureHHMMSS(preset.start) === ensureHHMMSS(start ?? "") &&
+      ensureHHMMSS(preset.end) === ensureHHMMSS(end ?? ""),
+  );
+
 const mapRoomFromApi = (r: any): Room => {
   const typeCode = r.roomType ?? r.type;
   let type: string;
@@ -633,6 +685,19 @@ export function DeanManagement() {
   const updateClassTime = (index: number, field: keyof any, value: string | number) => {
     const newClassTimes = [...(courseForm.classTimes || [])];
     newClassTimes[index] = { ...newClassTimes[index], [field]: value };
+    setCourseForm({ ...courseForm, classTimes: newClassTimes });
+  };
+
+  const updateClassTimePreset = (index: number, presetId: string) => {
+    const preset = CLASS_TIME_PRESETS.find((item) => item.id === presetId);
+    if (!preset) return;
+
+    const newClassTimes = [...(courseForm.classTimes || [])];
+    newClassTimes[index] = {
+      ...newClassTimes[index],
+      start: preset.start,
+      end: preset.end,
+    };
     setCourseForm({ ...courseForm, classTimes: newClassTimes });
   };
 
@@ -1310,13 +1375,36 @@ export function DeanManagement() {
                           {(courseForm.classTimes || []).map((classTime, index) => (
                             <Card key={index} className="p-4">
                               <div className="space-y-3">
+                                <div className="space-y-2">
+                                  <Label>Ders Saati</Label>
+                                  <Select
+                                    value={findClassTimePreset(classTime.start, classTime.end)?.id ?? ""}
+                                    onValueChange={(value) => updateClassTimePreset(index, value)}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Vaxt araligi secin" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {CLASS_TIME_PRESETS.map((preset) => (
+                                        <SelectItem key={preset.id} value={preset.id}>
+                                          {preset.label} ({preset.description}) {preset.start}-{preset.end}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  {classTime.start && classTime.end && (
+                                    <p className="text-sm text-muted-foreground">
+                                      Secilen vaxt: {classTime.start}-{classTime.end}
+                                    </p>
+                                  )}
+                                </div>
                                 <div className="grid grid-cols-2 gap-3">
                                   <div className="space-y-2">
                                     <Label>Başlanma Saatı</Label>
                                     <Input
                                       type="time"
                                       value={classTime.start}
-                                      onChange={(e) => updateClassTime(index, "start", e.target.value)}
+                                      readOnly
                                     />
                                   </div>
                                   <div className="space-y-2">
@@ -1324,7 +1412,7 @@ export function DeanManagement() {
                                     <Input
                                       type="time"
                                       value={classTime.end}
-                                      onChange={(e) => updateClassTime(index, "end", e.target.value)}
+                                      readOnly
                                     />
                                   </div>
                                 </div>
