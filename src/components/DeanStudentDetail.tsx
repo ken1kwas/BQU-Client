@@ -16,6 +16,8 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { GradesOverview, normalizeCourseList } from "./Grades";
 
 export interface DeanStudentDetailStudent {
   id: string;
@@ -44,6 +46,7 @@ interface StudentDetailResponse {
   admissionScore?: number;
   email?: string | null;
   todayClasses?: StudentClass[];
+  grades?: any;
 }
 
 interface DeanStudentDetailProps {
@@ -142,6 +145,8 @@ export function DeanStudentDetail({
     };
   }, [details]);
 
+  const grades = useMemo(() => normalizeCourseList(details?.grades), [details]);
+
   const fullName = info.name || "Student";
   const courseLabel = info.course ? `${info.course} course` : EMPTY_VALUE;
 
@@ -228,85 +233,119 @@ export function DeanStudentDetail({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Today&apos;s Classes</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Current daily schedule for this student
-              </p>
-            </div>
-            <Badge variant="outline">
-              {info.todayClasses.length} classes
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {info.todayClasses.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-              No classes scheduled for today.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {info.todayClasses.map((item) => (
-                <Card key={item.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-semibold">{item.name}</h3>
-                          <Badge variant="secondary">
-                            {formatValue(item.classType)}
-                          </Badge>
-                          {item.code && (
-                            <Badge variant="outline">{item.code}</Badge>
-                          )}
-                          {item.isUpperWeek && (
-                            <Badge variant="outline">Upper week</Badge>
-                          )}
+      <Tabs defaultValue="classes" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="classes">
+            Today&apos;s Classes
+          </TabsTrigger>
+          <TabsTrigger value="grades">Grades</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="classes">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Today&apos;s Classes</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Current daily schedule for this student
+                  </p>
+                </div>
+                <Badge variant="outline">
+                  {info.todayClasses.length} classes
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {info.todayClasses.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                  No classes scheduled for today.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {info.todayClasses.map((item) => (
+                    <Card key={item.id}>
+                      <CardContent className="pt-6">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-lg font-semibold">{item.name}</h3>
+                              <Badge variant="secondary">
+                                {formatValue(item.classType)}
+                              </Badge>
+                              {item.code && (
+                                <Badge variant="outline">{item.code}</Badge>
+                              )}
+                              {item.isUpperWeek && (
+                                <Badge variant="outline">Upper week</Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Professor: {formatValue(item.professor)}
+                            </p>
+                          </div>
+
+                          <div className="text-sm font-medium text-muted-foreground">
+                            {formatValue(item.start)} - {formatValue(item.end)}
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Professor: {formatValue(item.professor)}
-                        </p>
-                      </div>
 
-                      <div className="text-sm font-medium text-muted-foreground">
-                        {formatValue(item.start)} - {formatValue(item.end)}
-                      </div>
-                    </div>
+                        <Separator className="my-4" />
 
-                    <Separator className="my-4" />
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                          <InfoItem
+                            icon={<Clock3 className="h-4 w-4" />}
+                            label="Start"
+                            value={item.start}
+                          />
+                          <InfoItem
+                            icon={<Clock3 className="h-4 w-4" />}
+                            label="End"
+                            value={item.end}
+                          />
+                          <InfoItem
+                            icon={<MapPin className="h-4 w-4" />}
+                            label="Room"
+                            value={item.room}
+                          />
+                          <InfoItem
+                            icon={<BookOpen className="h-4 w-4" />}
+                            label="Taught Subject ID"
+                            value={item.taughtSubjectId}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                      <InfoItem
-                        icon={<Clock3 className="h-4 w-4" />}
-                        label="Start"
-                        value={item.start}
-                      />
-                      <InfoItem
-                        icon={<Clock3 className="h-4 w-4" />}
-                        label="End"
-                        value={item.end}
-                      />
-                      <InfoItem
-                        icon={<MapPin className="h-4 w-4" />}
-                        label="Room"
-                        value={item.room}
-                      />
-                      <InfoItem
-                        icon={<BookOpen className="h-4 w-4" />}
-                        label="Taught Subject ID"
-                        value={item.taughtSubjectId}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="grades">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Grades</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Academic performance for this student
+                  </p>
+                </div>
+                <Badge variant="outline">{grades.length} subjects</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <GradesOverview
+                grades={grades}
+                loading={loading}
+                emptyMessage="No grades available for this student."
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

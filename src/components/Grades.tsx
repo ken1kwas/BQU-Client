@@ -17,7 +17,7 @@ type ClassSession = {
   attendance: "present" | "absent";
 };
 
-interface GradeCourse {
+export interface GradeCourse {
   id: string;
   course: string;
   code: string;
@@ -146,7 +146,7 @@ function normalizeColloquiumGrades(value: any): (number | null)[] {
   return ordered;
 }
 
-function normalizeCourseList(raw: any): GradeCourse[] {
+export function normalizeCourseList(raw: any): GradeCourse[] {
   if (!raw) return [];
 
   let payload = raw;
@@ -280,6 +280,202 @@ function normalizeCourseList(raw: any): GradeCourse[] {
       attendanceTotal,
     };
   });
+}
+
+export function GradesOverview({
+  grades,
+  loading = false,
+  emptyMessage = "No grades available. Please check back later.",
+}: {
+  grades: GradeCourse[];
+  loading?: boolean;
+  emptyMessage?: string;
+}) {
+  const loadingContent = (
+    <div className="flex justify-center py-12">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+
+  return (
+    <Tabs defaultValue="current" className="w-full">
+      <TabsContent value="current" className="space-y-4">
+        {loading ? (
+          loadingContent
+        ) : grades.length === 0 ? (
+          <Card className="p-6 text-sm text-muted-foreground">
+            {emptyMessage}
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {grades.map((course) => {
+              const assignmentRatio =
+                course.assignmentTotal > 0
+                  ? `${course.assignmentsPassed}/${course.assignmentTotal}`
+                  : "-";
+
+              const attendanceRatio =
+                course.attendanceTotal > 0
+                  ? `${course.attendancePresent}/${course.attendanceTotal}`
+                  : "-";
+
+              return (
+                <Card
+                  key={course.id}
+                  className="relative transition-shadow hover:shadow-md"
+                >
+                  {course.code && (
+                    <Badge
+                      variant="outline"
+                      className="absolute right-4 top-4 z-10"
+                    >
+                      {course.code}
+                    </Badge>
+                  )}
+                  <CardHeader className="pb-1">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 pr-20">
+                        <CardTitle>{course.course || "Course"}</CardTitle>
+                        {course.instructor && (
+                          <CardDescription>{course.instructor}</CardDescription>
+                        )}
+                        <CardDescription>
+                          {[
+                            course.credits ? `${course.credits} kredit` : null,
+                            course.weeklyHours
+                              ? `${course.weeklyHours} saat`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" â€¢ ") || ""}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="-mt-4 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Ãœmumi bal</span>
+                        <span>{Math.round(course.scoreOutOf50)}/50</span>
+                      </div>
+                      <Progress value={course.percentage} />
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-6 text-sm">
+                        <div>
+                          <p className="mb-2 text-muted-foreground">
+                            Seminar ballarÄ±
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {course.seminarGrades.length > 0 ? (
+                              course.seminarGrades.map((grade, idx) => (
+                                <Badge
+                                  key={idx}
+                                  variant="secondary"
+                                  className="px-2.5 py-0.5 text-sm"
+                                >
+                                  {grade}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="mb-2 text-muted-foreground">
+                            Kollokvium
+                          </p>
+                          <div className="flex items-center justify-end gap-2">
+                            {course.colloquium.length === 0 ? (
+                              <span className="text-muted-foreground">-</span>
+                            ) : (
+                              course.colloquium.map((score, idx) => (
+                                <Badge
+                                  key={idx}
+                                  variant={
+                                    score === null ? "outline" : "secondary"
+                                  }
+                                  className="px-5 py-2.5 text-base"
+                                >
+                                  {score === null ? "-" : `${score}`}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            SÉ™rbÉ™st iÅŸlÉ™r
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {assignmentRatio}
+                          </span>
+                        </div>
+                        {course.assignmentScores.length === 0 ? (
+                          <span className="text-muted-foreground">-</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {course.assignmentScores.map((score, idx) => (
+                              <Badge
+                                key={idx}
+                                variant={score === 1 ? "default" : "outline"}
+                                className="flex items-center gap-1 text-xs"
+                              >
+                                {score === 1 ? (
+                                  <Check className="h-3 w-3" />
+                                ) : (
+                                  <X className="h-3 w-3" />
+                                )}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            DavamiyyÉ™t
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {attendanceRatio}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {course.classSessions.length === 0 ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            course.classSessions.map((session, idx) => (
+                              <Badge
+                                key={idx}
+                                variant={
+                                  session.attendance === "present"
+                                    ? "default"
+                                    : "destructive"
+                                }
+                                className="text-xs"
+                              >
+                                {session.attendance === "present" ? "p" : "a"}
+                              </Badge>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </TabsContent>
+    </Tabs>
+  );
 }
 
 export function Grades() {
