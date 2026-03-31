@@ -29,7 +29,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setError("");
 
     if (!login || !password) {
-      setError("Enter login and password");
+      setError("Daxil olun və şifrə daxil edin");
       return;
     }
 
@@ -39,7 +39,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       const role = (res as any).roleName as string | undefined;
       onLoginSuccess(role);
     } catch (err: any) {
-      setError(err.message || "Login failed. Please try again.");
+      setError(err.message || "Daxil olmaq başarısız oldu. Lütfən yenidən cəhd edin.");
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setForgotMessage("");
 
     if (!email.trim()) {
-      setForgotError("Please enter your email address.");
+      setForgotError("Lütfən e-poçt ünvanınızı daxil edin.");
       return;
     }
 
@@ -59,11 +59,11 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       setForgotLoading(true);
       await forgotPassword(email.trim());
       setForgotMessage(
-        "If this email exists, a reset link has been sent.",
+        "Əgər bu e-poçt mövcuddursa, sıfırlama linki göndərilib.",
       );
     } catch (err: any) {
       setForgotError(
-        err?.message || "We could not process your request right now.",
+        err?.message || "Hazırda sorğunuz işlənə bilmədi.",
       );
     } finally {
       setForgotLoading(false);
@@ -114,7 +114,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                         onClick={() => setShowPassword((value) => !value)}
                         className="absolute inset-y-0 right-2 my-auto h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
                         aria-label={
-                          showPassword ? "Hide password" : "Show password"
+                          showPassword ? "Şifrəni gizlət" : "Şifrəni göstər"
                         }
                       >
                         {showPassword ? "Gizlət" : "Göstər"}
@@ -138,7 +138,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     </label>
                     <button
                       type="button"
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary hover:underline hover: cursor-pointer"
                       onClick={() => {
                         setShowForgotPassword(true);
                         setError("");
@@ -146,7 +146,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                         setForgotMessage("");
                       }}
                     >
-                      Forgot Password?
+                      Şifrə unuttunuz?
                     </button>
                   </div>
 
@@ -157,14 +157,14 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               ) : (
                 <form onSubmit={onForgotPasswordSubmit} className="space-y-4">
                   <div className="space-y-1">
-                    <h3 className="text-lg font-semibold">Forgot password</h3>
+                    <h3 className="text-lg font-semibold">Şifrə unuttunuz</h3>
                     <p className="text-sm text-muted-foreground">
-                      Enter your email and we&apos;ll send you a reset link.
+                      E-poçtunuzu daxil edin və siz bir sıfırlama linki alacaqsınız.
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="forgot-email">Email</Label>
+                    <Label htmlFor="forgot-email">E-poçt</Label>
                     <Input
                       id="forgot-email"
                       type="email"
@@ -177,14 +177,14 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
                   {forgotMessage && (
                     <Alert>
-                      <AlertTitle>Check your inbox</AlertTitle>
+                      <AlertTitle>Poçtunuzu yoxlayın</AlertTitle>
                       <AlertDescription>{forgotMessage}</AlertDescription>
                     </Alert>
                   )}
 
                   {forgotError && (
                     <Alert variant="destructive">
-                      <AlertTitle>Unable to send reset link</AlertTitle>
+                      <AlertTitle>Sıfırlama linki göndərilə bilinmədi</AlertTitle>
                       <AlertDescription>{forgotError}</AlertDescription>
                     </Alert>
                   )}
@@ -195,7 +195,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       className="flex-1"
                       disabled={forgotLoading}
                     >
-                      {forgotLoading ? "Sending..." : "Send reset link"}
+                      {forgotLoading ? "Göndərilir..." : "Sıfırlama linki göndər"}
                     </Button>
                     <Button
                       type="button"
@@ -206,7 +206,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                         setForgotError("");
                       }}
                     >
-                      Back to login
+                      Logində qayıt
                     </Button>
                   </div>
                 </form>

@@ -78,7 +78,7 @@ export function StudentSubjectsHistory() {
         setHistory(normalizeHistoryResponse(response));
       } catch (err: any) {
         if (!mounted) return;
-        setError(err?.message || "Failed to load subjects history");
+        setError(err?.message || "Fənlər tarixçəsini yükləmək başarısız oldu");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -103,9 +103,9 @@ export function StudentSubjectsHistory() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1>Subjects History</h1>
+          <h1>Fənlər Tarixçəsi</h1>
           <p className="text-muted-foreground">
-            View the subjects you studied in previous academic periods.
+            Əvvəlki akademik dövrələrdə oxuduğunuz fənləri görün.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -115,7 +115,7 @@ export function StudentSubjectsHistory() {
                 <BookOpenText className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Subjects</p>
+                <p className="text-xs text-muted-foreground">Fənlər</p>
                 <p className="text-xl font-semibold">{history.length}</p>
               </div>
             </CardContent>
@@ -133,9 +133,9 @@ export function StudentSubjectsHistory() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Academic History</CardTitle>
+          <CardTitle>Akademik Tarixçə</CardTitle>
           <CardDescription>
-            Each row shows a completed or scheduled subject period from your history.
+            Hər sətir tarixçənizdən tamamlanmış və ya planlaşdırılmış bir fən dövrünü göstərir.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -145,18 +145,18 @@ export function StudentSubjectsHistory() {
             </div>
           ) : history.length === 0 ? (
             <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="font-medium">No subjects history found</p>
+              <p className="font-medium">Fənlər tarixçəsi tapılmadı</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Your academic history will appear here once the backend returns data.
+                Arxiv serveriniz məlumat qaytardıqdan sonra akademik tarixçəniz burada görünəcəkdir.
               </p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Subject</TableHead>
+                  <TableHead>Fən</TableHead>
                   <TableHead>Professor</TableHead>
-                  <TableHead>Period</TableHead>
+                  <TableHead>Dövr</TableHead>
                   <TableHead className="text-right">Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -176,7 +176,7 @@ export function StudentSubjectsHistory() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="secondary">Recorded</Badge>
+                      <Badge variant="secondary">Qeyd edildi</Badge>
                     </TableCell>
                   </TableRow>
                 ))}

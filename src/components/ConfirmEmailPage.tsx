@@ -22,7 +22,7 @@ export function ConfirmEmailPage() {
   const token = params.get("token") ?? "";
 
   const [status, setStatus] = useState<ConfirmStatus>("loading");
-  const [message, setMessage] = useState("Checking your confirmation link...");
+  const [message, setMessage] = useState("Təsdiq linkinizi yoxlayırıq...");
 
   useEffect(() => {
     let active = true;
@@ -31,7 +31,7 @@ export function ConfirmEmailPage() {
       if (!userId || !token) {
         if (!active) return;
         setStatus("error");
-        setMessage("This confirmation link is missing required information.");
+        setMessage("Bu təsdiq linki lazımi məlumatlardan əskik qalmışdır.");
         return;
       }
 
@@ -44,7 +44,7 @@ export function ConfirmEmailPage() {
           response?.message ||
           response?.responseMessage ||
           response?.data?.message ||
-          "Your email address has been confirmed successfully.";
+          "Sizin e-poçt ünvanı uğurla təsdiq edilmişdir.";
 
         setStatus("success");
         setMessage(responseMessage);
@@ -52,7 +52,7 @@ export function ConfirmEmailPage() {
         if (!active) return;
         setStatus("error");
         setMessage(
-          error?.message || "This confirmation link is invalid or has expired.",
+          error?.message || "Bu təsdiq linki etibarsız və ya müddəti bitmiş olur.",
         );
       }
     })();
@@ -78,15 +78,15 @@ export function ConfirmEmailPage() {
           <div className="space-y-1">
             <CardTitle>
               {status === "loading"
-                ? "Confirming email"
+                ? "E-poçtu təsdiq etmə"
                 : status === "success"
-                  ? "Email confirmed"
-                  : "Confirmation failed"}
+                  ? "E-poçt təsdiq edildi"
+                  : "Təsdiq uğursuz oldu"}
             </CardTitle>
             <CardDescription>
               {status === "loading"
-                ? "Please wait while we verify your email confirmation request."
-                : "You can return to the app once this step is complete."}
+                ? "E-poçt təsdiq istəyinəsi yoxlanarkən, lütfən gözləyin."
+                : "Bu addım tamamlandıqdan sonra tətbiqətə qayıda bilərsiniz."}
             </CardDescription>
           </div>
         </CardHeader>
@@ -95,10 +95,10 @@ export function ConfirmEmailPage() {
           <Alert variant={status === "error" ? "destructive" : "default"}>
             <AlertTitle>
               {status === "success"
-                ? "Success"
+                ? "Uğurlu"
                 : status === "error"
-                  ? "Unable to confirm email"
-                  : "Verifying link"}
+                  ? "E-poçtu təsdiq etmə mümkün olmadı"
+                  : "Link yoxlanılır"}
             </AlertTitle>
             <AlertDescription>{message}</AlertDescription>
           </Alert>
@@ -110,7 +110,7 @@ export function ConfirmEmailPage() {
               window.location.href = "/";
             }}
           >
-            Back to app
+            Tətbiqətə qayıt
           </Button>
         </CardContent>
       </Card>

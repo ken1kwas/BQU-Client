@@ -29,13 +29,13 @@ export function ResetPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<ResetStatus>("idle");
   const [message, setMessage] = useState(
-    "Enter your new password to finish resetting your account.",
+    "Hesabınızı sıfırlamağı bitirmək üçün yeni şifrənizi daxil edin.",
   );
 
   useEffect(() => {
     if (!userId || !token) {
       setStatus("error");
-      setMessage("This reset link is missing required information.");
+      setMessage("Bu sıfırlama linki tələb olunan məlumatları ehtiva etmir.");
     }
   }, [token, userId]);
 
@@ -44,19 +44,19 @@ export function ResetPasswordPage() {
 
     if (!userId || !token) {
       setStatus("error");
-      setMessage("This reset link is invalid. Please request a new one.");
+      setMessage("Bu sıfırlama linki keçərsizdir. Lütfən yenisini istəyin.");
       return;
     }
 
     if (!newPassword.trim()) {
       setStatus("error");
-      setMessage("Please enter a new password.");
+      setMessage("Lütfən yeni şifre daxil edin.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
       setStatus("error");
-      setMessage("Passwords do not match.");
+      setMessage("Şifrələr uyğun gəlmir.");
       return;
     }
 
@@ -69,7 +69,7 @@ export function ResetPasswordPage() {
         response?.message ||
         response?.responseMessage ||
         response?.data?.message ||
-        "Your password has been reset successfully.";
+        "Sizin şifrəniz uğurla sıfırlanmışdır."
 
       setStatus("success");
       setMessage(responseMessage);
@@ -82,7 +82,7 @@ export function ResetPasswordPage() {
     } catch (error: any) {
       setStatus("error");
       setMessage(
-        error?.message || "This reset link is invalid or has expired.",
+        error?.message || "Bu sıfırlama linki keçərsiz və ya müddəti başa çatmışdır.",
       );
     } finally {
       setSubmitting(false);
@@ -106,12 +106,12 @@ export function ResetPasswordPage() {
           </div>
           <div className="space-y-1">
             <CardTitle>
-              {status === "success" ? "Password reset" : "Reset password"}
+              {status === "success" ? "Şifre sıfırlandı" : "Şifri sıfırla"}
             </CardTitle>
             <CardDescription>
               {status === "success"
-                ? "You will be redirected to the login page shortly."
-                : "Create a new password for your account."}
+                ? "Siz tezliklə giriş səhifəsinə yönləndirilərsiniz."
+                : "Hesabınız üçün yeni şifre yaradın."}
             </CardDescription>
           </div>
         </CardHeader>
@@ -122,17 +122,17 @@ export function ResetPasswordPage() {
           >
             <AlertTitle>
               {status === "success"
-                ? "Success"
+                ? "Uğurlu"
                 : status === "error"
-                  ? "Unable to reset password"
-                  : "Reset your password"}
+                  ? "Şifre sıfırlanmadı"
+                  : "Şifrənizi sıfırlayın"}
             </AlertTitle>
             <AlertDescription>{message}</AlertDescription>
           </Alert>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="new-password">New password</Label>
+              <Label htmlFor="new-password">Yeni şifre</Label>
               <Input
                 id="new-password"
                 type="password"
@@ -140,12 +140,12 @@ export function ResetPasswordPage() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 disabled={submitting || status === "success" || !userId || !token}
-                placeholder="Enter your new password"
+                placeholder="Yeni şifrənizi daxil edin"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm password</Label>
+              <Label htmlFor="confirm-password">Şifrəni təsdiqlə</Label>
               <Input
                 id="confirm-password"
                 type="password"
@@ -153,7 +153,7 @@ export function ResetPasswordPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={submitting || status === "success" || !userId || !token}
-                placeholder="Repeat your new password"
+                placeholder="Yeni şifrənizi təkrarlayın"
               />
             </div>
 
@@ -163,7 +163,7 @@ export function ResetPasswordPage() {
                 className="flex-1"
                 disabled={submitting || status === "success" || !userId || !token}
               >
-                {submitting ? "Resetting..." : "Reset password"}
+                {submitting ? "Sıfırlanır..." : "Şifri sıfırla"}
               </Button>
               <Button
                 type="button"
@@ -173,7 +173,7 @@ export function ResetPasswordPage() {
                   window.location.href = "/";
                 }}
               >
-                Back to login
+                Logində qayıt
               </Button>
             </div>
           </form>

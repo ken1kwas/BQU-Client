@@ -52,7 +52,7 @@ export function CourseCard({
 }: CourseCardProps) {
   const handleSyllabusView = async () => {
     if (!syllabusTaughtSubjectId) {
-      toast.info("Syllabus not available for this course.");
+      toast.info("Bu kurs üçün proqram mövcud deyil.");
       return;
     }
     try {
@@ -103,10 +103,10 @@ export function CourseCard({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={handleSyllabusView}>
-          View
+          Göstər
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleSyllabusDownload}>
-          Download
+          Endir
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

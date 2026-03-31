@@ -312,7 +312,7 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
                 onClick={() => handleEmailDialogChange(true)}
               >
                 <Mail className="mr-2 h-4 w-4" />
-                Add Email
+                E-poçt Əlavə Et
               </Button>
             )}
             <Button
