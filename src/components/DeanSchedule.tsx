@@ -52,6 +52,56 @@ const dayLabel: Record<(typeof dayKeys)[number], string> = {
   Saturday: "Şənbə",
 };
 
+const englishDateLabelMap: Record<string, string> = {
+  Monday: "Bazar ertəsi",
+  Tuesday: "Çərşənbə axşamı",
+  Wednesday: "Çərşənbə",
+  Thursday: "Cümə axşamı",
+  Friday: "Cümə",
+  Saturday: "Şənbə",
+  Sunday: "Bazar",
+  Mon: "B.e.",
+  Tue: "Ç.a.",
+  Wed: "Ç.",
+  Thu: "C.a.",
+  Fri: "C.",
+  Sat: "Ş.",
+  Sun: "B.",
+  January: "Yanvar",
+  February: "Fevral",
+  March: "Mart",
+  April: "Aprel",
+  May: "May",
+  June: "İyun",
+  July: "İyul",
+  August: "Avqust",
+  September: "Sentyabr",
+  October: "Oktyabr",
+  November: "Noyabr",
+  December: "Dekabr",
+  Jan: "Yan",
+  Feb: "Fev",
+  Mar: "Mar",
+  Apr: "Apr",
+  Jun: "İyn",
+  Jul: "İyl",
+  Aug: "Avq",
+  Sep: "Sen",
+  Sept: "Sen",
+  Oct: "Okt",
+  Nov: "Noy",
+  Dec: "Dek",
+};
+
+const translateScheduleDateLabel = (value: string): string => {
+  if (!value) return "";
+
+  return value.replace(
+    /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun|January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b/g,
+    (match) => englishDateLabelMap[match] ?? match,
+  );
+};
+
 // const daysOfWeek = [
 //   "Bazar ertəsi",
 //   "Çərşənbə axşamı",
@@ -212,7 +262,9 @@ export function DeanSchedule() {
           typeof currentWeekValue === "boolean" ? currentWeekValue : null,
         );
         setScheduleTodayLabel(
-          typeof scheduleRoot?.today === "string" ? scheduleRoot.today : "",
+          typeof scheduleRoot?.today === "string"
+            ? translateScheduleDateLabel(scheduleRoot.today)
+            : "",
         );
 
         let scheduleArray: any[] = [];

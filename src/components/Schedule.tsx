@@ -99,6 +99,56 @@ const capitalizeFirst = (s: string, locale = "az-Latn-AZ") => {
   return chars.join("");
 };
 
+const englishDateLabelMap: Record<string, string> = {
+  Monday: "Bazar ertəsi",
+  Tuesday: "Çərşənbə axşamı",
+  Wednesday: "Çərşənbə",
+  Thursday: "Cümə axşamı",
+  Friday: "Cümə",
+  Saturday: "Şənbə",
+  Sunday: "Bazar",
+  Mon: "B.e.",
+  Tue: "Ç.a.",
+  Wed: "Ç.",
+  Thu: "C.a.",
+  Fri: "C.",
+  Sat: "Ş.",
+  Sun: "B.",
+  January: "Yanvar",
+  February: "Fevral",
+  March: "Mart",
+  April: "Aprel",
+  May: "May",
+  June: "İyun",
+  July: "İyul",
+  August: "Avqust",
+  September: "Sentyabr",
+  October: "Oktyabr",
+  November: "Noyabr",
+  December: "Dekabr",
+  Jan: "Yan",
+  Feb: "Fev",
+  Mar: "Mar",
+  Apr: "Apr",
+  Jun: "İyn",
+  Jul: "İyl",
+  Aug: "Avq",
+  Sep: "Sen",
+  Sept: "Sen",
+  Oct: "Okt",
+  Nov: "Noy",
+  Dec: "Dek",
+};
+
+const translateScheduleDateLabel = (value: string): string => {
+  if (!value) return "";
+
+  return value.replace(
+    /\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun|January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b/g,
+    (match) => englishDateLabelMap[match] ?? match,
+  );
+};
+
 const toTimeRange = (start: any, end: any): string => {
   if (!start && !end) return "";
 
@@ -610,7 +660,7 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
           : "";
 
         setCurrentWeekIsUpper(resolvedIsUpperWeek);
-        setScheduleTodayLabel(resolvedTodayLabel);
+        setScheduleTodayLabel(translateScheduleDateLabel(resolvedTodayLabel));
 
         const filteredTodayRaw = filterClassesByWeek(
           processedToday,
