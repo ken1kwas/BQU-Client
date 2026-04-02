@@ -38,6 +38,7 @@ export interface GradeCourse {
 }
 
 const COLLOQUIUM_COUNT = 3;
+const ASSIGNMENTS_COUNT = 5;
 
 function getProp(obj: any, ...keys: string[]): any {
   if (!obj) return undefined;
@@ -196,12 +197,12 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
       }))
       .sort((a, b) => a.number - b.number);
 
-    const assignmentScores = Array(10).fill(0);
+    const assignmentScores = Array(ASSIGNMENTS_COUNT).fill(0);
     let assignmentsPassed = 0;
 
     sortedWorks.forEach((work) => {
       const assignmentIndex = work.number - 1;
-      if (assignmentIndex >= 0 && assignmentIndex < 10) {
+      if (assignmentIndex >= 0 && assignmentIndex < ASSIGNMENTS_COUNT) {
         if (work.isPassed === true) {
           assignmentScores[assignmentIndex] = 1;
           assignmentsPassed++;
@@ -211,7 +212,7 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
       }
     });
 
-    const assignmentTotal = 10;
+    const assignmentTotal = ASSIGNMENTS_COUNT;
     const classCount = Math.max(
       0,
       Math.round(toNumber(getProp(item, "ClassCount", "classCount"))),

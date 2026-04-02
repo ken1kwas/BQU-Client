@@ -152,7 +152,7 @@ function unwrap<T = any>(resp: any): T {
 }
 
 const COLLOQUIUM_COUNT = 3;
-const ASSIGNMENTS_COUNT = 10;
+const ASSIGNMENTS_COUNT = 5;
 
 export function TeacherCourseDetail({
   courseId,
@@ -1934,7 +1934,7 @@ export function TeacherCourseDetail({
                 <div>
                   <CardTitle>Sərbəst işlər</CardTitle>
                   <CardDescription>
-                    Hər semestrdə 10 sərbəst iş (dəyişdirmək üçün klikləyin: ✓ / ✗ / -).
+                    Hər semestrdə 5 sərbəst iş (dəyişdirmək üçün klikləyin: ✓ / ✗ / -).
                   </CardDescription>
                 </div>
                 <Button
@@ -1956,7 +1956,10 @@ export function TeacherCourseDetail({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tələbənin Adı</TableHead>
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map(
+                      {Array.from(
+                        { length: ASSIGNMENTS_COUNT },
+                        (_, i) => i + 1,
+                      ).map(
                         (num) => (
                           <TableHead key={num} className="text-center">
                             #{num}
