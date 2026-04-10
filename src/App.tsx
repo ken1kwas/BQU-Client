@@ -3,6 +3,7 @@ import {
   BarChart3,
   BookOpen,
   Calendar,
+  FileSpreadsheet,
   History,
   Home,
   LogOut,
@@ -13,6 +14,7 @@ import {
 
 import { ConfirmEmailPage } from "./components/ConfirmEmailPage";
 import { Dashboard } from "./components/Dashboard";
+import { DeanEnrollmentManagement } from "./components/DeanEnrollmentManagement";
 import { DeanManagement } from "./components/DeanManagement";
 import { DeanSchedule } from "./components/DeanSchedule";
 import { Grades } from "./components/Grades";
@@ -98,6 +100,7 @@ const deanNavigation: NavigationGroup[] = [
   {
     title: "Main",
     items: [
+      { title: "Enrollments", icon: FileSpreadsheet, id: "enrollments" },
       { title: "İdarəetmə", icon: Settings, id: "management" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Profil", icon: User, id: "profile" },
@@ -317,6 +320,8 @@ export default function App() {
   const renderContent = () => {
     if (userRole === "dean") {
       switch (activeView) {
+        case "enrollments":
+          return <DeanEnrollmentManagement />;
         case "management":
           return <DeanManagement />;
         case "schedule":
