@@ -39,6 +39,7 @@ export interface GradeCourse {
 
 const COLLOQUIUM_COUNT = 3;
 const ASSIGNMENTS_COUNT = 5;
+const FAILED_GRADE = -1;
 
 function getProp(obj: any, ...keys: string[]): any {
   if (!obj) return undefined;
@@ -69,6 +70,21 @@ function toAttendance(value: any): "present" | "absent" {
   return ["present", "p", "true", "1"].includes(normalized)
     ? "present"
     : "absent";
+}
+
+function isFailedGrade(value: number | null | undefined): boolean {
+  return value === FAILED_GRADE;
+}
+
+function formatGradeValue(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "-";
+  if (isFailedGrade(value)) return "Kesildi";
+  return String(value);
+}
+
+function formatOverallScore(score: number): string {
+  if (isFailedGrade(score)) return "Kesildi";
+  return `${Math.round(score)}/50`;
 }
 
 function normalizeColloquiumGrades(value: any): (number | null)[] {
@@ -212,9 +228,7 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
             : Number(work.grade);
         const normalizedGrade =
           parsedGrade !== null && Number.isFinite(parsedGrade)
-            ? parsedGrade === -1
-              ? null
-              : parsedGrade
+            ? parsedGrade
             : work.legacyIsPassed === true
               ? 1
               : work.legacyIsPassed === false
@@ -222,7 +236,9 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
                 : null;
 
         assignmentScores[assignmentIndex] = normalizedGrade;
-        if (normalizedGrade !== null) assignmentsPassed++;
+        if (normalizedGrade !== null && !isFailedGrade(normalizedGrade)) {
+          assignmentsPassed++;
+        }
       }
     });
 
@@ -371,7 +387,7 @@ export function GradesOverview({
                     <div className="-mt-4 space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span>Ümumi bal</span>
-                        <span>{Math.round(course.scoreOutOf50)}/50</span>
+                        <span>{formatOverallScore(course.scoreOutOf50)}</span>
                       </div>
                       <Progress value={course.percentage} />
                     </div>
@@ -387,10 +403,14 @@ export function GradesOverview({
                               course.seminarGrades.map((grade, idx) => (
                                 <Badge
                                   key={idx}
-                                  variant="secondary"
+                                  variant={
+                                    isFailedGrade(grade)
+                                      ? "destructive"
+                                      : "secondary"
+                                  }
                                   className="px-2.5 py-0.5 text-sm"
                                 >
-                                  {grade}
+                                  {formatGradeValue(grade)}
                                 </Badge>
                               ))
                             ) : (
@@ -410,11 +430,15 @@ export function GradesOverview({
                                 <Badge
                                   key={idx}
                                   variant={
-                                    score === null ? "outline" : "secondary"
+                                    score === null
+                                      ? "outline"
+                                      : isFailedGrade(score)
+                                        ? "destructive"
+                                        : "secondary"
                                   }
                                   className="px-5 py-2.5 text-base"
                                 >
-                                  {score === null ? "-" : `${score}`}
+                                  {formatGradeValue(score)}
                                 </Badge>
                               ))
                             )}
@@ -439,11 +463,15 @@ export function GradesOverview({
                               <Badge
                                 key={idx}
                                 variant={
-                                  score === null ? "outline" : "secondary"
+                                  score === null
+                                    ? "outline"
+                                    : isFailedGrade(score)
+                                      ? "destructive"
+                                      : "secondary"
                                 }
                                 className="text-xs"
                               >
-                                {score === null ? "-" : score}
+                                {formatGradeValue(score)}
                               </Badge>
                             ))}
                           </div>
@@ -592,7 +620,7 @@ export function Grades() {
                       <div className="-mt-4 space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span>Ümumi bal</span>
-                          <span>{Math.round(course.scoreOutOf50)}/50</span>
+                          <span>{formatOverallScore(course.scoreOutOf50)}</span>
                         </div>
                         <Progress value={course.percentage} />
                       </div>
@@ -608,10 +636,14 @@ export function Grades() {
                                 course.seminarGrades.map((grade, idx) => (
                                   <Badge
                                     key={idx}
-                                    variant="secondary"
+                                    variant={
+                                      isFailedGrade(grade)
+                                        ? "destructive"
+                                        : "secondary"
+                                    }
                                     className="px-2.5 py-0.5 text-sm"
                                   >
-                                    {grade}
+                                    {formatGradeValue(grade)}
                                   </Badge>
                                 ))
                               ) : (
@@ -631,11 +663,15 @@ export function Grades() {
                                   <Badge
                                     key={idx}
                                     variant={
-                                      score === null ? "outline" : "secondary"
+                                      score === null
+                                        ? "outline"
+                                        : isFailedGrade(score)
+                                          ? "destructive"
+                                          : "secondary"
                                     }
                                     className="px-5 py-2.5 text-base"
                                   >
-                                    {score === null ? "-" : `${score}`}
+                                    {formatGradeValue(score)}
                                   </Badge>
                                 ))
                               )}
@@ -660,11 +696,15 @@ export function Grades() {
                                 <Badge
                                   key={idx}
                                   variant={
-                                    score === null ? "outline" : "secondary"
+                                    score === null
+                                      ? "outline"
+                                      : isFailedGrade(score)
+                                        ? "destructive"
+                                        : "secondary"
                                   }
                                   className="text-xs"
                                 >
-                                  {score === null ? "-" : score}
+                                  {formatGradeValue(score)}
                                 </Badge>
                               ))}
                             </div>

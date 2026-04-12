@@ -1,5 +1,5 @@
 const BASE_URL =
-  // (import.meta as any).env?.VITE_API_BASE_URL ||
+  (import.meta as any).env?.VITE_API_BASE_URL ||
   // "http://localhost:5000" ||
   "https://localhost:7085";
 
@@ -424,11 +424,13 @@ export function markIndependentWorkGrade(
   independentWorkId: string,
   grade: number | null,
 ) {
-  const url = `/api/independent-works/${encodeURIComponent(independentWorkId)}/grade`;
-  return apiJson<any>(url, {
-    method: "PUT",
-    json: { grade },
-  });
+  return apiJson<any>(
+    `/api/independent-works/${encodeURIComponent(independentWorkId)}/grade`,
+    {
+      method: "PUT",
+      json: { grade },
+    },
+  );
 }
 
 export async function getStudentProfile() {
