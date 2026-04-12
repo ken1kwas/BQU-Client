@@ -9,12 +9,9 @@ import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   ArrowLeft,
-  Check,
-  X,
   Users,
   Calendar,
   Send,
-  Minus,
   Loader2,
 } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
@@ -61,7 +58,7 @@ interface Student {
     grade: number | null;
   }>;
   colloquium: (number | null)[];
-  assignments: (0 | 1 | null)[];
+  assignments: (number | null)[];
   colloquiumIds?: (string | null)[];
   seminarIds?: (string | null)[];
   assignmentIds?: (string | null)[];
@@ -172,7 +169,7 @@ export function TeacherCourseDetail({
         studentId: string;
         assignmentIndex: number;
         independentWorkId: string | null;
-        isPassed: boolean | null;
+        grade: number | null;
       }
     >
   >(new Map());
@@ -195,7 +192,7 @@ export function TeacherCourseDetail({
   const attendanceSnapshotRef = useRef<Map<string, ("present" | "absent")[]>>(
     new Map(),
   );
-  const assignmentsSnapshotRef = useRef<Map<string, (0 | 1 | null)[]>>(
+  const assignmentsSnapshotRef = useRef<Map<string, (number | null)[]>>(
     new Map(),
   );
 
@@ -360,7 +357,7 @@ export function TeacherCourseDetail({
       const prevAssignments =
         s.assignments ?? Array(ASSIGNMENTS_COUNT).fill(null);
       const prevIds = s.assignmentIds ?? Array(ASSIGNMENTS_COUNT).fill(null);
-      const assignments = [...prevAssignments] as (0 | 1 | null)[];
+      const assignments = [...prevAssignments] as (number | null)[];
       const assignmentIds = [...prevIds] as (string | null)[];
 
       for (const item of list) {
@@ -368,16 +365,23 @@ export function TeacherCourseDetail({
         const independentWorkId =
           item.id ?? item.Id ?? item.independentWorkId ?? null;
 
-        if (number !== null && number !== undefined && independentWorkId) {
+        if (number !== null && number !== undefined) {
           const index = Number(number) - 1;
 
           if (index >= 0 && index < ASSIGNMENTS_COUNT) {
-            assignmentIds[index] = independentWorkId;
-            const isPassed = item.isPassed ?? item.IsPassed;
+            assignmentIds[index] = independentWorkId ?? assignmentIds[index];
+            const rawGrade = item.grade ?? item.Grade;
+            const parsedGrade =
+              rawGrade === null || rawGrade === undefined
+                ? null
+                : Number(rawGrade);
+            const legacyIsPassed = item.isPassed ?? item.IsPassed;
 
-            if (isPassed === true) {
+            if (parsedGrade !== null && Number.isFinite(parsedGrade)) {
+              assignments[index] = parsedGrade === -1 ? null : parsedGrade;
+            } else if (legacyIsPassed === true) {
               assignments[index] = 1;
-            } else if (isPassed === false) {
+            } else if (legacyIsPassed === false) {
               assignments[index] = 0;
             } else {
               assignments[index] = null;
@@ -1210,32 +1214,19 @@ export function TeacherCourseDetail({
     }
   };
 
-  const toggleAssignment = (
+  const updateAssignmentGrade = (
     studentId: string | number,
     assignmentIndex: number,
+    grade: number | null,
   ) => {
     setStudents((prevStudents) =>
       prevStudents.map((student) => {
         if (String(student.id) === String(studentId)) {
           const newAssignments = [...student.assignments];
-          const current = newAssignments[assignmentIndex];
-
-          // Cycle through: null -> 1 -> 0 -> null
-          let newValue: 0 | 1 | null;
-          if (current === null) {
-            newValue = 1;
-          } else if (current === 1) {
-            newValue = 0;
-          } else {
-            newValue = null;
-          }
-
-          newAssignments[assignmentIndex] = newValue;
+          newAssignments[assignmentIndex] = grade;
 
           // Track this change
           const independentWorkId = student.assignmentIds?.[assignmentIndex];
-          const isPassed =
-            newValue === 1 ? true : newValue === 0 ? false : null;
 
           // Create a unique key for tracking this change
           // Format: "studentId:assignmentIndex" or use the independentWorkId if it exists
@@ -1246,7 +1237,7 @@ export function TeacherCourseDetail({
             studentId: String(student.id),
             assignmentIndex,
             independentWorkId: independentWorkId || null,
-            isPassed,
+            grade,
           });
 
           return { ...student, assignments: newAssignments };
@@ -1261,98 +1252,18 @@ export function TeacherCourseDetail({
       .filter((change) => change.independentWorkId !== null)
       .map((change) => ({
         independentWorkId: change.independentWorkId!,
-        isPassed: change.isPassed,
+        grade: change.grade,
       }));
   };
 
   const saveIndependentWorkGrades = async (
     grades: Array<{
       independentWorkId: string;
-      isPassed: boolean | null;
+      grade: number | null;
     }>,
   ) => {
     for (const grade of grades) {
-      await markIndependentWorkGrade([grade]);
-    }
-  };
-
-  const markStudentAssignmentsPassed = async (studentId: string | number) => {
-    const targetStudent = students.find(
-      (student) => String(student.id) === String(studentId),
-    );
-
-    if (!targetStudent) {
-      toast.error("Student not found");
-      return;
-    }
-
-    const nextAssignmentIds =
-      targetStudent.assignmentIds ?? Array(ASSIGNMENTS_COUNT).fill(null);
-    const nextAssignments = [...targetStudent.assignments];
-    const changesWithIds: Array<{
-      independentWorkId: string;
-      isPassed: boolean | null;
-    }> = [];
-    let updatedCount = 0;
-    let missingIdsCount = 0;
-
-    for (let index = 0; index < ASSIGNMENTS_COUNT; index++) {
-      const independentWorkId = nextAssignmentIds[index] ?? null;
-      nextAssignments[index] = 1;
-
-      if (independentWorkId) {
-        updatedCount += 1;
-        pendingAssignmentChanges.current.set(independentWorkId, {
-          studentId: String(targetStudent.id),
-          assignmentIndex: index,
-          independentWorkId,
-          isPassed: true,
-        });
-        changesWithIds.push({
-          independentWorkId,
-          isPassed: true,
-        });
-      } else {
-        missingIdsCount += 1;
-      }
-    }
-
-    setStudents((prevStudents) =>
-      prevStudents.map((student) =>
-        String(student.id) === String(studentId)
-          ? { ...student, assignments: nextAssignments }
-          : student,
-      ),
-    );
-
-    if (changesWithIds.length === 0) {
-      toast.error("No independent work IDs found. Please refresh the page.");
-      return;
-    }
-
-    setIsSendingAssignments(true);
-
-    try {
-      await saveIndependentWorkGrades(changesWithIds);
-
-      for (let index = 0; index < ASSIGNMENTS_COUNT; index++) {
-        const independentWorkId = targetStudent.assignmentIds?.[index] ?? null;
-        const changeKey = independentWorkId || `${targetStudent.id}:${index}`;
-        pendingAssignmentChanges.current.delete(changeKey);
-      }
-
-      if (missingIdsCount > 0) {
-        toast.success(
-          `${targetStudent.name}: marked ${updatedCount} independent work(s) as passed. ${missingIdsCount} item(s) could not be sent because their IDs are missing.`,
-        );
-      } else {
-        toast.success(`${targetStudent.name}: marked all works as passed.`);
-      }
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed to mark student's assignments as passed");
-      await loadCourseData();
-    } finally {
-      setIsSendingAssignments(false);
+      await markIndependentWorkGrade(grade.independentWorkId, grade.grade);
     }
   };
 
@@ -1966,7 +1877,6 @@ export function TeacherCourseDetail({
                           </TableHead>
                         ),
                       )}
-                      <TableHead className="text-center">Pass</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1977,42 +1887,42 @@ export function TeacherCourseDetail({
                         </TableCell>
                         {student.assignments.map((assignment, idx) => (
                           <TableCell key={idx} className="text-center">
-                            <Button
-                              variant={
-                                assignment === 1
-                                  ? "default"
-                                  : assignment === 0
-                                    ? "destructive"
-                                    : "outline"
+                            <Select
+                              value={
+                                assignment === null ||
+                                assignment === undefined ||
+                                assignment === -1
+                                  ? "none"
+                                  : String(assignment)
                               }
-                              size="sm"
-                              onClick={() => toggleAssignment(student.id, idx)}
-                              className="w-10 h-10 p-0"
+                              onValueChange={(value: string) =>
+                                updateAssignmentGrade(
+                                  student.id,
+                                  idx,
+                                  value === "none" ? null : parseInt(value, 10),
+                                )
+                              }
                               disabled={isLoading}
                             >
-                              {assignment === 1 ? (
-                                <Check className="h-4 w-4" />
-                              ) : assignment === 0 ? (
-                                <X className="h-4 w-4" />
-                              ) : (
-                                <Minus className="h-4 w-4" />
-                              )}
-                            </Button>
+                              <SelectTrigger className="w-[100px] mx-auto">
+                                <SelectValue placeholder="-" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">-</SelectItem>
+                                {Array.from({ length: 11 }, (_, i) => i).map(
+                                  (grade) => (
+                                    <SelectItem
+                                      key={grade}
+                                      value={grade.toString()}
+                                    >
+                                      {grade}
+                                    </SelectItem>
+                                  ),
+                                )}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                         ))}
-                        <TableCell className="text-center">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() =>
-                              markStudentAssignmentsPassed(student.id)
-                            }
-                            disabled={isSendingAssignments || isLoading}
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            Pass all
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

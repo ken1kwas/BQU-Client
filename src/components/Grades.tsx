@@ -9,7 +9,7 @@ import {
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Tabs, TabsContent } from "./ui/tabs";
-import { Check, Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getStudentGrades, toArray } from "../api";
 
 type ClassSession = {
@@ -29,7 +29,7 @@ export interface GradeCourse {
   classType: "Lecture" | "Seminar" | string;
   colloquium: (number | null)[];
   seminarGrades: number[];
-  assignmentScores: number[];
+  assignmentScores: (number | null)[];
   assignmentsPassed: number;
   assignmentTotal: number;
   classSessions: ClassSession[];
@@ -193,22 +193,36 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
     const sortedWorks = independentWorksRaw
       .map((work: any) => ({
         number: toNumber(getProp(work, "Number", "number")),
-        isPassed: getProp(work, "IsPassed", "isPassed"),
+        grade: getProp(work, "Grade", "grade"),
+        legacyIsPassed: getProp(work, "IsPassed", "isPassed"),
       }))
       .sort((a, b) => a.number - b.number);
 
-    const assignmentScores = Array(ASSIGNMENTS_COUNT).fill(0);
+    const assignmentScores = Array(ASSIGNMENTS_COUNT).fill(
+      null,
+    ) as (number | null)[];
     let assignmentsPassed = 0;
 
     sortedWorks.forEach((work) => {
       const assignmentIndex = work.number - 1;
       if (assignmentIndex >= 0 && assignmentIndex < ASSIGNMENTS_COUNT) {
-        if (work.isPassed === true) {
-          assignmentScores[assignmentIndex] = 1;
-          assignmentsPassed++;
-        } else {
-          assignmentScores[assignmentIndex] = 0;
-        }
+        const parsedGrade =
+          work.grade === null || work.grade === undefined
+            ? null
+            : Number(work.grade);
+        const normalizedGrade =
+          parsedGrade !== null && Number.isFinite(parsedGrade)
+            ? parsedGrade === -1
+              ? null
+              : parsedGrade
+            : work.legacyIsPassed === true
+              ? 1
+              : work.legacyIsPassed === false
+                ? 0
+                : null;
+
+        assignmentScores[assignmentIndex] = normalizedGrade;
+        if (normalizedGrade !== null) assignmentsPassed++;
       }
     });
 
@@ -424,14 +438,12 @@ export function GradesOverview({
                             {course.assignmentScores.map((score, idx) => (
                               <Badge
                                 key={idx}
-                                variant={score === 1 ? "default" : "outline"}
-                                className="flex items-center gap-1 text-xs"
+                                variant={
+                                  score === null ? "outline" : "secondary"
+                                }
+                                className="text-xs"
                               >
-                                {score === 1 ? (
-                                  <Check className="h-3 w-3" />
-                                ) : (
-                                  <X className="h-3 w-3" />
-                                )}
+                                {score === null ? "-" : score}
                               </Badge>
                             ))}
                           </div>
@@ -647,14 +659,12 @@ export function Grades() {
                               {course.assignmentScores.map((score, idx) => (
                                 <Badge
                                   key={idx}
-                                  variant={score === 1 ? "default" : "outline"}
-                                  className="flex items-center gap-1 text-xs"
+                                  variant={
+                                    score === null ? "outline" : "secondary"
+                                  }
+                                  className="text-xs"
                                 >
-                                  {score === 1 ? (
-                                    <Check className="h-3 w-3" />
-                                  ) : (
-                                    <X className="h-3 w-3" />
-                                  )}
+                                  {score === null ? "-" : score}
                                 </Badge>
                               ))}
                             </div>
