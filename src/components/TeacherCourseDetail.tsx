@@ -41,7 +41,6 @@ import {
   createColloquium,
   deleteColloquium,
   updateColloquiumGrade,
-  createSeminar,
   updateSeminarGrade,
   markStudentAbsence,
   getIndependentWorkByStudentAndSubject,
@@ -757,8 +756,34 @@ export function TeacherCourseDetail({
               [],
           );
 
+          const buildClassSessionKey = (item: any) => {
+            const date = formatSessionDate(item?.classDate ?? item?.ClassDate);
+            const type = String(item?.classType ?? item?.ClassType ?? "")
+              .trim()
+              .toUpperCase();
+            const time = String(
+              item?.formattedClassHours ?? item?.FormattedClassHours ?? "",
+            ).trim();
+            return `${date}|${type}|${time}`;
+          };
+
+          const classesById = new Map<string, any>();
+          const classesByComposite = new Map<string, any>();
+          for (const cls of classes) {
+            const classId = cls?.classId ?? cls?.ClassId;
+            if (classId !== undefined && classId !== null) {
+              classesById.set(String(classId), cls);
+            }
+            classesByComposite.set(buildClassSessionKey(cls), cls);
+          }
+
           const attendanceAligned = sessionItems.map((session, i) => {
-            const cls = classes[i];
+            const cls =
+              classesById.get(String(session.id)) ??
+              classesByComposite.get(
+                `${session.date}|${String(session.type).trim().toUpperCase()}|${String(session.time ?? "").trim()}`,
+              ) ??
+              classes[i];
 
             if (cls) {
               const presentRaw = cls.isPresent ?? cls.IsPresent;
@@ -844,9 +869,15 @@ export function TeacherCourseDetail({
             return fallback;
           });
 
-          const seminarIdsAligned = sessionItems.map(
-            (_, i) => classes[i]?.seminarId ?? classes[i]?.SeminarId ?? null,
-          );
+          const seminarIdsAligned = sessionItems.map((session, i) => {
+            const cls =
+              classesById.get(String(session.id)) ??
+              classesByComposite.get(
+                `${session.date}|${String(session.type).trim().toUpperCase()}|${String(session.time ?? "").trim()}`,
+              ) ??
+              classes[i];
+            return cls?.seminarId ?? cls?.SeminarId ?? null;
+          });
 
           return {
             ...student,
@@ -1036,16 +1067,6 @@ export function TeacherCourseDetail({
     const grade = parseInt(value, 10);
     if (grade < 0 || grade > 10) return;
 
-    let seminarId: string | null = null;
-
-    setStudents((prev) => {
-      const found = prev.find((s) => String(s.id) === studentIdStr);
-      if (found) {
-        seminarId = found.seminarIds?.[sessionIndex] ?? null;
-      }
-      return prev;
-    });
-
     try {
       if (!studentIdStr || studentIdStr.trim() === "") {
         throw new Error("Student ID is required");
@@ -1088,6 +1109,8 @@ export function TeacherCourseDetail({
         return;
       }
 
+      let seminarId = currentStudent.seminarIds?.[sessionIndex] ?? null;
+
       if (originalAttendance?.attendance === "absent" && session?.id) {
         try {
           await markStudentAbsence(actualStudentId, session.id);
@@ -1107,43 +1130,35 @@ export function TeacherCourseDetail({
         }
       }
 
-      if (seminarId) {
-        await updateSeminarGrade(actualStudentId, seminarId, grade);
-        // Update snapshot to reflect that attendance is now "present" due to grade
-        commitSnapshot("present");
-      } else {
-        const seminarData = {
-          studentId: actualStudentId.trim(),
-          taughtSubjectId: taughtSubjectId.trim(),
-        };
+      const resolvedSeminarId =
+        typeof seminarId === "string" && seminarId.trim()
+          ? seminarId.trim()
+          : await resolveSeminarIdForStudentSession(
+              actualStudentId,
+              currentStudent,
+              session,
+              sessionIndex,
+            );
 
-        const createRes = await createSeminar(seminarData);
-        const createdId =
-          (createRes as any)?.id ??
-          (createRes as any)?.data?.id ??
-          (createRes as any)?.data ??
-          (createRes as any)?.Id ??
-          (createRes as any)?.seminarId;
-        if (typeof createdId === "string" && createdId) {
-          seminarId = createdId;
-          await updateSeminarGrade(actualStudentId, seminarId, grade);
-          // Update snapshot to reflect that attendance is now "present" due to grade
-          commitSnapshot("present");
-          setStudents((prev) =>
-            prev.map((s) => {
-              if (String(s.id) !== studentIdStr) return s;
-              const ids = [
-                ...(s.seminarIds ?? Array(sessions.length).fill(null)),
-              ];
-              ids[sessionIndex] = seminarId;
-              return { ...s, seminarIds: ids };
-            }),
-          );
-        } else {
-          throw new Error(
-            "Failed to create seminar: no ID returned from server",
-          );
-        }
+      if (!resolvedSeminarId) {
+        throw new Error(
+          "Failed to save seminar grade: seminar record for this student and date was not found",
+        );
+      }
+
+      await updateSeminarGrade(actualStudentId, resolvedSeminarId, grade);
+      // Update snapshot to reflect that attendance is now "present" due to grade
+      commitSnapshot("present");
+
+      if (seminarId !== resolvedSeminarId) {
+        setStudents((prev) =>
+          prev.map((s) => {
+            if (String(s.id) !== studentIdStr) return s;
+            const ids = [...(s.seminarIds ?? Array(sessions.length).fill(null))];
+            ids[sessionIndex] = resolvedSeminarId;
+            return { ...s, seminarIds: ids };
+          }),
+        );
       }
     } catch (e: any) {
       console.error("Error saving seminar grade:", e);
@@ -1380,6 +1395,115 @@ export function TeacherCourseDetail({
   const looksLikeStudentGuid = (id: string | number): boolean => {
     const s = String(id ?? "");
     return s.length > 30 && s.includes("-");
+  };
+
+  const resolveSeminarIdForStudentSession = async (
+    actualStudentId: string,
+    student: Student,
+    session: CourseSession | undefined,
+    sessionIndex: number,
+  ): Promise<string | null> => {
+    const fromState = student.seminarIds?.[sessionIndex];
+    if (typeof fromState === "string" && fromState.trim()) {
+      return fromState.trim();
+    }
+
+    if (!session) return null;
+
+    try {
+      const classesResp = await listTaughtSubjectClasses(taughtSubjectId);
+      const classesDataWrapped = unwrap<any>(classesResp);
+      const attendancesArray = toArray(
+        classesDataWrapped?.activityAndAttendances ??
+          classesDataWrapped?.ActivityAndAttendances ??
+          classesDataWrapped?.data?.activityAndAttendances ??
+          classesDataWrapped?.data?.ActivityAndAttendances ??
+          [],
+      );
+
+      const normalize = (v: any) =>
+        String(v ?? "")
+          .toLowerCase()
+          .trim();
+      const normalizeNoSpaces = (v: any) => normalize(v).replace(/\s+/g, "");
+      const studentKey = normalize(actualStudentId);
+
+      let classesForStudent = attendancesArray.find(
+        (entry: any) =>
+          normalize(entry?.studentId ?? entry?.StudentId ?? entry?.student?.id) ===
+          studentKey,
+      );
+
+      if (!classesForStudent) {
+        const np = (student as any)._nameParts;
+        const nameSurnameOnly = [np?.name, np?.surname].filter(Boolean).join(" ");
+        const studentNameNoSpaces = normalizeNoSpaces(student.name);
+        const nameSurnameNoSpaces = normalizeNoSpaces(nameSurnameOnly);
+
+        classesForStudent = attendancesArray.find((entry: any) => {
+          const fullName = String(
+            entry?.studentFullName ??
+              entry?.StudentFullName ??
+              entry?.student?.fullName ??
+              entry?.student?.name ??
+              "",
+          );
+          const fullNameNoSpaces = normalizeNoSpaces(fullName);
+          return (
+            fullNameNoSpaces === studentNameNoSpaces ||
+            (nameSurnameNoSpaces && fullNameNoSpaces === nameSurnameNoSpaces)
+          );
+        });
+      }
+
+      const classes = toArray(
+        classesForStudent?.classes ??
+          classesForStudent?.Classes ??
+          classesForStudent?.classesList ??
+          [],
+      );
+      if (classes.length === 0) return null;
+
+      const buildClassSessionKey = (item: any) => {
+        const date = formatSessionDate(item?.classDate ?? item?.ClassDate);
+        const type = String(item?.classType ?? item?.ClassType ?? "")
+          .trim()
+          .toUpperCase();
+        const time = String(
+          item?.formattedClassHours ?? item?.FormattedClassHours ?? "",
+        ).trim();
+        return `${date}|${type}|${time}`;
+      };
+
+      const byClassId = classes.find(
+        (cls: any) => String(cls?.classId ?? cls?.ClassId ?? "") === String(session.id),
+      );
+      const byComposite = classes.find(
+        (cls: any) =>
+          buildClassSessionKey(cls) ===
+          `${session.date}|${String(session.type).trim().toUpperCase()}|${String(session.time ?? "").trim()}`,
+      );
+      const byIndex = classes[sessionIndex];
+      const matchedClass = byClassId ?? byComposite ?? byIndex;
+      const resolved = matchedClass?.seminarId ?? matchedClass?.SeminarId ?? null;
+
+      if (typeof resolved === "string" && resolved.trim()) {
+        const resolvedTrimmed = resolved.trim();
+        setStudents((prev) =>
+          prev.map((s) => {
+            if (String(s.id) !== String(student.id)) return s;
+            const ids = [...(s.seminarIds ?? Array(sessions.length).fill(null))];
+            ids[sessionIndex] = resolvedTrimmed;
+            return { ...s, seminarIds: ids };
+          }),
+        );
+        return resolvedTrimmed;
+      }
+    } catch (e) {
+      console.warn("Failed to refresh seminar id for grading:", e);
+    }
+
+    return null;
   };
 
   const sendActivityAttendance = async () => {

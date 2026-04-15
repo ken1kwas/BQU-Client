@@ -748,29 +748,6 @@ export function createColloquium(req: {
   return apiJson<any>("/api/colloquiums", { method: "POST", json: req });
 }
 
-// -------------------- SEMINARS --------------------
-export function createSeminar(req: {
-  studentId: string;
-  taughtSubjectId: string;
-}) {
-  return apiJson<any>(
-    `/api/seminars/${encodeURIComponent(req.studentId)}/${encodeURIComponent(req.taughtSubjectId)}`,
-    { method: "POST" },
-  ).catch((error: any) => {
-    const message = String(error?.message ?? error ?? "");
-    if (message.includes("404")) {
-      return apiJson<any>(`/api/seminars`, {
-        method: "POST",
-        json: {
-          studentId: req.studentId,
-          taughtSubjectId: req.taughtSubjectId,
-        },
-      });
-    }
-    throw error;
-  });
-}
-
 export function updateSeminarGrade(
   studentId: string,
   seminarId: string,
