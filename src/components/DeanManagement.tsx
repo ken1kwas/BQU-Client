@@ -529,6 +529,7 @@ const mapCourseFromApi = (c: any): Course => {
   };
 };
 
+
 export function DeanManagement() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);

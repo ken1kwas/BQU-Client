@@ -3,7 +3,10 @@ import {
   BarChart3,
   BookOpen,
   Calendar,
+  CalendarDays,
+  ClipboardCheck,
   FileSpreadsheet,
+  FilePlus2,
   History,
   Home,
   LogOut,
@@ -15,6 +18,7 @@ import {
 import { ConfirmEmailPage } from "./components/ConfirmEmailPage";
 import { Dashboard } from "./components/Dashboard";
 import { DeanEnrollmentManagement } from "./components/DeanEnrollmentManagement";
+import { DeanFinalExams } from "./components/DeanFinalExams";
 import { DeanManagement } from "./components/DeanManagement";
 import { DeanSchedule } from "./components/DeanSchedule";
 import { Grades } from "./components/Grades";
@@ -102,6 +106,9 @@ const deanNavigation: NavigationGroup[] = [
     items: [
       { title: "Enrollments", icon: FileSpreadsheet, id: "enrollments" },
       { title: "İdarəetmə", icon: Settings, id: "management" },
+      { title: "Final imtahanlar", icon: CalendarDays, id: "dean-finals-list" },
+      { title: "Qiyməti təsdiqlə", icon: ClipboardCheck, id: "dean-finals-confirm" },
+      { title: "Final yarat", icon: FilePlus2, id: "dean-finals-create" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Profil", icon: User, id: "profile" },
     ],
@@ -324,6 +331,12 @@ export default function App() {
           return <DeanEnrollmentManagement />;
         case "management":
           return <DeanManagement />;
+        case "dean-finals-list":
+          return <DeanFinalExams mode="list" />;
+        case "dean-finals-confirm":
+          return <DeanFinalExams mode="confirm" />;
+        case "dean-finals-create":
+          return <DeanFinalExams mode="create" />;
         case "schedule":
           return <DeanSchedule />;
         case "profile":

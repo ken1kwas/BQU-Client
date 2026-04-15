@@ -738,6 +738,67 @@ export function deleteTaughtSubject(id: string) {
   return apiJson<any>(`/api/taught-subjects/${id}`, { method: "DELETE" });
 }
 
+// -------------------- FINAL EXAMS --------------------
+async function apiJsonWithFallback<T>(
+  attempts: Array<{
+    path: string;
+    init?: RequestInit & { json?: any };
+  }>,
+): Promise<T> {
+  let lastError: unknown = null;
+  for (const attempt of attempts) {
+    try {
+      return await apiJson<T>(attempt.path, attempt.init);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error("Request failed");
+}
+
+export async function listFinalExams(page = 1, pageSize = 100) {
+  const raw = await apiJsonWithFallback<any>([
+    { path: `/api/finals?page=${page}&pageSize=${pageSize}` },
+    { path: `/api/final-exams?page=${page}&pageSize=${pageSize}` },
+  ]);
+  return unwrapApiResult(raw);
+}
+
+export function createFinalExam(req: Record<string, unknown>) {
+  return apiJsonWithFallback<any>([
+    { path: "/api/finals", init: { method: "POST", json: req } },
+    { path: "/api/final-exams", init: { method: "POST", json: req } },
+  ]);
+}
+
+export function addFinalExamDate(finalExamId: string, date: string) {
+  const encodedId = encodeURIComponent(finalExamId);
+  return apiJsonWithFallback<any>([
+    {
+      path: `/api/finals/${encodedId}/date`,
+      init: { method: "PUT", json: { date } },
+    },
+    {
+      path: `/api/final-exams/${encodedId}/date`,
+      init: { method: "PUT", json: { date } },
+    },
+  ]);
+}
+
+export function confirmFinalExamGrades(finalExamId: string) {
+  const encodedId = encodeURIComponent(finalExamId);
+  return apiJsonWithFallback<any>([
+    {
+      path: `/api/finals/${encodedId}/confirm-grades`,
+      init: { method: "POST" },
+    },
+    {
+      path: `/api/final-exams/${encodedId}/confirm-grades`,
+      init: { method: "POST" },
+    },
+  ]);
+}
+
 // -------------------- COLLOQUIUMS --------------------
 export function createColloquium(req: {
   taughtSubjectId: string;
