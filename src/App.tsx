@@ -28,6 +28,7 @@ import { Schedule } from "./components/Schedule";
 import { StudentSubjectsHistory } from "./components/StudentSubjectsHistory";
 import { TeacherCourseDetail } from "./components/TeacherCourseDetail";
 import { TeacherCourses } from "./components/TeacherCourses";
+import { TeacherFinalExams } from "./components/TeacherFinalExams";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import {
@@ -94,6 +95,7 @@ const teacherNavigation: NavigationGroup[] = [
     title: "Main",
     items: [
       { title: "Fənnlərim", icon: BookOpen, id: "courses" },
+      { title: "Final imtahanlar", icon: CalendarDays, id: "teacher-finals" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Profil", icon: User, id: "profile" },
     ],
@@ -361,6 +363,8 @@ export default function App() {
       switch (activeView) {
         case "courses":
           return <TeacherCourses onCourseSelect={handleCourseSelect} />;
+        case "teacher-finals":
+          return <TeacherFinalExams />;
         case "schedule":
           return <Schedule userRole="teacher" />;
         case "profile":
@@ -461,3 +465,5 @@ export default function App() {
     </SidebarProvider>
   );
 }
+
+

@@ -577,6 +577,50 @@ export function listTeacherCourses() {
   return apiJson<any>("/api/teachers/courses");
 }
 
+export type TeacherFinalExamDto = {
+  id: string;
+  studentId: string;
+  studentFullName: string;
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  groupId: string;
+  groupCode: string;
+  grade: number | null;
+  formattedDate: string | null;
+};
+
+export async function listTeacherFinalExams(): Promise<TeacherFinalExamDto[]> {
+  const raw = await apiJson<any>("/api/teachers/me/exams");
+  const inner = unwrapApiResult<any>(raw);
+  const exams = Array.isArray(inner?.exams)
+    ? inner.exams
+    : Array.isArray(inner)
+      ? inner
+      : [];
+
+  return exams.map((exam: any) => ({
+    id: String(exam?.id ?? exam?.Id ?? ""),
+    studentId: String(exam?.studentId ?? exam?.StudentId ?? ""),
+    studentFullName: String(
+      exam?.studentFullName ?? exam?.StudentFullName ?? "",
+    ),
+    subjectId: String(exam?.subjectId ?? exam?.SubjectId ?? ""),
+    subjectName: String(exam?.subjectName ?? exam?.SubjectName ?? ""),
+    subjectCode: String(exam?.subjectCode ?? exam?.SubjectCode ?? ""),
+    groupId: String(exam?.groupId ?? exam?.GroupId ?? ""),
+    groupCode: String(exam?.groupCode ?? exam?.GroupCode ?? ""),
+    grade:
+      typeof (exam?.grade ?? exam?.Grade) === "number"
+        ? Number(exam?.grade ?? exam?.Grade)
+        : null,
+    formattedDate:
+      typeof (exam?.formattedDate ?? exam?.FormattedDate) === "string"
+        ? String(exam?.formattedDate ?? exam?.FormattedDate)
+        : null,
+  }));
+}
+
 export function getTeacher(id: string) {
   return apiJson<any>(`/api/teachers/${id}`);
 }
@@ -756,38 +800,110 @@ async function apiJsonWithFallback<T>(
   throw lastError ?? new Error("Request failed");
 }
 
-export async function listFinalExams(page = 1, pageSize = 100) {
-  const raw = await apiJsonWithFallback<any>([
-    { path: `/api/finals?page=${page}&pageSize=${pageSize}` },
-    { path: `/api/final-exams?page=${page}&pageSize=${pageSize}` },
-  ]);
+export async function listFinalExams(options?: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const search = options?.search ?? "";
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 10;
+  const query = new URLSearchParams({
+    search,
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  const raw = await apiJson<any>(`/api/finals?${query.toString()}`);
   return unwrapApiResult(raw);
 }
 
-export function createFinalExam(req: Record<string, unknown>) {
-  return apiJsonWithFallback<any>([
-    { path: "/api/finals", init: { method: "POST", json: req } },
-    { path: "/api/final-exams", init: { method: "POST", json: req } },
-  ]);
+export function createFinalExam(req: {
+  studentId: string;
+  subjectId: string;
+  date: string;
+}) {
+  return apiJson<any>("/api/finals", { method: "POST", json: req });
 }
 
-export function addFinalExamDate(finalExamId: string, date: string) {
+export type UpdateExamRequest = {
+  studentId: string;
+  taughtSubjectId: string;
+  date: string;
+  grade: number;
+};
+
+export type UpdateExamResponse = {
+  id: string;
+  studentId: string;
+  taughtSubjectId: string;
+  date: string | null;
+  grade: number | null;
+};
+
+export async function setFinalExamTime(
+  finalExamId: string,
+  date: string,
+): Promise<void> {
   const encodedId = encodeURIComponent(finalExamId);
-  return apiJsonWithFallback<any>([
-    {
-      path: `/api/finals/${encodedId}/date`,
-      init: { method: "PUT", json: { date } },
-    },
-    {
-      path: `/api/final-exams/${encodedId}/date`,
-      init: { method: "PUT", json: { date } },
-    },
-  ]);
+  await apiJson<null>(`/api/finals/${encodedId}/set-time`, {
+    method: "PUT",
+    json: { id: finalExamId, date },
+  });
 }
 
-export function confirmFinalExamGrades(finalExamId: string) {
+export async function addFinalExamDate(
+  finalExamId: string,
+  date: string,
+): Promise<void> {
+  await setFinalExamTime(finalExamId, date);
+}
+
+export async function gradeFinalExam(
+  finalExamId: string,
+  grade: number,
+): Promise<string> {
   const encodedId = encodeURIComponent(finalExamId);
-  return apiJsonWithFallback<any>([
+  const raw = await apiJson<any>(`/api/finals/${encodedId}/grade`, {
+    method: "PUT",
+    json: grade,
+  });
+  const data = unwrapApiResult<any>(raw);
+  return String(data ?? "");
+}
+
+export async function updateFinalExam(
+  id: string,
+  req: UpdateExamRequest,
+): Promise<UpdateExamResponse> {
+  const raw = await apiJson<any>(`/api/finals/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    json: req,
+  });
+  const data = unwrapApiResult<any>(raw);
+  return {
+    id: String(data?.id ?? data?.Id ?? ""),
+    studentId: String(data?.studentId ?? data?.StudentId ?? ""),
+    taughtSubjectId: String(data?.taughtSubjectId ?? data?.TaughtSubjectId ?? ""),
+    date:
+      typeof (data?.date ?? data?.Date) === "string"
+        ? (data?.date ?? data?.Date)
+        : null,
+    grade:
+      typeof (data?.grade ?? data?.Grade) === "number"
+        ? Number(data?.grade ?? data?.Grade)
+        : null,
+  };
+}
+
+export async function confirmFinalExamGrades(
+  finalExamId: string,
+): Promise<boolean> {
+  const encodedId = encodeURIComponent(finalExamId);
+  const raw = await apiJsonWithFallback<any>([
+    {
+      path: `/api/finals/${encodedId}/confirm`,
+      init: { method: "PUT" },
+    },
     {
       path: `/api/finals/${encodedId}/confirm-grades`,
       init: { method: "POST" },
@@ -797,6 +913,17 @@ export function confirmFinalExamGrades(finalExamId: string) {
       init: { method: "POST" },
     },
   ]);
+
+  const isSucceeded =
+    raw?.isSucceeded ?? raw?.IsSucceeded ?? raw?.success ?? raw?.Success;
+  if (isSucceeded === false) {
+    throw new Error(
+      raw?.message ?? raw?.Message ?? "Failed to confirm final exam grades",
+    );
+  }
+
+  const data = unwrapApiResult<boolean>(raw);
+  return typeof data === "boolean" ? data : true;
 }
 
 // -------------------- COLLOQUIUMS --------------------
