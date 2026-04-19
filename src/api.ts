@@ -830,6 +830,7 @@ export type UpdateExamRequest = {
   taughtSubjectId: string;
   date: string;
   grade: number;
+  isAllowed: boolean;
 };
 
 export type UpdateExamResponse = {
@@ -838,6 +839,7 @@ export type UpdateExamResponse = {
   taughtSubjectId: string;
   date: string | null;
   grade: number | null;
+  isAllowed: boolean;
 };
 
 export async function setFinalExamTime(
@@ -892,6 +894,7 @@ export async function updateFinalExam(
       typeof (data?.grade ?? data?.Grade) === "number"
         ? Number(data?.grade ?? data?.Grade)
         : null,
+    isAllowed: Boolean(data?.isAllowed ?? data?.IsAllowed),
   };
 }
 

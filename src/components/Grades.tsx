@@ -40,6 +40,7 @@ export interface GradeCourse {
 const COLLOQUIUM_COUNT = 3;
 const ASSIGNMENTS_COUNT = 5;
 const FAILED_GRADE = -1;
+const OVERALL_SCORE_MAX = 100;
 
 function getProp(obj: any, ...keys: string[]): any {
   if (!obj) return undefined;
@@ -84,7 +85,7 @@ function formatGradeValue(value: number | null | undefined): string {
 
 function formatOverallScore(score: number): string {
   if (isFailedGrade(score)) return "Kesildi";
-  return `${Math.round(score)}/50`;
+  return `${Math.round(score)}/${OVERALL_SCORE_MAX}`;
 }
 
 function normalizeColloquiumGrades(value: any): (number | null)[] {
@@ -190,7 +191,7 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
     const overallScore = toNumber(
       getProp(item, "OverallScore", "overallScore"),
     );
-    const percentage = clampPercentage((overallScore / 50) * 100);
+    const percentage = clampPercentage((overallScore / OVERALL_SCORE_MAX) * 100);
 
     const seminarGrades = toArray(
       getProp(item, "SeminarGrades", "seminarGrades"),

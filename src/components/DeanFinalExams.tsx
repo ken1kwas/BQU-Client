@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+﻿import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Card,
@@ -11,6 +11,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
+import { Checkbox } from "./ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,7 @@ type FinalExam = {
   date?: string;
   grade?: number;
   gradesConfirmed?: boolean;
+  isAllowed?: boolean;
 };
 
 type StudentOption = {
@@ -193,6 +195,12 @@ function mapFinalExamFromApi(exam: any): FinalExam {
     exam?.examGrade ??
     exam?.ExamGrade;
 
+  const isAllowedRaw =
+    exam?.isAllowed ??
+    exam?.IsAllowed ??
+    exam?.allowed ??
+    exam?.Allowed;
+
   const numericGrade =
     typeof gradeRaw === "number"
       ? gradeRaw
@@ -236,6 +244,7 @@ function mapFinalExamFromApi(exam: any): FinalExam {
     date: typeof date === "string" ? date : undefined,
     grade: Number.isFinite(numericGrade) ? numericGrade : undefined,
     gradesConfirmed: Boolean(gradesConfirmedRaw),
+    isAllowed: typeof isAllowedRaw === "boolean" ? isAllowedRaw : undefined,
   };
 }
 
@@ -254,7 +263,7 @@ function formatExamDateForDisplay(value?: string): string {
 
 function formatExamGradeForDisplay(grade?: number): string {
   if (grade == null) return "-";
-  if (grade === -1) return "qiymetlendirme lazimdir";
+  if (grade === -1) return "Qiymet verilməyib";
   return String(grade);
 }
 
@@ -311,6 +320,7 @@ export function DeanFinalExams({ mode }: Props) {
   const [updateTaughtSubjectId, setUpdateTaughtSubjectId] = useState("");
   const [updateDateInput, setUpdateDateInput] = useState("");
   const [updateGradeInput, setUpdateGradeInput] = useState("");
+  const [updateIsAllowed, setUpdateIsAllowed] = useState(true);
   const [isUpdatingExam, setIsUpdatingExam] = useState(false);
   const [createFinalExamStudentId, setCreateFinalExamStudentId] = useState("");
   const [createFinalExamSubjectId, setCreateFinalExamSubjectId] = useState("");
@@ -348,15 +358,29 @@ export function DeanFinalExams({ mode }: Props) {
       <TableCell>{exam.semester ?? "-"}</TableCell>
       <TableCell>{formatExamDateForDisplay(exam.date)}</TableCell>
       <TableCell>{formatExamGradeForDisplay(exam.grade)}</TableCell>
+      <TableCell>
+        <Badge variant={exam.isAllowed === false ? "secondary" : "default"}>
+          {exam.isAllowed === false
+            ? "Not allowed"
+            : exam.isAllowed === true
+              ? "Allowed"
+              : "-"}
+        </Badge>
+      </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => openAddDateDialog(exam.id, exam.date)}
-          >
-            Tarix seç
-          </Button>
+          {exam.grade == null || exam.grade === -1 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                openAddDateDialog(exam.id, exam.date, exam.isAllowed)
+              }
+              disabled={exam.isAllowed === false}
+            >
+              Tarix seç
+            </Button>
+          ) : null}
           <Button size="sm" onClick={() => openUpdateExamDialog(exam)}>
             Yenilə
           </Button>
@@ -464,7 +488,15 @@ export function DeanFinalExams({ mode }: Props) {
     void loadStudentAndSubjectOptions();
   }, [mode]);
 
-  const openAddDateDialog = (finalExamId: string, currentDate?: string) => {
+  const openAddDateDialog = (
+    finalExamId: string,
+    currentDate?: string,
+    isAllowed?: boolean,
+  ) => {
+    if (isAllowed === false) {
+      toast.error("Setting an exam date is not allowed for this record");
+      return;
+    }
     setSelectedFinalExamId(finalExamId);
     const parsed = currentDate ? new Date(currentDate) : null;
     if (parsed && !Number.isNaN(parsed.getTime())) {
@@ -483,6 +515,7 @@ export function DeanFinalExams({ mode }: Props) {
     setUpdateStudentId(exam.studentId ?? "");
     setUpdateTaughtSubjectId(exam.taughtSubjectId ?? "");
     setUpdateGradeInput(exam.grade == null ? "" : String(exam.grade));
+    setUpdateIsAllowed(exam.isAllowed !== false);
 
     const parsed = exam.date ? new Date(exam.date) : null;
     if (parsed && !Number.isNaN(parsed.getTime())) {
@@ -574,6 +607,7 @@ export function DeanFinalExams({ mode }: Props) {
         taughtSubjectId: updateTaughtSubjectId,
         date: new Date(updateDateInput).toISOString(),
         grade: parsedGrade,
+        isAllowed: updateIsAllowed,
       });
       toast.success("Final exam updated");
       setIsUpdateDialogOpen(false);
@@ -631,9 +665,6 @@ export function DeanFinalExams({ mode }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>Final imtahan yarat</CardTitle>
-          <CardDescription>
-            Dəqiq DTO gələnə qədər JSON payload ilə yeni final yarada bilərsiniz
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-2">
@@ -911,6 +942,24 @@ export function DeanFinalExams({ mode }: Props) {
                 Qiymət -1 (imtahan verilməyib) ilə 50 arasında olmalıdır
               </p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="final-update-is-allowed">IsAllowed</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="final-update-is-allowed"
+                  checked={updateIsAllowed}
+                  onCheckedChange={(checked) =>
+                    setUpdateIsAllowed(checked !== false)
+                  }
+                />
+                <Label
+                  htmlFor="final-update-is-allowed"
+                  className="cursor-pointer"
+                >
+                  IsAllowed
+                </Label>
+              </div>
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button
@@ -942,7 +991,7 @@ export function DeanFinalExams({ mode }: Props) {
                   setFinalsPage(1);
                 }}
               >
-                {showByGroup ? "Ungroup" : "Group by Group"}
+                {showByGroup ? "Qruplashdirma" : "Qruplara gore goster"}
               </Button>
               <Button variant="outline" onClick={refreshFinalExams}>
                 Təzələ
@@ -960,6 +1009,7 @@ export function DeanFinalExams({ mode }: Props) {
                 <TableHead>Semestr</TableHead>
                 <TableHead>Tarix</TableHead>
                 <TableHead>Qiymet</TableHead>
+                <TableHead>Allowed status</TableHead>
                 <TableHead className="text-right">Əməliyyat</TableHead>
               </TableRow>
             </TableHeader>
@@ -967,7 +1017,7 @@ export function DeanFinalExams({ mode }: Props) {
               {finalExams.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center text-muted-foreground"
                   >
                     Final imtahan tapılmadı
@@ -978,7 +1028,7 @@ export function DeanFinalExams({ mode }: Props) {
                   <Fragment key={`group-${groupCode}`}>
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={8}
                         className="bg-muted/40 font-semibold"
                       >
                         Group: {groupCode} (
@@ -1044,5 +1094,9 @@ export function DeanFinalExams({ mode }: Props) {
     </>
   );
 }
+
+
+
+
 
 
