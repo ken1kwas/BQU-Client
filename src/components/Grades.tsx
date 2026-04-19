@@ -79,12 +79,12 @@ function isFailedGrade(value: number | null | undefined): boolean {
 
 function formatGradeValue(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";
-  if (isFailedGrade(value)) return "Kesildi";
+  if (isFailedGrade(value)) return "İmtahana buraxılmır";
   return String(value);
 }
 
 function formatOverallScore(score: number): string {
-  if (isFailedGrade(score)) return "Kesildi";
+  if (isFailedGrade(score)) return "İmtahana buraxılmır";
   return `${Math.round(score)}/${OVERALL_SCORE_MAX}`;
 }
 

@@ -51,6 +51,7 @@ type FinalExam = {
   id: string;
   studentId?: string;
   taughtSubjectId?: string;
+  subjectId?: string;
   title: string;
   studentName?: string;
   courseCode?: string;
@@ -169,12 +170,12 @@ function mapFinalExamFromApi(exam: any): FinalExam {
   const date =
     exam?.date ??
     exam?.Date ??
-    exam?.formattedDate ??
-    exam?.FormattedDate ??
     exam?.examDate ??
     exam?.ExamDate ??
     exam?.scheduledDate ??
     exam?.ScheduledDate ??
+    exam?.formattedDate ??
+    exam?.FormattedDate ??
     undefined;
 
   const gradesConfirmedRaw =
@@ -214,9 +215,16 @@ function mapFinalExamFromApi(exam: any): FinalExam {
     taughtSubjectId: pickString(
       exam?.taughtSubjectId,
       exam?.TaughtSubjectId,
+      exam?.taughtSubject?.id,
+      exam?.taughtSubject?.Id,
       exam?.subjectId,
       exam?.SubjectId,
+      exam?.subject?.id,
+      exam?.subject?.Id,
+      exam?.finalExamSubjectId,
+      exam?.FinalExamSubjectId,
     ),
+    subjectId: pickString(exam?.subjectId, exam?.SubjectId, exam?.subject?.id),
     title: String(title),
     studentName:
       exam?.studentName ??
@@ -258,13 +266,74 @@ function formatExamDateForDisplay(value?: string): string {
   if (!value) return "-";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString();
+  return parsed.toLocaleDateString();
 }
 
 function formatExamGradeForDisplay(grade?: number): string {
   if (grade == null) return "-";
   if (grade === -1) return "Qiymet verilməyib";
   return String(grade);
+}
+
+function toDateTimeLocalValue(value?: string): string {
+  if (!value) return "";
+
+  const fromNative = new Date(value);
+  if (!Number.isNaN(fromNative.getTime())) {
+    const tzOffsetMs = fromNative.getTimezoneOffset() * 60 * 1000;
+    return new Date(fromNative.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+  }
+
+  const trimmed = value.trim();
+  const dayFirstMatch = trimmed.match(
+    /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s?(AM|PM))?)?$/i,
+  );
+  if (dayFirstMatch) {
+    const [, dayRaw, monthRaw, yearRaw, hourRaw, minuteRaw, , amPmRaw] =
+      dayFirstMatch;
+    const day = Number(dayRaw);
+    const month = Number(monthRaw);
+    const year = Number(yearRaw);
+    let hour = Number(hourRaw ?? "0");
+    const minute = Number(minuteRaw ?? "0");
+    const amPm = amPmRaw?.toUpperCase();
+    if (amPm === "PM" && hour < 12) hour += 12;
+    if (amPm === "AM" && hour === 12) hour = 0;
+    const parsed = new Date(year, month - 1, day, hour, minute);
+    if (!Number.isNaN(parsed.getTime())) {
+      const tzOffsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+      return new Date(parsed.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+    }
+  }
+
+  const yearFirstMatch = trimmed.match(
+    /^(\d{4})[./-](\d{1,2})[./-](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s?(AM|PM))?)?$/i,
+  );
+  if (yearFirstMatch) {
+    const [, yearRaw, monthRaw, dayRaw, hourRaw, minuteRaw, , amPmRaw] =
+      yearFirstMatch;
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    const day = Number(dayRaw);
+    let hour = Number(hourRaw ?? "0");
+    const minute = Number(minuteRaw ?? "0");
+    const amPm = amPmRaw?.toUpperCase();
+    if (amPm === "PM" && hour < 12) hour += 12;
+    if (amPm === "AM" && hour === 12) hour = 0;
+    const parsed = new Date(year, month - 1, day, hour, minute);
+    if (!Number.isNaN(parsed.getTime())) {
+      const tzOffsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+      return new Date(parsed.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+    }
+  }
+
+  return "";
+}
+
+function toDateInputValue(value?: string): string {
+  const dateTimeValue = toDateTimeLocalValue(value);
+  if (!dateTimeValue) return "";
+  return dateTimeValue.slice(0, 10);
 }
 
 function extractFinalExamItems(payload: any): any[] {
@@ -308,6 +377,8 @@ export function DeanFinalExams({ mode }: Props) {
   const [finalsPageSize, setFinalsPageSize] = useState(10);
   const [finalsTotalPages, setFinalsTotalPages] = useState(1);
   const [finalsTotalCount, setFinalsTotalCount] = useState(0);
+  const [finalsSearchInput, setFinalsSearchInput] = useState("");
+  const [finalsSearch, setFinalsSearch] = useState("");
   const [isFinalsLoading, setIsFinalsLoading] = useState(false);
   const [isFinalDateDialogOpen, setIsFinalDateDialogOpen] = useState(false);
   const [selectedFinalExamId, setSelectedFinalExamId] = useState<string | null>(
@@ -318,6 +389,12 @@ export function DeanFinalExams({ mode }: Props) {
   const [updateExamId, setUpdateExamId] = useState("");
   const [updateStudentId, setUpdateStudentId] = useState("");
   const [updateTaughtSubjectId, setUpdateTaughtSubjectId] = useState("");
+  const [updateExamCourseCode, setUpdateExamCourseCode] = useState("");
+  const [updateExamTitle, setUpdateExamTitle] = useState("");
+  const [updateGroupCode, setUpdateGroupCode] = useState("");
+  const [updateSubjectFallbackLabel, setUpdateSubjectFallbackLabel] = useState(
+    "Current subject",
+  );
   const [updateDateInput, setUpdateDateInput] = useState("");
   const [updateGradeInput, setUpdateGradeInput] = useState("");
   const [updateIsAllowed, setUpdateIsAllowed] = useState(true);
@@ -361,9 +438,9 @@ export function DeanFinalExams({ mode }: Props) {
       <TableCell>
         <Badge variant={exam.isAllowed === false ? "secondary" : "default"}>
           {exam.isAllowed === false
-            ? "Not allowed"
+            ? "Buraxılmır"
             : exam.isAllowed === true
-              ? "Allowed"
+              ? "Buraxılır"
               : "-"}
         </Badge>
       </TableCell>
@@ -393,7 +470,7 @@ export function DeanFinalExams({ mode }: Props) {
     try {
       setIsFinalsLoading(true);
       const finalsResp = await listFinalExams({
-        search: "",
+        search: finalsSearch.trim(),
         page: finalsPage,
         pageSize: finalsPageSize,
       });
@@ -476,7 +553,7 @@ export function DeanFinalExams({ mode }: Props) {
   useEffect(() => {
     if (mode !== "list") return;
     void loadFinalExamsForList();
-  }, [mode, finalsPage, finalsPageSize]);
+  }, [mode, finalsPage, finalsPageSize, finalsSearch]);
 
   useEffect(() => {
     if (mode !== "confirm") return;
@@ -488,21 +565,64 @@ export function DeanFinalExams({ mode }: Props) {
     void loadStudentAndSubjectOptions();
   }, [mode]);
 
+  useEffect(() => {
+    if (!isUpdateDialogOpen) return;
+    if (updateTaughtSubjectId) return;
+    if (subjectOptions.length === 0) return;
+
+    const courseCode = updateExamCourseCode.trim().toLowerCase();
+    const title = updateExamTitle.trim().toLowerCase();
+    const groupCode = updateGroupCode.trim().toLowerCase();
+
+    const exactByCodeAndGroup =
+      courseCode && groupCode
+        ? subjectOptions.find((subject) => {
+            const label = subject.label.toLowerCase();
+            return label.includes(courseCode) && label.includes(groupCode);
+          })
+        : undefined;
+
+    const byCode =
+      !exactByCodeAndGroup && courseCode
+        ? subjectOptions.find((subject) =>
+            subject.label.toLowerCase().includes(courseCode),
+          )
+        : undefined;
+
+    const byTitle =
+      !exactByCodeAndGroup && !byCode && title
+        ? subjectOptions.find((subject) =>
+            subject.label.toLowerCase().includes(title),
+          )
+        : undefined;
+
+    const resolved = exactByCodeAndGroup ?? byCode ?? byTitle;
+    if (resolved?.id) {
+      setUpdateTaughtSubjectId(resolved.id);
+    }
+  }, [
+    isUpdateDialogOpen,
+    subjectOptions,
+    updateTaughtSubjectId,
+    updateExamCourseCode,
+    updateExamTitle,
+    updateGroupCode,
+  ]);
+
   const openAddDateDialog = (
     finalExamId: string,
     currentDate?: string,
     isAllowed?: boolean,
   ) => {
     if (isAllowed === false) {
-      toast.error("Setting an exam date is not allowed for this record");
+      toast.error("Bu qeyd üçün imtahan tarixi təyin etmək icazəli deyil");
       return;
     }
     setSelectedFinalExamId(finalExamId);
     const parsed = currentDate ? new Date(currentDate) : null;
     if (parsed && !Number.isNaN(parsed.getTime())) {
-      const tzOffsetMs = parsed.getTimezoneOffset() * 60 * 1000;
       setFinalExamDateInput(
-        new Date(parsed.getTime() - tzOffsetMs).toISOString().slice(0, 16),
+        parsed.toISOString().slice(0, 10),
       );
     } else {
       setFinalExamDateInput("");
@@ -513,19 +633,21 @@ export function DeanFinalExams({ mode }: Props) {
   const openUpdateExamDialog = (exam: FinalExam) => {
     setUpdateExamId(exam.id);
     setUpdateStudentId(exam.studentId ?? "");
-    setUpdateTaughtSubjectId(exam.taughtSubjectId ?? "");
+    setUpdateTaughtSubjectId(exam.taughtSubjectId ?? exam.subjectId ?? "");
+    setUpdateExamCourseCode(exam.courseCode ?? "");
+    setUpdateExamTitle(exam.title ?? "");
+    setUpdateGroupCode(exam.groupCode ?? "");
+    setUpdateSubjectFallbackLabel(
+      [exam.courseCode, exam.title, exam.groupCode ? `(${exam.groupCode})` : ""]
+        .filter(Boolean)
+        .join(" ") ||
+        exam.title ||
+        exam.courseCode ||
+        "Current subject",
+    );
     setUpdateGradeInput(exam.grade == null ? "" : String(exam.grade));
     setUpdateIsAllowed(exam.isAllowed !== false);
-
-    const parsed = exam.date ? new Date(exam.date) : null;
-    if (parsed && !Number.isNaN(parsed.getTime())) {
-      const tzOffsetMs = parsed.getTimezoneOffset() * 60 * 1000;
-      setUpdateDateInput(
-        new Date(parsed.getTime() - tzOffsetMs).toISOString().slice(0, 16),
-      );
-    } else {
-      setUpdateDateInput("");
-    }
+    setUpdateDateInput(toDateInputValue(exam.date));
 
     setIsUpdateDialogOpen(true);
     if (studentOptions.length === 0 || subjectOptions.length === 0) {
@@ -839,10 +961,10 @@ export function DeanFinalExams({ mode }: Props) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="final-exam-date">Tarix və saat</Label>
+            <Label htmlFor="final-exam-date">Tarix</Label>
             <Input
               id="final-exam-date"
-              type="datetime-local"
+              type="date"
               value={finalExamDateInput}
               onChange={(e) => setFinalExamDateInput(e.target.value)}
             />
@@ -909,6 +1031,14 @@ export function DeanFinalExams({ mode }: Props) {
                   />
                 </SelectTrigger>
                 <SelectContent>
+                  {updateTaughtSubjectId &&
+                  !subjectOptions.some(
+                    (subject) => subject.id === updateTaughtSubjectId,
+                  ) ? (
+                    <SelectItem value={updateTaughtSubjectId}>
+                      {updateSubjectFallbackLabel}
+                    </SelectItem>
+                  ) : null}
                   {subjectOptions.map((subject) => (
                     <SelectItem key={subject.id} value={subject.id}>
                       {subject.label}
@@ -918,10 +1048,19 @@ export function DeanFinalExams({ mode }: Props) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="final-update-date">Date and time</Label>
+              <Label htmlFor="final-update-group-code">Group</Label>
+              <Input
+                id="final-update-group-code"
+                value={updateGroupCode || "-"}
+                disabled
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="final-update-date">Tarix</Label>
               <Input
                 id="final-update-date"
-                type="datetime-local"
+                type="date"
                 value={updateDateInput}
                 onChange={(e) => setUpdateDateInput(e.target.value)}
               />
@@ -943,7 +1082,7 @@ export function DeanFinalExams({ mode }: Props) {
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="final-update-is-allowed">IsAllowed</Label>
+              <Label htmlFor="final-update-is-allowed">Buraxılır</Label>
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="final-update-is-allowed"
@@ -956,9 +1095,12 @@ export function DeanFinalExams({ mode }: Props) {
                   htmlFor="final-update-is-allowed"
                   className="cursor-pointer"
                 >
-                  IsAllowed
+                  Buraxılır
                 </Label>
               </div>
+              <p className="text-xs text-muted-foreground">
+                İcazə statusu: {updateIsAllowed ? "Buraxılır" : "Buraxılmır"}
+              </p>
             </div>
           </div>
           <div className="flex justify-end gap-2">
@@ -983,7 +1125,39 @@ export function DeanFinalExams({ mode }: Props) {
                 Bütün final imtahanları və onların tarixləri
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Input
+                value={finalsSearchInput}
+                onChange={(e) => setFinalsSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setFinalsPage(1);
+                    setFinalsSearch(finalsSearchInput.trim());
+                  }
+                }}
+                placeholder="Axtar..."
+                className="w-[220px]"
+              />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFinalsPage(1);
+                  setFinalsSearch(finalsSearchInput.trim());
+                }}
+              >
+                Axtar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFinalsSearchInput("");
+                  setFinalsSearch("");
+                  setFinalsPage(1);
+                }}
+                disabled={!finalsSearchInput && !finalsSearch}
+              >
+                Təmizlə
+              </Button>
               <Button
                 variant={showByGroup ? "default" : "outline"}
                 onClick={() => {
@@ -991,7 +1165,7 @@ export function DeanFinalExams({ mode }: Props) {
                   setFinalsPage(1);
                 }}
               >
-                {showByGroup ? "Qruplashdirma" : "Qruplara gore goster"}
+                {showByGroup ? "Qruplaşdırma" : "Qruplara görə göstər"}
               </Button>
               <Button variant="outline" onClick={refreshFinalExams}>
                 Təzələ
@@ -1009,7 +1183,7 @@ export function DeanFinalExams({ mode }: Props) {
                 <TableHead>Semestr</TableHead>
                 <TableHead>Tarix</TableHead>
                 <TableHead>Qiymet</TableHead>
-                <TableHead>Allowed status</TableHead>
+                <TableHead>İcazə statusu</TableHead>
                 <TableHead className="text-right">Əməliyyat</TableHead>
               </TableRow>
             </TableHeader>
