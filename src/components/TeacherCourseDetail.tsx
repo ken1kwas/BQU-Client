@@ -1756,13 +1756,11 @@ export function TeacherCourseDetail({
               {isLoading ? (
                 loadingSpinner
               ) : (
-                <div className="relative overflow-x-auto border rounded-md">
-                  <div className="inline-block min-w-full align-middle">
-                    <div className="overflow-hidden">
-                      <Table>
+                <div className="relative border rounded-md">
+                      <Table className="min-w-max">
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="sticky left-0 bg-background z-30 min-w-[200px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                            <TableHead className="sticky left-0 bg-background z-30 min-w-[220px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                               Tələbənin Adı
                             </TableHead>
                             {sessions.map((session, idx) => (
@@ -1784,7 +1782,7 @@ export function TeacherCourseDetail({
                           {students.map((student) => {
                             return (
                               <TableRow key={student.id}>
-                                <TableCell className="sticky left-0 bg-background z-30 font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                <TableCell className="sticky left-0 bg-background z-20 min-w-[220px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                   {student.name}
                                 </TableCell>
                                 {sessions.map((session, idx) => (
@@ -1837,8 +1835,6 @@ export function TeacherCourseDetail({
                           })}
                         </TableBody>
                       </Table>
-                    </div>
-                  </div>
                 </div>
               )}
             </CardContent>

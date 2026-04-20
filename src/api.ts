@@ -513,6 +513,16 @@ export function deleteGroup(id: string) {
   return apiJson<any>(`/api/groups/${id}`, { method: "DELETE" });
 }
 
+export async function setGroupExamDate(
+  groupId: string,
+  date: string,
+): Promise<void> {
+  await apiJson<null>("/api/groups/set-exam-date", {
+    method: "PUT",
+    json: { groupId, date },
+  });
+}
+
 // -------------------- STUDENTS --------------------
 export async function listStudents(page = 1, pageSize = 100) {
   const raw = await apiJson<any>(
