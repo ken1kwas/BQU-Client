@@ -109,7 +109,11 @@ const deanNavigation: NavigationGroup[] = [
       { title: "Enrollments", icon: FileSpreadsheet, id: "enrollments" },
       { title: "İdarəetmə", icon: Settings, id: "management" },
       { title: "Final imtahanlar", icon: CalendarDays, id: "dean-finals-list" },
-      { title: "Qiyməti təsdiqlə", icon: ClipboardCheck, id: "dean-finals-confirm" },
+      {
+        title: "Qiyməti təsdiqlə",
+        icon: ClipboardCheck,
+        id: "dean-finals-confirm",
+      },
       { title: "Final yarat", icon: FilePlus2, id: "dean-finals-create" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Profil", icon: User, id: "profile" },
@@ -143,8 +147,12 @@ function AppShell({
   const { isMobile, setOpenMobile } = useSidebar();
   const activeItem =
     selectedCourse !== null
-      ? navigation.flatMap((group) => group.items).find((item) => item.id === "courses")
-      : navigation.flatMap((group) => group.items).find((item) => item.id === activeView);
+      ? navigation
+          .flatMap((group) => group.items)
+          .find((item) => item.id === "courses")
+      : navigation
+          .flatMap((group) => group.items)
+          .find((item) => item.id === activeView);
 
   const handleNavigation = (viewId: string) => {
     setActiveView(viewId);
@@ -208,7 +216,9 @@ function AppShell({
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
                         onClick={() => handleNavigation(item.id)}
-                        isActive={activeView === item.id && selectedCourse === null}
+                        isActive={
+                          activeView === item.id && selectedCourse === null
+                        }
                         className="py-3"
                       >
                         <item.icon className="h-5 w-5" />
@@ -226,30 +236,34 @@ function AppShell({
       <SidebarInset className="flex flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
           <SidebarTrigger className="size-9 shrink-0 rounded-md border border-border" />
-          <img src={logo} alt="Logo" className="h-8 w-8 object-contain" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">BQU LMS</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {activeItem?.title ?? "Menu"}
-            </p>
-          </div>
+          <p className="truncate text-base font-semibold md:text-lg">
+            {activeItem?.title ?? "Menu"}
+          </p>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6">{renderContent()}</main>
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          {renderContent()}
+        </main>
       </SidebarInset>
     </div>
   );
 }
 
 export default function App() {
-  const isConfirmEmailRoute = window.location.pathname.endsWith("/confirm-email");
-  const isResetPasswordRoute = window.location.pathname.endsWith("/reset-password");
+  const isConfirmEmailRoute =
+    window.location.pathname.endsWith("/confirm-email");
+  const isResetPasswordRoute =
+    window.location.pathname.endsWith("/reset-password");
 
   const [activeView, setActiveView] = useState("dashboard");
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
+  const [token, setToken] = useState<string | null>(() =>
+    localStorage.getItem("token"),
+  );
   const [userRole, setUserRole] = useState<UserRole | undefined>(undefined);
   const [loadingRole, setLoadingRole] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(
+    null,
+  );
 
   const handleRoleSwitch: undefined | (() => void) = undefined;
 
@@ -465,5 +479,3 @@ export default function App() {
     </SidebarProvider>
   );
 }
-
-

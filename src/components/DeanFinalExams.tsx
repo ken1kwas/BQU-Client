@@ -221,10 +221,7 @@ function mapFinalExamFromApi(exam: any): FinalExam {
     exam?.ExamGrade;
 
   const isAllowedRaw =
-    exam?.isAllowed ??
-    exam?.IsAllowed ??
-    exam?.allowed ??
-    exam?.Allowed;
+    exam?.isAllowed ?? exam?.IsAllowed ?? exam?.allowed ?? exam?.Allowed;
 
   const numericGrade =
     typeof gradeRaw === "number"
@@ -305,7 +302,9 @@ function toDateTimeLocalValue(value?: string): string {
   const fromNative = new Date(value);
   if (!Number.isNaN(fromNative.getTime())) {
     const tzOffsetMs = fromNative.getTimezoneOffset() * 60 * 1000;
-    return new Date(fromNative.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+    return new Date(fromNative.getTime() - tzOffsetMs)
+      .toISOString()
+      .slice(0, 16);
   }
 
   const trimmed = value.trim();
@@ -421,9 +420,8 @@ export function DeanFinalExams({ mode }: Props) {
   const [updateExamCourseCode, setUpdateExamCourseCode] = useState("");
   const [updateExamTitle, setUpdateExamTitle] = useState("");
   const [updateGroupCode, setUpdateGroupCode] = useState("");
-  const [updateSubjectFallbackLabel, setUpdateSubjectFallbackLabel] = useState(
-    "Current subject",
-  );
+  const [updateSubjectFallbackLabel, setUpdateSubjectFallbackLabel] =
+    useState("Current subject");
   const [updateDateInput, setUpdateDateInput] = useState("");
   const [updateGradeInput, setUpdateGradeInput] = useState("");
   const [updateIsAllowed, setUpdateIsAllowed] = useState(true);
@@ -438,7 +436,9 @@ export function DeanFinalExams({ mode }: Props) {
     selectedGroupFilterId === "all"
       ? undefined
       : groupOptions.find((group) => group.id === selectedGroupFilterId);
-  const selectedGroupFilterCode = selectedGroupFilter?.code.trim().toLowerCase();
+  const selectedGroupFilterCode = selectedGroupFilter?.code
+    .trim()
+    .toLowerCase();
   const filteredFinalExams = selectedGroupFilterCode
     ? finalExams.filter(
         (exam) =>
@@ -672,9 +672,7 @@ export function DeanFinalExams({ mode }: Props) {
     setSelectedFinalExamId(finalExamId);
     const parsed = currentDate ? new Date(currentDate) : null;
     if (parsed && !Number.isNaN(parsed.getTime())) {
-      setFinalExamDateInput(
-        parsed.toISOString().slice(0, 10),
-      );
+      setFinalExamDateInput(parsed.toISOString().slice(0, 10));
     } else {
       setFinalExamDateInput("");
     }
@@ -753,7 +751,10 @@ export function DeanFinalExams({ mode }: Props) {
       }
 
       setIsSettingGroupDate(true);
-      await setGroupExamDate(setDateGroupId, new Date(setDateInput).toISOString());
+      await setGroupExamDate(
+        setDateGroupId,
+        new Date(setDateInput).toISOString(),
+      );
       toast.success("Final exam date set for selected group");
       await refreshFinalExams();
     } catch (error: any) {
@@ -993,7 +994,9 @@ export function DeanFinalExams({ mode }: Props) {
                       ) : null}
                     </TableCell>
                     <TableCell>{exam.groupCode || "-"}</TableCell>
-                    <TableCell>{formatExamGradeForDisplay(exam.grade)}</TableCell>
+                    <TableCell>
+                      {formatExamGradeForDisplay(exam.grade)}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={exam.gradesConfirmed ? "secondary" : "default"}
@@ -1324,8 +1327,8 @@ export function DeanFinalExams({ mode }: Props) {
           </Table>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
-              Page {finalsPage} of {Math.max(1, finalsTotalPages)} (
-              {finalsTotalCount} items)
+              {Math.max(1, finalsTotalPages)} səhifədən {finalsPage}-cü səhifə (
+              {finalsTotalCount} ədəd )
             </p>
             <div className="flex items-center gap-2">
               <Select
@@ -1350,7 +1353,7 @@ export function DeanFinalExams({ mode }: Props) {
                 disabled={isFinalsLoading || finalsPage <= 1}
                 onClick={() => setFinalsPage((prev) => Math.max(1, prev - 1))}
               >
-                Previous
+                Əvvəlki
               </Button>
               <Button
                 variant="outline"
@@ -1364,7 +1367,7 @@ export function DeanFinalExams({ mode }: Props) {
                   )
                 }
               >
-                Next
+                Növbəti
               </Button>
             </div>
           </div>{" "}
@@ -1373,10 +1376,3 @@ export function DeanFinalExams({ mode }: Props) {
     </>
   );
 }
-
-
-
-
-
-
-
