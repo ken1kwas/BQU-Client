@@ -229,7 +229,9 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
             : Number(work.grade);
         const normalizedGrade =
           parsedGrade !== null && Number.isFinite(parsedGrade)
-            ? parsedGrade
+            ? parsedGrade === FAILED_GRADE
+              ? null
+              : parsedGrade
             : work.legacyIsPassed === true
               ? 1
               : work.legacyIsPassed === false
