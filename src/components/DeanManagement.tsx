@@ -600,7 +600,7 @@ export function DeanManagement() {
           deptsResp,
           specsResp,
         ] = await Promise.all([
-          listRooms(1, 100),
+          listRooms(1, 110),
           listTeachers(1, 100),
           listGroups(1, 100),
           listTaughtSubjects(1, 100),
@@ -732,7 +732,7 @@ export function DeanManagement() {
         });
         toast.success("Room added successfully");
       }
-      const resp = await listRooms(1, 100);
+      const resp = await listRooms(1, 110);
       setRooms(toArray(resp).map(mapRoomFromApi));
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to save room");

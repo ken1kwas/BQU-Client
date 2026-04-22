@@ -162,7 +162,7 @@ export function DeanSchedule() {
     const fetchLists = async () => {
       try {
         const [roomsResp, groupsResp, coursesResp] = await Promise.all([
-          listRooms(1, 100),
+          listRooms(1, 110),
           listGroups(1, 100),
           listTaughtSubjects(1, 100),
         ]);

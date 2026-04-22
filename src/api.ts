@@ -446,7 +446,7 @@ export async function getTeacherProfile() {
 }
 
 // -------------------- ROOMS --------------------
-export async function listRooms(page = 1, pageSize = 100) {
+export async function listRooms(page = 1, pageSize = 110) {
   const raw = await apiJson<any>(
     `/api/rooms?page=${page}&pageSize=${pageSize}`,
   );
