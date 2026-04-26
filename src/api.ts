@@ -592,6 +592,12 @@ export async function getStudentById(id: string | number) {
   return unwrapApiResult(raw);
 }
 
+export function deleteStudent(id: string | number) {
+  return apiJson<any>(`/api/students/${encodeURIComponent(String(id))}`, {
+    method: "DELETE",
+  });
+}
+
 export function createStudent(req: {
   name: string;
   surname: string;
