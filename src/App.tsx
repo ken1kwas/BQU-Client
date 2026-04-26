@@ -25,6 +25,7 @@ import { Grades } from "./components/Grades";
 import { Profile } from "./components/Profile";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { Schedule } from "./components/Schedule";
+import { StudentFinals } from "./components/StudentFinals";
 import { StudentSubjectsHistory } from "./components/StudentSubjectsHistory";
 import { TeacherCourseDetail } from "./components/TeacherCourseDetail";
 import { TeacherCourses } from "./components/TeacherCourses";
@@ -82,6 +83,7 @@ const studentNavigation: NavigationGroup[] = [
     title: "Main",
     items: [
       { title: "Əsas səhifə", icon: Home, id: "dashboard" },
+      { title: "Semester imtahanları", icon: CalendarDays, id: "student-finals" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Qiymətləndirmə", icon: BarChart3, id: "grades" },
       { title: "Fənnlərin tarixi", icon: History, id: "subjects-history" },
@@ -95,7 +97,7 @@ const teacherNavigation: NavigationGroup[] = [
     title: "Main",
     items: [
       { title: "Fənnlərim", icon: BookOpen, id: "courses" },
-      { title: "Final imtahanlar", icon: CalendarDays, id: "teacher-finals" },
+      { title: "Semester imtahanları", icon: CalendarDays, id: "teacher-finals" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Profil", icon: User, id: "profile" },
     ],
@@ -108,7 +110,7 @@ const deanNavigation: NavigationGroup[] = [
     items: [
       { title: "Enrollments", icon: FileSpreadsheet, id: "enrollments" },
       { title: "İdarəetmə", icon: Settings, id: "management" },
-      { title: "Final imtahanlar", icon: CalendarDays, id: "dean-finals-list" },
+      { title: "Semester imtahanları", icon: CalendarDays, id: "dean-finals-list" },
       { title: "Qiyməti təsdiqlə", icon: ClipboardCheck, id: "dean-finals-confirm" },
       { title: "Final yarat", icon: FilePlus2, id: "dean-finals-create" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
@@ -377,6 +379,8 @@ export default function App() {
     switch (activeView) {
       case "dashboard":
         return <Dashboard />;
+      case "student-finals":
+        return <StudentFinals />;
       case "schedule":
         return <Schedule userRole="student" />;
       case "grades":
@@ -465,5 +469,6 @@ export default function App() {
     </SidebarProvider>
   );
 }
+
 
 

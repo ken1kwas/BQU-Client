@@ -402,6 +402,43 @@ export async function getStudentAcademicHistory() {
   return apiJson<any>("/api/students/me/academic-history");
 }
 
+export type StudentUpcomingFinal = {
+  id: string;
+  subject: string;
+  enterScore: number | null;
+  formattedDate: string | null;
+  teacherFullName: string;
+  groupCode: string;
+};
+
+export async function getStudentUpcomingFinals(): Promise<StudentUpcomingFinal[]> {
+  const raw = await apiJson<any>("/api/students/me/finals");
+  const data = unwrapApiResult<any>(raw);
+  const finals = Array.isArray(data?.finals)
+    ? data.finals
+    : Array.isArray(data)
+      ? data
+      : [];
+
+  return finals.map((item: any) => ({
+    id: String(item?.id ?? item?.Id ?? ""),
+    subject: String(item?.subject ?? item?.Subject ?? ""),
+    enterScore:
+      typeof (item?.enterScore ?? item?.EnterScore) === "number"
+        ? Number(item?.enterScore ?? item?.EnterScore)
+        : null,
+    formattedDate:
+      typeof (item?.formattedDate ?? item?.formatedDate ?? item?.FormattedDate) ===
+      "string"
+        ? String(item?.formattedDate ?? item?.formatedDate ?? item?.FormattedDate)
+        : null,
+    teacherFullName: String(
+      item?.teacherFullName ?? item?.TeacherFullName ?? "",
+    ),
+    groupCode: String(item?.groupCode ?? item?.GroupCode ?? ""),
+  }));
+}
+
 export function markStudentAbsence(studentId: string, classId: string) {
   return apiJson<any>(
     `/api/students/${encodeURIComponent(studentId)}/classes/${encodeURIComponent(classId)}/mark-absence`,
