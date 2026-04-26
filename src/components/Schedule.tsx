@@ -30,6 +30,7 @@ interface ScheduleEntry {
   topic?: string;
   group?: string;
   taughtSubjectId?: string | number;
+  hasSyllabus?: boolean;
 }
 
 const extractWeekMeta = (
@@ -283,6 +284,10 @@ const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
     raw?.courseId ??
     raw?.course?.id ??
     null;
+  const hasSyllabus =
+    typeof raw?.hasSyllabus === "boolean"
+      ? raw.hasSyllabus
+      : Boolean(raw?.syllabusId ?? raw?.syllabus?.id ?? raw?.syllabus);
 
   const periodStr = raw?.period ? String(raw.period) : "";
   const nameStr = pickString(raw?.name, raw?.title, raw?.courseName) || "";
@@ -339,6 +344,7 @@ const toScheduleEntry = (raw: any, index: number): ScheduleEntry => {
       typeof taughtSubjectId === "string" || typeof taughtSubjectId === "number"
         ? taughtSubjectId
         : undefined,
+    hasSyllabus,
   };
 };
 
@@ -763,7 +769,10 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                     topic={item.topic}
                     group={item.group}
                     userRole={userRole}
-                    syllabusTaughtSubjectId={item.taughtSubjectId ?? item.id}
+                    syllabusTaughtSubjectId={
+                      item.hasSyllabus ? item.taughtSubjectId : undefined
+                    }
+                    hasSyllabus={item.hasSyllabus}
                   />
                 ))
               )}
@@ -808,8 +817,11 @@ export function Schedule({ userRole = "student" }: ScheduleProps = {}) {
                           group={classItem.group}
                           userRole={userRole}
                           syllabusTaughtSubjectId={
-                            classItem.taughtSubjectId ?? classItem.id
+                            classItem.hasSyllabus
+                              ? classItem.taughtSubjectId
+                              : undefined
                           }
+                          hasSyllabus={classItem.hasSyllabus}
                         />
                       ))
                     )}

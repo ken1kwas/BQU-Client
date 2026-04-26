@@ -22,6 +22,7 @@ interface CourseCardProps {
   group?: string;
   userRole?: "student" | "teacher";
   syllabusTaughtSubjectId?: string | number;
+  hasSyllabus?: boolean;
 }
 
 const getTypeLabel = (type: string) => {
@@ -49,6 +50,7 @@ export function CourseCard({
   group,
   userRole = "student",
   syllabusTaughtSubjectId,
+  hasSyllabus,
 }: CourseCardProps) {
   const handleSyllabusView = async () => {
     if (!syllabusTaughtSubjectId) {
@@ -89,14 +91,19 @@ export function CourseCard({
     }
   };
 
-  const syllabusButton = userRole === "student" ? (
+  const shouldShowSyllabusButton =
+    userRole === "student" &&
+    (typeof hasSyllabus === "boolean"
+      ? hasSyllabus
+      : Boolean(syllabusTaughtSubjectId));
+
+  const syllabusButton = shouldShowSyllabusButton ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
           size="sm"
           className="absolute bottom-3 right-3 shadow-md hover:shadow-lg transition-shadow"
-          disabled={!syllabusTaughtSubjectId}
         >
           Syllabus
         </Button>

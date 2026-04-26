@@ -53,6 +53,16 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Badge } from "./ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
+import {
   DeanStudentDetail,
   type DeanStudentDetailStudent,
 } from "./DeanStudentDetail";
@@ -78,6 +88,7 @@ import {
   createTaughtSubject,
   updateTaughtSubject,
   deleteTaughtSubject,
+  deleteStudent,
   ensureHHMMSS,
   uploadStudentsExcel,
 } from "../api";
@@ -575,6 +586,11 @@ export function DeanManagement() {
   const [isFormatInfoOpen, setIsFormatInfoOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] =
     useState<DeanStudentDetailStudent | null>(null);
+  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(
+    null,
+  );
+  const [studentPendingDelete, setStudentPendingDelete] =
+    useState<Student | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 10;
@@ -1097,6 +1113,33 @@ export function DeanManagement() {
       toast.success("Student added successfully");
     }
     setStudentForm({});
+  };
+
+  const handleDeleteStudent = async () => {
+    if (!studentPendingDelete) return;
+
+    const studentId = String(studentPendingDelete.id ?? "");
+    if (!studentId) {
+      toast.error("Student id is missing");
+      return;
+    }
+
+    try {
+      setDeletingStudentId(studentId);
+      await deleteStudent(studentId);
+      toast.success("Student deleted successfully");
+      setStudents((prev) =>
+        prev.filter((item) => String(item.id) !== String(studentId)),
+      );
+      setSelectedStudent((prev) =>
+        prev && String(prev.id) === String(studentId) ? null : prev,
+      );
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to delete student");
+    } finally {
+      setStudentPendingDelete(null);
+      setDeletingStudentId(null);
+    }
   };
 
   const handleFileUpload = async (
@@ -2228,17 +2271,31 @@ export function DeanManagement() {
                         <TableCell>{student.yearOfAdmission || "-"}</TableCell>
                         <TableCell>{student.admissionScore ?? "-"}</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedStudent({ id: String(student.id) });
-                            }}
-                            aria-label={`View ${student.name || "student"}`}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedStudent({ id: String(student.id) });
+                              }}
+                              aria-label={`View ${student.name || "student"}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setStudentPendingDelete(student);
+                              }}
+                              disabled={deletingStudentId === String(student.id)}
+                              aria-label={`Delete ${student.name || "student"}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -2272,6 +2329,35 @@ export function DeanManagement() {
                   </div>
                 </div>
               </div>
+              <AlertDialog
+                open={Boolean(studentPendingDelete)}
+                onOpenChange={(open) => {
+                  if (!open) setStudentPendingDelete(null);
+                }}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Tələbəni sil?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Bu əməliyyat geri alına bilməz.{" "}
+                      {studentPendingDelete?.name
+                        ? `${studentPendingDelete.name} silinecek.`
+                        : "Seçilmiş tələbə silinəcək."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={Boolean(deletingStudentId)}>
+                      Imtina
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteStudent}
+                      disabled={Boolean(deletingStudentId)}
+                    >
+                      {deletingStudentId ? "Silinir..." : "Sil"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
 
