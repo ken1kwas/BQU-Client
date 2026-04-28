@@ -227,10 +227,8 @@ function AppShell({
       <SidebarInset className="flex flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
           <SidebarTrigger className="size-9 shrink-0 rounded-md border border-border" />
-          <img src={logo} alt="Logo" className="h-8 w-8 object-contain" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">BQU LMS</p>
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="truncate text-sm font-semibold">
               {activeItem?.title ?? "Menu"}
             </p>
           </div>
