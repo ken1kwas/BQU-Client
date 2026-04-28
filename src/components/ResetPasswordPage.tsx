@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, KeyRound, Loader2, XCircle } from "lucide-react";
 
-import { resetPassword } from "../api";
+import { resetPassword } from "../api/index";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Button } from "./ui/button";
 import {

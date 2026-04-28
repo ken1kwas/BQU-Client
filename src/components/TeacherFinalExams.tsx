@@ -1,10 +1,20 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { gradeFinalExam, listTeacherFinalExams, type TeacherFinalExamDto } from "../api";
+import {
+  gradeFinalExam,
+  listTeacherFinalExams,
+  type TeacherFinalExamDto,
+} from "../api/index";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +24,14 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/table";
 
 function gradeBadgeVariant(grade: number | null): "default" | "secondary" {
   if (grade == null || grade === -1) return "secondary";
@@ -31,7 +48,9 @@ export function TeacherFinalExams() {
   const [exams, setExams] = useState<TeacherFinalExamDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [isGradeDialogOpen, setIsGradeDialogOpen] = useState(false);
-  const [gradingExam, setGradingExam] = useState<TeacherFinalExamDto | null>(null);
+  const [gradingExam, setGradingExam] = useState<TeacherFinalExamDto | null>(
+    null,
+  );
   const [gradeInput, setGradeInput] = useState("");
   const [savingGrade, setSavingGrade] = useState(false);
 
@@ -70,7 +89,11 @@ export function TeacherFinalExams() {
       }
 
       const parsedGrade = Number(gradeInput);
-      if (!Number.isInteger(parsedGrade) || parsedGrade < 0 || parsedGrade > 50) {
+      if (
+        !Number.isInteger(parsedGrade) ||
+        parsedGrade < 0 ||
+        parsedGrade > 50
+      ) {
         toast.error("Grade must be an integer between 0 and 50");
         return;
       }
@@ -114,7 +137,10 @@ export function TeacherFinalExams() {
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsGradeDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsGradeDialogOpen(false)}
+            >
               Close
             </Button>
             <Button onClick={handleSaveGrade} disabled={savingGrade}>
@@ -151,7 +177,10 @@ export function TeacherFinalExams() {
             <TableBody>
               {exams.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="text-center text-muted-foreground"
+                  >
                     {loading ? "Loading exams..." : "No exams found"}
                   </TableCell>
                 </TableRow>
@@ -159,10 +188,14 @@ export function TeacherFinalExams() {
                 exams.map((exam) => (
                   <TableRow key={exam.id}>
                     <TableCell>
-                      <div className="font-medium">{exam.studentFullName || "-"}</div>
+                      <div className="font-medium">
+                        {exam.studentFullName || "-"}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{exam.subjectName || "-"}</div>
+                      <div className="font-medium">
+                        {exam.subjectName || "-"}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {exam.subjectCode || "-"}
                       </div>
@@ -170,7 +203,9 @@ export function TeacherFinalExams() {
                     <TableCell>{exam.groupCode || "-"}</TableCell>
                     <TableCell>{exam.formattedDate || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant={gradeBadgeVariant(exam.grade)}>{gradeLabel(exam.grade)}</Badge>
+                      <Badge variant={gradeBadgeVariant(exam.grade)}>
+                        {gradeLabel(exam.grade)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" onClick={() => openGradeDialog(exam)}>

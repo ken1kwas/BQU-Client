@@ -55,7 +55,7 @@ import {
   getStudentProfile,
   getTeacherProfile,
   logout,
-} from "./api";
+} from "./api/index";
 import type { ProfileProps } from "./types/profile";
 import type {
   UserRole,

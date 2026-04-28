@@ -41,7 +41,7 @@ import {
   getGroup,
   filterStudents,
   markIndependentWorkGrade,
-} from "../api";
+} from "../api/index";
 import type { CourseSession, Student } from "../types/teacherCourseDetail";
 
 const formatSessionDate = (value: any): string => {

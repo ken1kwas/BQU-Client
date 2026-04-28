@@ -17,7 +17,7 @@ import {
   downloadSyllabusFile,
   deleteSyllabusFile,
   toArray,
-} from "../api";
+} from "../api/index";
 import type { CourseTopic, TeacherCourse } from "../types/teacherCourses";
 
 const formatTopicDate = (value: any): string => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, GraduationCap, Loader2, Users } from "lucide-react";
 
-import { getStudentUpcomingFinals, toArray } from "../api";
+import { getStudentUpcomingFinals, toArray } from "../api/index";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import type { FinalWithSortDate } from "../types/studentFinals";
