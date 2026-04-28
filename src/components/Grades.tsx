@@ -11,31 +11,7 @@ import { Progress } from "./ui/progress";
 import { Tabs, TabsContent } from "./ui/tabs";
 import { Loader2 } from "lucide-react";
 import { getStudentGrades, toArray } from "../api";
-
-type ClassSession = {
-  type: "Lecture" | "Seminar";
-  attendance: "present" | "absent";
-};
-
-export interface GradeCourse {
-  id: string;
-  course: string;
-  code: string;
-  instructor: string;
-  percentage: number;
-  scoreOutOf50: number;
-  credits: number;
-  weeklyHours: number;
-  classType: "Lecture" | "Seminar" | string;
-  colloquium: (number | null)[];
-  seminarGrades: number[];
-  assignmentScores: (number | null)[];
-  assignmentsPassed: number;
-  assignmentTotal: number;
-  classSessions: ClassSession[];
-  attendancePresent: number;
-  attendanceTotal: number;
-}
+import type { GradeCourse } from "../types/grades";
 
 const COLLOQUIUM_COUNT = 3;
 const ASSIGNMENTS_COUNT = 5;
@@ -136,13 +112,9 @@ function normalizeColloquiumGrades(value: any): (number | null)[] {
 
     const slotNum = Number(rawSlot);
     const isOneBased =
-      Number.isInteger(slotNum) &&
-      slotNum >= 1 &&
-      slotNum <= COLLOQUIUM_COUNT;
+      Number.isInteger(slotNum) && slotNum >= 1 && slotNum <= COLLOQUIUM_COUNT;
     const isZeroBased =
-      Number.isInteger(slotNum) &&
-      slotNum >= 0 &&
-      slotNum < COLLOQUIUM_COUNT;
+      Number.isInteger(slotNum) && slotNum >= 0 && slotNum < COLLOQUIUM_COUNT;
     const slot = isOneBased ? slotNum - 1 : isZeroBased ? slotNum : -1;
 
     if (slot >= 0 && slot < COLLOQUIUM_COUNT && ordered[slot] === null) {
@@ -191,7 +163,9 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
     const overallScore = toNumber(
       getProp(item, "OverallScore", "overallScore"),
     );
-    const percentage = clampPercentage((overallScore / OVERALL_SCORE_MAX) * 100);
+    const percentage = clampPercentage(
+      (overallScore / OVERALL_SCORE_MAX) * 100,
+    );
 
     const seminarGrades = toArray(
       getProp(item, "SeminarGrades", "seminarGrades"),
@@ -215,9 +189,10 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
       }))
       .sort((a, b) => a.number - b.number);
 
-    const assignmentScores = Array(ASSIGNMENTS_COUNT).fill(
-      null,
-    ) as (number | null)[];
+    const assignmentScores = Array(ASSIGNMENTS_COUNT).fill(null) as (
+      | number
+      | null
+    )[];
     let assignmentsPassed = 0;
 
     sortedWorks.forEach((work) => {
@@ -608,7 +583,9 @@ export function Grades() {
                           )}
                           <CardDescription>
                             {[
-                              course.credits ? `${course.credits} kredit` : null,
+                              course.credits
+                                ? `${course.credits} kredit`
+                                : null,
                               course.weeklyHours
                                 ? `${course.weeklyHours} saat`
                                 : null,

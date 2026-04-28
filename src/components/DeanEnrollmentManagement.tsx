@@ -10,6 +10,12 @@ import {
   updateStudentSubjectEnrollment,
 } from "../services/studentSubjectEnrollment";
 import type {
+  EnrollmentEditor,
+  EnrollmentFormState,
+  StudentOption,
+  TaughtSubjectOption,
+} from "../types/deanEnrollmentManagement";
+import type {
   CreateStudentSubjectEnrollmentDto,
   StudentSubjectEnrollmentDto,
 } from "../types/studentSubjectEnrollment";
@@ -61,48 +67,35 @@ import {
   TableRow,
 } from "./ui/table";
 
-type StudentOption = {
-  id: string;
-  label: string;
-};
-
-type TaughtSubjectOption = {
-  id: string;
-  label: string;
-  subjectName: string;
-};
-
-type EnrollmentFormState = {
-  studentId: string;
-  taughtSubjectId: string;
-  attempt: string;
-};
-
-type EnrollmentEditor =
-  | {
-      mode: "create";
-    }
-  | {
-      mode: "edit";
-      enrollment: StudentSubjectEnrollmentDto;
-    };
-
 function pickString(...values: unknown[]) {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "number" && Number.isFinite(value))
+      return String(value);
   }
   return "";
 }
 
 function buildStudentLabel(student: any) {
-  const firstName = pickString(student?.name, student?.firstName, student?.givenName);
-  const surname = pickString(student?.surname, student?.lastName, student?.familyName);
+  const firstName = pickString(
+    student?.name,
+    student?.firstName,
+    student?.givenName,
+  );
+  const surname = pickString(
+    student?.surname,
+    student?.lastName,
+    student?.familyName,
+  );
   const middleName = pickString(student?.middleName);
   const fullName =
     pickString(student?.fullName) ||
     [firstName, middleName, surname].filter(Boolean).join(" ").trim();
-  const fallbackId = pickString(student?.userName, student?.studentId, student?.userId);
+  const fallbackId = pickString(
+    student?.userName,
+    student?.studentId,
+    student?.userId,
+  );
   return fullName || fallbackId || "Unnamed student";
 }
 
@@ -121,7 +114,12 @@ function normalizeStudentOption(student: any): StudentOption {
 }
 
 function normalizeTaughtSubjectOption(item: any): TaughtSubjectOption {
-  const subjectName = pickString(item?.title, item?.subjectName, item?.name, item?.code);
+  const subjectName = pickString(
+    item?.title,
+    item?.subjectName,
+    item?.name,
+    item?.code,
+  );
   const groupCode = pickString(
     item?.groupCode,
     item?.group?.groupCode,
@@ -143,9 +141,13 @@ const EMPTY_FORM: EnrollmentFormState = {
 };
 
 export function DeanEnrollmentManagement() {
-  const [enrollments, setEnrollments] = useState<StudentSubjectEnrollmentDto[]>([]);
+  const [enrollments, setEnrollments] = useState<StudentSubjectEnrollmentDto[]>(
+    [],
+  );
   const [students, setStudents] = useState<StudentOption[]>([]);
-  const [taughtSubjects, setTaughtSubjects] = useState<TaughtSubjectOption[]>([]);
+  const [taughtSubjects, setTaughtSubjects] = useState<TaughtSubjectOption[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -328,8 +330,8 @@ export function DeanEnrollmentManagement() {
             <div>
               <CardTitle>Subject enrollments</CardTitle>
               <CardDescription>
-                Manage which taught subject instance each student is enrolled in,
-                including retake attempts.
+                Manage which taught subject instance each student is enrolled
+                in, including retake attempts.
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -339,7 +341,9 @@ export function DeanEnrollmentManagement() {
                 onClick={() => loadData(true)}
                 disabled={refreshing || loading}
               >
-                <RefreshCw className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                <RefreshCw
+                  className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
+                />
                 Refresh
               </Button>
               <Dialog
@@ -361,7 +365,9 @@ export function DeanEnrollmentManagement() {
                 <DialogContent className="sm:max-w-xl">
                   <DialogHeader>
                     <DialogTitle>
-                      {editor.mode === "create" ? "Create enrollment" : "Edit enrollment"}
+                      {editor.mode === "create"
+                        ? "Create enrollment"
+                        : "Edit enrollment"}
                     </DialogTitle>
                     <DialogDescription>
                       {editor.mode === "create"
@@ -376,7 +382,10 @@ export function DeanEnrollmentManagement() {
                       <Select
                         value={form.studentId}
                         onValueChange={(value) =>
-                          setForm((current) => ({ ...current, studentId: value }))
+                          setForm((current) => ({
+                            ...current,
+                            studentId: value,
+                          }))
                         }
                         disabled={editor.mode === "edit" || saving}
                       >
@@ -394,11 +403,16 @@ export function DeanEnrollmentManagement() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="enrollment-taught-subject">Taught subject</Label>
+                      <Label htmlFor="enrollment-taught-subject">
+                        Taught subject
+                      </Label>
                       <Select
                         value={form.taughtSubjectId}
                         onValueChange={(value) =>
-                          setForm((current) => ({ ...current, taughtSubjectId: value }))
+                          setForm((current) => ({
+                            ...current,
+                            taughtSubjectId: value,
+                          }))
                         }
                         disabled={saving}
                       >
@@ -441,12 +455,25 @@ export function DeanEnrollmentManagement() {
                   </div>
 
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={resetDialog} disabled={saving}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={resetDialog}
+                      disabled={saving}
+                    >
                       Cancel
                     </Button>
-                    <Button type="button" onClick={handleSubmit} disabled={saving}>
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      {editor.mode === "create" ? "Create enrollment" : "Save changes"}
+                    <Button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={saving}
+                    >
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : null}
+                      {editor.mode === "create"
+                        ? "Create enrollment"
+                        : "Save changes"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -496,7 +523,11 @@ export function DeanEnrollmentManagement() {
                     <TableCell>{enrollment.subjectName || "-"}</TableCell>
                     <TableCell>{enrollment.groupCode || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant={enrollment.attempt > 1 ? "secondary" : "outline"}>
+                      <Badge
+                        variant={
+                          enrollment.attempt > 1 ? "secondary" : "outline"
+                        }
+                      >
                         Attempt {enrollment.attempt}
                       </Badge>
                     </TableCell>
@@ -519,15 +550,21 @@ export function DeanEnrollmentManagement() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete enrollment?</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Delete enrollment?
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will remove the enrollment for {enrollment.studentName} in{" "}
-                                {enrollment.subjectName}, attempt {enrollment.attempt}.
+                                This will remove the enrollment for{" "}
+                                {enrollment.studentName} in{" "}
+                                {enrollment.subjectName}, attempt{" "}
+                                {enrollment.attempt}.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(enrollment)}>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(enrollment)}
+                              >
                                 Delete
                               </AlertDialogAction>
                             </AlertDialogFooter>

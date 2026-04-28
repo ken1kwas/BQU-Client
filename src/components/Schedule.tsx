@@ -10,28 +10,11 @@ import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { CourseCard } from "./CourseCard";
 import { getStudentSchedule, getTeacherSchedule, toArray } from "../api";
-
-// The weekly schedule will be populated from the backend.  Each day
-// contains a name, a date string and an array of class entries.
-interface ScheduleDay {
-  day: string;
-  date: string;
-  classes: ScheduleEntry[];
-}
-
-interface ScheduleEntry {
-  id: string | number;
-  title: string;
-  code: string;
-  time: string;
-  location: string;
-  type: string;
-  instructor?: string;
-  topic?: string;
-  group?: string;
-  taughtSubjectId?: string | number;
-  hasSyllabus?: boolean;
-}
+import type {
+  ScheduleDay,
+  ScheduleEntry,
+  ScheduleProps,
+} from "../types/schedule";
 
 const extractWeekMeta = (
   raw: any,
@@ -95,7 +78,7 @@ const formatTimeValue = (value: any): string => {
 
 const capitalizeFirst = (s: string, locale = "az-Latn-AZ") => {
   if (!s) return s;
-  const chars = Array.from(s);          // чтобы не сломаться на юникод-символах
+  const chars = Array.from(s); // чтобы не сломаться на юникод-символах
   chars[0] = chars[0].toLocaleUpperCase(locale);
   return chars.join("");
 };
@@ -407,7 +390,10 @@ const toWeekSchedule = (raw: any): ScheduleDay[] => {
     const locale = "az-Latn-AZ"; // или из настроек/пропсов
     const dayLong = new Intl.DateTimeFormat(locale, { weekday: "long" });
     const dayShort = new Intl.DateTimeFormat(locale, { weekday: "short" });
-    const monthDay = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" });
+    const monthDay = new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+    });
 
     const classesByDay = new Map<number, any[]>();
 
@@ -431,8 +417,8 @@ const toWeekSchedule = (raw: any): ScheduleDay[] => {
       const dayClasses = classesByDay.get(i) || [];
 
       if (dayClasses.length > 0 || i === today.getDay()) {
-        const entries = toScheduleEntries(dayClasses).sort((a,b) =>
-            (a.time || "").localeCompare(b.time || "")
+        const entries = toScheduleEntries(dayClasses).sort((a, b) =>
+          (a.time || "").localeCompare(b.time || ""),
         );
 
         scheduleDays.push({
@@ -561,10 +547,6 @@ const toTodaySchedule = (raw: any): ScheduleEntry[] => {
 //     type: "workshop"
 //   }
 // ];
-
-interface ScheduleProps {
-  userRole?: "student" | "teacher";
-}
 
 const formatTodayDate = (): string => {
   const locale = "az-Latn-AZ";

@@ -18,30 +18,7 @@ import {
   deleteSyllabusFile,
   toArray,
 } from "../api";
-
-// This component previously used a static list of courses.  It now
-// fetches the teacher's courses from the backend on mount.  Each
-// course may include a syllabusId if a file has already been
-// uploaded.
-interface TeacherCourse {
-  id: number | string;
-  title: string;
-  code: string;
-  type: string;
-  groups: string[];
-  studentCount: number;
-  hours: number;
-  credits: number;
-  hasSyllabus: boolean;
-  syllabusId?: string | number;
-  topics: CourseTopic[];
-}
-
-interface CourseTopic {
-  session: number;
-  topic: string;
-  date?: string;
-}
+import type { CourseTopic, TeacherCourse } from "../types/teacherCourses";
 
 const formatTopicDate = (value: any): string => {
   if (!value) return "";
@@ -101,7 +78,10 @@ export function TeacherCourses({
   onCourseSelect,
 }: {
   onCourseSelect: (
-    course: string | number | { id: string | number; studentCount?: number; hours?: number },
+    course:
+      | string
+      | number
+      | { id: string | number; studentCount?: number; hours?: number },
   ) => void;
 }) {
   // Local state for courses loaded from the backend
@@ -121,7 +101,12 @@ export function TeacherCourses({
         const teacherCourse: TeacherCourse = {
           id,
           title:
-            c.courseName ?? c.title ?? c.name ?? c.taughtSubject?.title ?? c.subjectTitle ?? "",
+            c.courseName ??
+            c.title ??
+            c.name ??
+            c.taughtSubject?.title ??
+            c.subjectTitle ??
+            "",
           code: c.courseCode ?? c.code ?? c.taughtSubject?.code ?? "",
           type: c.type ?? c.classType ?? "Lecture",
           groups: Array.isArray(c.groups)

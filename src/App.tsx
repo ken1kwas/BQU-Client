@@ -56,34 +56,27 @@ import {
   getTeacherProfile,
   logout,
 } from "./api";
+import type { ProfileProps } from "./types/profile";
+import type {
+  UserRole,
+  NavigationItem,
+  NavigationGroup,
+  SelectedCourse,
+  AppShellProps,
+} from "./types/app";
 
 const DEV_BYPASS_LOGIN = false;
-
-type UserRole = "student" | "teacher" | "dean";
-
-type NavigationItem = {
-  title: string;
-  icon: LucideIcon;
-  id: string;
-};
-
-type NavigationGroup = {
-  title: string;
-  items: NavigationItem[];
-};
-
-type SelectedCourse = {
-  id: string | number;
-  studentCount?: number;
-  hours?: number;
-};
 
 const studentNavigation: NavigationGroup[] = [
   {
     title: "Main",
     items: [
       { title: "Əsas səhifə", icon: Home, id: "dashboard" },
-      { title: "Semester imtahanları", icon: CalendarDays, id: "student-finals" },
+      {
+        title: "Semester imtahanları",
+        icon: CalendarDays,
+        id: "student-finals",
+      },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Qiymətləndirmə", icon: BarChart3, id: "grades" },
       { title: "Fənnlərin tarixi", icon: History, id: "subjects-history" },
@@ -97,7 +90,11 @@ const teacherNavigation: NavigationGroup[] = [
     title: "Main",
     items: [
       { title: "Fənnlərim", icon: BookOpen, id: "courses" },
-      { title: "Semester imtahanları", icon: CalendarDays, id: "teacher-finals" },
+      {
+        title: "Semester imtahanları",
+        icon: CalendarDays,
+        id: "teacher-finals",
+      },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Profil", icon: User, id: "profile" },
     ],
@@ -110,26 +107,22 @@ const deanNavigation: NavigationGroup[] = [
     items: [
       { title: "Enrollments", icon: FileSpreadsheet, id: "enrollments" },
       { title: "İdarəetmə", icon: Settings, id: "management" },
-      { title: "Semester imtahanları", icon: CalendarDays, id: "dean-finals-list" },
-      { title: "Qiyməti təsdiqlə", icon: ClipboardCheck, id: "dean-finals-confirm" },
+      {
+        title: "Semester imtahanları",
+        icon: CalendarDays,
+        id: "dean-finals-list",
+      },
+      {
+        title: "Qiyməti təsdiqlə",
+        icon: ClipboardCheck,
+        id: "dean-finals-confirm",
+      },
       { title: "Final yarat", icon: FilePlus2, id: "dean-finals-create" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Profil", icon: User, id: "profile" },
     ],
   },
 ];
-
-type AppShellProps = {
-  navigation: NavigationGroup[];
-  activeView: string;
-  userRole: UserRole;
-  selectedCourse: SelectedCourse | null;
-  setActiveView: (view: string) => void;
-  setSelectedCourse: (course: SelectedCourse | null) => void;
-  handleRoleSwitch?: () => void;
-  handleLogout: () => void;
-  renderContent: () => ReactNode;
-};
 
 function AppShell({
   navigation,
@@ -145,8 +138,12 @@ function AppShell({
   const { isMobile, setOpenMobile } = useSidebar();
   const activeItem =
     selectedCourse !== null
-      ? navigation.flatMap((group) => group.items).find((item) => item.id === "courses")
-      : navigation.flatMap((group) => group.items).find((item) => item.id === activeView);
+      ? navigation
+          .flatMap((group) => group.items)
+          .find((item) => item.id === "courses")
+      : navigation
+          .flatMap((group) => group.items)
+          .find((item) => item.id === activeView);
 
   const handleNavigation = (viewId: string) => {
     setActiveView(viewId);
@@ -210,7 +207,9 @@ function AppShell({
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
                         onClick={() => handleNavigation(item.id)}
-                        isActive={activeView === item.id && selectedCourse === null}
+                        isActive={
+                          activeView === item.id && selectedCourse === null
+                        }
                         className="py-3"
                       >
                         <item.icon className="h-5 w-5" />
@@ -237,21 +236,29 @@ function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6">{renderContent()}</main>
+        <main className="flex-1 overflow-auto p-4 md:p-6">
+          {renderContent()}
+        </main>
       </SidebarInset>
     </div>
   );
 }
 
 export default function App() {
-  const isConfirmEmailRoute = window.location.pathname.endsWith("/confirm-email");
-  const isResetPasswordRoute = window.location.pathname.endsWith("/reset-password");
+  const isConfirmEmailRoute =
+    window.location.pathname.endsWith("/confirm-email");
+  const isResetPasswordRoute =
+    window.location.pathname.endsWith("/reset-password");
 
   const [activeView, setActiveView] = useState("dashboard");
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("token"));
+  const [token, setToken] = useState<string | null>(() =>
+    localStorage.getItem("token"),
+  );
   const [userRole, setUserRole] = useState<UserRole | undefined>(undefined);
   const [loadingRole, setLoadingRole] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(
+    null,
+  );
 
   const handleRoleSwitch: undefined | (() => void) = undefined;
 
@@ -469,6 +476,3 @@ export default function App() {
     </SidebarProvider>
   );
 }
-
-
-

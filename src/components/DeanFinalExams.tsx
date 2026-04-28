@@ -46,40 +46,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-
-type DeanFinalExamsMode = "list" | "confirm" | "create";
-
-type FinalExam = {
-  id: string;
-  studentId?: string;
-  taughtSubjectId?: string;
-  subjectId?: string;
-  title: string;
-  studentName?: string;
-  courseCode?: string;
-  groupCode?: string;
-  semester?: number;
-  date?: string;
-  grade?: number;
-  gradesConfirmed?: boolean;
-  isAllowed?: boolean;
-};
-
-type StudentOption = {
-  id: string;
-  label: string;
-};
-
-type SubjectOption = {
-  id: string;
-  label: string;
-};
-
-type GroupOption = {
-  id: string;
-  code: string;
-  label: string;
-};
+import type {
+  DeanFinalExamsMode,
+  FinalExam,
+  GroupOption,
+  StudentOption,
+  SubjectOption,
+  DeanFinalExamsProps,
+} from "../types/deanFinalExams";
+import type { Props } from "../types/deanFinalExamsComponent";
 
 function pickString(...values: unknown[]): string {
   for (const value of values) {
@@ -221,10 +196,7 @@ function mapFinalExamFromApi(exam: any): FinalExam {
     exam?.ExamGrade;
 
   const isAllowedRaw =
-    exam?.isAllowed ??
-    exam?.IsAllowed ??
-    exam?.allowed ??
-    exam?.Allowed;
+    exam?.isAllowed ?? exam?.IsAllowed ?? exam?.allowed ?? exam?.Allowed;
 
   const numericGrade =
     typeof gradeRaw === "number"
@@ -305,7 +277,9 @@ function toDateTimeLocalValue(value?: string): string {
   const fromNative = new Date(value);
   if (!Number.isNaN(fromNative.getTime())) {
     const tzOffsetMs = fromNative.getTimezoneOffset() * 60 * 1000;
-    return new Date(fromNative.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+    return new Date(fromNative.getTime() - tzOffsetMs)
+      .toISOString()
+      .slice(0, 16);
   }
 
   const trimmed = value.trim();
@@ -390,10 +364,6 @@ function extractFinalExamItems(payload: any): any[] {
   return toArray(payload);
 }
 
-type Props = {
-  mode: DeanFinalExamsMode;
-};
-
 export function DeanFinalExams({ mode }: Props) {
   const [finalExams, setFinalExams] = useState<FinalExam[]>([]);
   const [groupOptions, setGroupOptions] = useState<GroupOption[]>([]);
@@ -421,9 +391,8 @@ export function DeanFinalExams({ mode }: Props) {
   const [updateExamCourseCode, setUpdateExamCourseCode] = useState("");
   const [updateExamTitle, setUpdateExamTitle] = useState("");
   const [updateGroupCode, setUpdateGroupCode] = useState("");
-  const [updateSubjectFallbackLabel, setUpdateSubjectFallbackLabel] = useState(
-    "Current subject",
-  );
+  const [updateSubjectFallbackLabel, setUpdateSubjectFallbackLabel] =
+    useState("Current subject");
   const [updateDateInput, setUpdateDateInput] = useState("");
   const [updateGradeInput, setUpdateGradeInput] = useState("");
   const [updateIsAllowed, setUpdateIsAllowed] = useState(true);
@@ -438,7 +407,9 @@ export function DeanFinalExams({ mode }: Props) {
     selectedGroupFilterId === "all"
       ? undefined
       : groupOptions.find((group) => group.id === selectedGroupFilterId);
-  const selectedGroupFilterCode = selectedGroupFilter?.code.trim().toLowerCase();
+  const selectedGroupFilterCode = selectedGroupFilter?.code
+    .trim()
+    .toLowerCase();
   const filteredFinalExams = selectedGroupFilterCode
     ? finalExams.filter(
         (exam) =>
@@ -672,9 +643,7 @@ export function DeanFinalExams({ mode }: Props) {
     setSelectedFinalExamId(finalExamId);
     const parsed = currentDate ? new Date(currentDate) : null;
     if (parsed && !Number.isNaN(parsed.getTime())) {
-      setFinalExamDateInput(
-        parsed.toISOString().slice(0, 10),
-      );
+      setFinalExamDateInput(parsed.toISOString().slice(0, 10));
     } else {
       setFinalExamDateInput("");
     }
@@ -753,7 +722,10 @@ export function DeanFinalExams({ mode }: Props) {
       }
 
       setIsSettingGroupDate(true);
-      await setGroupExamDate(setDateGroupId, new Date(setDateInput).toISOString());
+      await setGroupExamDate(
+        setDateGroupId,
+        new Date(setDateInput).toISOString(),
+      );
       toast.success("Final exam date set for selected group");
       await refreshFinalExams();
     } catch (error: any) {
@@ -993,7 +965,9 @@ export function DeanFinalExams({ mode }: Props) {
                       ) : null}
                     </TableCell>
                     <TableCell>{exam.groupCode || "-"}</TableCell>
-                    <TableCell>{formatExamGradeForDisplay(exam.grade)}</TableCell>
+                    <TableCell>
+                      {formatExamGradeForDisplay(exam.grade)}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={exam.gradesConfirmed ? "secondary" : "default"}
@@ -1373,10 +1347,3 @@ export function DeanFinalExams({ mode }: Props) {
     </>
   );
 }
-
-
-
-
-
-
-

@@ -10,14 +10,10 @@ import {
 } from "./ui/card";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Button } from "./ui/button";
-
-type ConfirmStatus = "loading" | "success" | "error";
+import type { ConfirmStatus } from "../types/confirmEmailPage";
 
 export function ConfirmEmailPage() {
-  const params = useMemo(
-    () => new URLSearchParams(window.location.search),
-    [],
-  );
+  const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const userId = params.get("userId") ?? "";
   const token = params.get("token") ?? "";
 
@@ -52,7 +48,8 @@ export function ConfirmEmailPage() {
         if (!active) return;
         setStatus("error");
         setMessage(
-          error?.message || "Bu təsdiq linki etibarsız və ya müddəti bitmiş olur.",
+          error?.message ||
+            "Bu təsdiq linki etibarsız və ya müddəti bitmiş olur.",
         );
       }
     })();

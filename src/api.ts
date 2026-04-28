@@ -1,6 +1,6 @@
 const BASE_URL =
   (import.meta as any).env?.VITE_API_BASE_URL ||
-  // "http://localhost:5000" ||
+  "http://localhost:5000" ||
   "https://localhost:7085";
 
 function getToken(): string | null {
@@ -411,7 +411,9 @@ export type StudentUpcomingFinal = {
   groupCode: string;
 };
 
-export async function getStudentUpcomingFinals(): Promise<StudentUpcomingFinal[]> {
+export async function getStudentUpcomingFinals(): Promise<
+  StudentUpcomingFinal[]
+> {
   const raw = await apiJson<any>("/api/students/me/finals");
   const data = unwrapApiResult<any>(raw);
   const finals = Array.isArray(data?.finals)
@@ -428,9 +430,14 @@ export async function getStudentUpcomingFinals(): Promise<StudentUpcomingFinal[]
         ? Number(item?.enterScore ?? item?.EnterScore)
         : null,
     formattedDate:
-      typeof (item?.formattedDate ?? item?.formatedDate ?? item?.FormattedDate) ===
-      "string"
-        ? String(item?.formattedDate ?? item?.formatedDate ?? item?.FormattedDate)
+      typeof (
+        item?.formattedDate ??
+        item?.formatedDate ??
+        item?.FormattedDate
+      ) === "string"
+        ? String(
+            item?.formattedDate ?? item?.formatedDate ?? item?.FormattedDate,
+          )
         : null,
     teacherFullName: String(
       item?.teacherFullName ?? item?.TeacherFullName ?? "",
@@ -588,7 +595,9 @@ export async function filterStudents(groupId?: string, year?: number) {
 }
 
 export async function getStudentById(id: string | number) {
-  const raw = await apiJson<any>(`/api/students/${encodeURIComponent(String(id))}`);
+  const raw = await apiJson<any>(
+    `/api/students/${encodeURIComponent(String(id))}`,
+  );
   return unwrapApiResult(raw);
 }
 
@@ -938,7 +947,9 @@ export async function updateFinalExam(
   return {
     id: String(data?.id ?? data?.Id ?? ""),
     studentId: String(data?.studentId ?? data?.StudentId ?? ""),
-    taughtSubjectId: String(data?.taughtSubjectId ?? data?.TaughtSubjectId ?? ""),
+    taughtSubjectId: String(
+      data?.taughtSubjectId ?? data?.TaughtSubjectId ?? "",
+    ),
     date:
       typeof (data?.date ?? data?.Date) === "string"
         ? (data?.date ?? data?.Date)

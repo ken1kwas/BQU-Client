@@ -7,13 +7,7 @@ import {
 } from "./ui/card";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import {
-  ArrowLeft,
-  Users,
-  Calendar,
-  Send,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, Users, Calendar, Send, Loader2 } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
@@ -48,29 +42,7 @@ import {
   filterStudents,
   markIndependentWorkGrade,
 } from "../api";
-
-interface Student {
-  id: string | number;
-  name: string;
-  activityAttendance: Array<{
-    attendance: "present" | "absent";
-    grade: number | null;
-  }>;
-  colloquium: (number | null)[];
-  assignments: (number | null)[];
-  colloquiumIds?: (string | null)[];
-  seminarIds?: (string | null)[];
-  assignmentIds?: (string | null)[];
-  userId?: string | null;
-}
-
-interface CourseSession {
-  id: string;
-  date: string;
-  time: string;
-  type: "L" | "S";
-  seminarId?: string | null;
-}
+import type { CourseSession, Student } from "../types/teacherCourseDetail";
 
 const formatSessionDate = (value: any): string => {
   if (!value) return "";
@@ -257,10 +229,14 @@ export function TeacherCourseDetail({
         [];
       const prevColloquium = s.colloquium ?? Array(COLLOQUIUM_COUNT).fill(null);
       const prevIds = s.colloquiumIds ?? Array(COLLOQUIUM_COUNT).fill(null);
-      const colloquium = Array(COLLOQUIUM_COUNT).fill(null) as (number | null)[];
-      const colloquiumIds = Array(COLLOQUIUM_COUNT).fill(
-        null,
-      ) as (string | null)[];
+      const colloquium = Array(COLLOQUIUM_COUNT).fill(null) as (
+        | number
+        | null
+      )[];
+      const colloquiumIds = Array(COLLOQUIUM_COUNT).fill(null) as (
+        | string
+        | null
+      )[];
 
       const remaining = [...list];
       const idToItem = new Map<string, any>();
@@ -301,9 +277,7 @@ export function TeacherCourseDetail({
         const isOneBased =
           slotNum >= 1 && slotNum <= COLLOQUIUM_COUNT && slotNum % 1 === 0;
         const isZeroBased =
-          slotNum >= 0 &&
-          slotNum < COLLOQUIUM_COUNT &&
-          slotNum % 1 === 0;
+          slotNum >= 0 && slotNum < COLLOQUIUM_COUNT && slotNum % 1 === 0;
         const slot = isOneBased ? slotNum - 1 : isZeroBased ? slotNum : -1;
         if (slot < 0 || slot >= COLLOQUIUM_COUNT) continue;
         if (colloquiumIds[slot]) continue;
@@ -1154,7 +1128,9 @@ export function TeacherCourseDetail({
         setStudents((prev) =>
           prev.map((s) => {
             if (String(s.id) !== studentIdStr) return s;
-            const ids = [...(s.seminarIds ?? Array(sessions.length).fill(null))];
+            const ids = [
+              ...(s.seminarIds ?? Array(sessions.length).fill(null)),
+            ];
             ids[sessionIndex] = resolvedSeminarId;
             return { ...s, seminarIds: ids };
           }),
@@ -1430,13 +1406,16 @@ export function TeacherCourseDetail({
 
       let classesForStudent = attendancesArray.find(
         (entry: any) =>
-          normalize(entry?.studentId ?? entry?.StudentId ?? entry?.student?.id) ===
-          studentKey,
+          normalize(
+            entry?.studentId ?? entry?.StudentId ?? entry?.student?.id,
+          ) === studentKey,
       );
 
       if (!classesForStudent) {
         const np = (student as any)._nameParts;
-        const nameSurnameOnly = [np?.name, np?.surname].filter(Boolean).join(" ");
+        const nameSurnameOnly = [np?.name, np?.surname]
+          .filter(Boolean)
+          .join(" ");
         const studentNameNoSpaces = normalizeNoSpaces(student.name);
         const nameSurnameNoSpaces = normalizeNoSpaces(nameSurnameOnly);
 
@@ -1476,7 +1455,8 @@ export function TeacherCourseDetail({
       };
 
       const byClassId = classes.find(
-        (cls: any) => String(cls?.classId ?? cls?.ClassId ?? "") === String(session.id),
+        (cls: any) =>
+          String(cls?.classId ?? cls?.ClassId ?? "") === String(session.id),
       );
       const byComposite = classes.find(
         (cls: any) =>
@@ -1485,14 +1465,17 @@ export function TeacherCourseDetail({
       );
       const byIndex = classes[sessionIndex];
       const matchedClass = byClassId ?? byComposite ?? byIndex;
-      const resolved = matchedClass?.seminarId ?? matchedClass?.SeminarId ?? null;
+      const resolved =
+        matchedClass?.seminarId ?? matchedClass?.SeminarId ?? null;
 
       if (typeof resolved === "string" && resolved.trim()) {
         const resolvedTrimmed = resolved.trim();
         setStudents((prev) =>
           prev.map((s) => {
             if (String(s.id) !== String(student.id)) return s;
-            const ids = [...(s.seminarIds ?? Array(sessions.length).fill(null))];
+            const ids = [
+              ...(s.seminarIds ?? Array(sessions.length).fill(null)),
+            ];
             ids[sessionIndex] = resolvedTrimmed;
             return { ...s, seminarIds: ids };
           }),
@@ -1687,7 +1670,8 @@ export function TeacherCourseDetail({
                 <div className="min-w-0">
                   <CardTitle>Fəaliyyət və İştirakın İzlənməsi</CardTitle>
                   <CardDescription>
-                    Hər dərs üçün balları və davamiyyət qiymətləri qeyd edin. Tək dərs qeydləri avtomatik yadda saxlanılır.
+                    Hər dərs üçün balları və davamiyyət qiymətləri qeyd edin.
+                    Tək dərs qeydləri avtomatik yadda saxlanılır.
                   </CardDescription>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
@@ -1757,84 +1741,80 @@ export function TeacherCourseDetail({
                 loadingSpinner
               ) : (
                 <div className="relative border rounded-md">
-                      <Table className="min-w-max">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="sticky left-0 bg-background z-30 min-w-[220px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                              Tələbənin Adı
-                            </TableHead>
+                  <Table className="min-w-max">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="sticky left-0 bg-background z-30 min-w-[220px] border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                          Tələbənin Adı
+                        </TableHead>
+                        {sessions.map((session, idx) => (
+                          <TableHead
+                            key={session.id}
+                            className={`text-center min-w-[120px] ${selectedColumn === idx ? "bg-accent" : ""}`}
+                          >
+                            <div className="text-xs">
+                              <div>{session.date}</div>
+                              <div className="text-muted-foreground">
+                                ({session.type}) {session.time}
+                              </div>
+                            </div>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {students.map((student) => {
+                        return (
+                          <TableRow key={student.id}>
+                            <TableCell className="sticky left-0 bg-background z-20 min-w-[220px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                              {student.name}
+                            </TableCell>
                             {sessions.map((session, idx) => (
-                              <TableHead
+                              <TableCell
                                 key={session.id}
-                                className={`text-center min-w-[120px] ${selectedColumn === idx ? "bg-accent" : ""}`}
+                                className={`text-center ${selectedColumn === idx ? "bg-accent/50" : ""}`}
                               >
-                                <div className="text-xs">
-                                  <div>{session.date}</div>
-                                  <div className="text-muted-foreground">
-                                    ({session.type}) {session.time}
-                                  </div>
-                                </div>
-                              </TableHead>
+                                <Select
+                                  value={getActivityValue(
+                                    student.activityAttendance[idx],
+                                    session,
+                                  )}
+                                  onValueChange={(value: string) =>
+                                    updateActivityAttendance(
+                                      student.id,
+                                      idx,
+                                      value,
+                                    )
+                                  }
+                                  disabled={isLoading}
+                                >
+                                  <SelectTrigger className="w-[100px] mx-auto">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="present">i.e</SelectItem>
+                                    <SelectItem value="absent">q.b</SelectItem>
+                                    {session.type === "S" &&
+                                      Array.from(
+                                        { length: 11 },
+                                        (_, i) => i,
+                                      ).map((grade) => (
+                                        <SelectItem
+                                          key={grade}
+                                          value={grade.toString()}
+                                        >
+                                          {grade}
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
                             ))}
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {students.map((student) => {
-                            return (
-                              <TableRow key={student.id}>
-                                <TableCell className="sticky left-0 bg-background z-20 min-w-[220px] font-medium border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                                  {student.name}
-                                </TableCell>
-                                {sessions.map((session, idx) => (
-                                  <TableCell
-                                    key={session.id}
-                                    className={`text-center ${selectedColumn === idx ? "bg-accent/50" : ""}`}
-                                  >
-                                    <Select
-                                      value={getActivityValue(
-                                        student.activityAttendance[idx],
-                                        session,
-                                      )}
-                                      onValueChange={(value: string) =>
-                                        updateActivityAttendance(
-                                          student.id,
-                                          idx,
-                                          value,
-                                        )
-                                      }
-                                      disabled={isLoading}
-                                    >
-                                      <SelectTrigger className="w-[100px] mx-auto">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="present">
-                                          i.e
-                                        </SelectItem>
-                                        <SelectItem value="absent">
-                                          q.b
-                                        </SelectItem>
-                                        {session.type === "S" &&
-                                          Array.from(
-                                            { length: 11 },
-                                            (_, i) => i,
-                                          ).map((grade) => (
-                                            <SelectItem
-                                              key={grade}
-                                              value={grade.toString()}
-                                            >
-                                              {grade}
-                                            </SelectItem>
-                                          ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </TableCell>
-                                ))}
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
@@ -1848,7 +1828,8 @@ export function TeacherCourseDetail({
                 <div>
                   <CardTitle>Kollokvium balları</CardTitle>
                   <CardDescription>
-                    Bal seçdiyiniz zaman dəyişikliklər yadda saxlanılır. Növbəti bal verilməzdən əvvəl hər bir kollokvium tamamlanmalıdır.
+                    Bal seçdiyiniz zaman dəyişikliklər yadda saxlanılır. Növbəti
+                    bal verilməzdən əvvəl hər bir kollokvium tamamlanmalıdır.
                   </CardDescription>
                 </div>
                 <Button
@@ -1895,9 +1876,9 @@ export function TeacherCourseDetail({
                             collIndex === 0 ||
                             (student.colloquium[collIndex - 1] !== null &&
                               student.colloquium[collIndex - 1] !== undefined &&
-                              student.colloquium[collIndex - 1] !== -1 && 
-                              student.colloquium[collIndex - 1]! >= 0 && 
-                              student.colloquium[collIndex - 1]! <= 10); 
+                              student.colloquium[collIndex - 1] !== -1 &&
+                              student.colloquium[collIndex - 1]! >= 0 &&
+                              student.colloquium[collIndex - 1]! <= 10);
 
                           const isDisabled = isLoading || !isPreviousFilled;
                           const currentValue = student.colloquium[collIndex];
@@ -1965,7 +1946,8 @@ export function TeacherCourseDetail({
                 <div>
                   <CardTitle>Sərbəst işlər</CardTitle>
                   <CardDescription>
-                    Hər semestrdə 5 sərbəst iş (dəyişdirmək üçün klikləyin: ✓ / ✗ / -).
+                    Hər semestrdə 5 sərbəst iş (dəyişdirmək üçün klikləyin: ✓ /
+                    ✗ / -).
                   </CardDescription>
                 </div>
                 <Button
@@ -1990,13 +1972,11 @@ export function TeacherCourseDetail({
                       {Array.from(
                         { length: ASSIGNMENTS_COUNT },
                         (_, i) => i + 1,
-                      ).map(
-                        (num) => (
-                          <TableHead key={num} className="text-center">
-                            #{num}
-                          </TableHead>
-                        ),
-                      )}
+                      ).map((num) => (
+                        <TableHead key={num} className="text-center">
+                          #{num}
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>

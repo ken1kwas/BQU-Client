@@ -23,25 +23,16 @@ import {
   getGroupSchedule,
   toArray,
 } from "../api";
+import type { ScheduleEntry } from "../types/deanSchedule";
 
-interface ScheduleEntry {
-  id: string | number;
-  courseId: number;
-  courseName: string;
-  courseCode: string;
-  teacherName: string;
-  roomId: string | number;
-  roomName: string;
-  groupCode: string;
-  dayOfWeek: string;
-  startTime: string;
-  endTime: string;
-  type: string;
-  topic?: string;
-  isUpperWeek?: boolean;
-}
-
-const dayKeys = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+const dayKeys = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
 
 const dayLabel: Record<(typeof dayKeys)[number], string> = {
   Monday: "Bazar ertəsi",
@@ -213,9 +204,9 @@ export function DeanSchedule() {
   }, []);
 
   const getEntriesForDay = (dayKey: string) =>
-      scheduleEntries
-          .filter((e) => e.dayOfWeek === dayKey && e.groupCode === selectedGroup)
-          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    scheduleEntries
+      .filter((e) => e.dayOfWeek === dayKey && e.groupCode === selectedGroup)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(":");
@@ -311,13 +302,15 @@ export function DeanSchedule() {
             // Room handling - backend returns UUID string in 'room' field
             let roomName = "";
             let roomId = "";
-            
+
             if (typeof item.room === "string") {
               // Room is a UUID string or a display name
               roomId = item.room;
               // Try to find room name from rooms array
               const foundRoom = rooms.find((r: any) => r.id === item.room);
-              roomName = foundRoom ? (foundRoom.name ?? foundRoom.roomName ?? "") : "";
+              roomName = foundRoom
+                ? (foundRoom.name ?? foundRoom.roomName ?? "")
+                : "";
               if (!roomName) {
                 roomName = item.room;
                 roomId = "";
@@ -327,17 +320,24 @@ export function DeanSchedule() {
               roomId = item.room.id ?? "";
               roomName = item.room.name ?? item.room.roomName ?? "";
             }
-            
+
             // Fallback to other fields if still empty
             if (!roomName) {
-              roomName = item.roomName ?? item.location ?? item.locationName ?? item.auditorium ?? item.auditoriumName ?? "";
+              roomName =
+                item.roomName ??
+                item.location ??
+                item.locationName ??
+                item.auditorium ??
+                item.auditoriumName ??
+                "";
             }
             if (!roomId) {
               roomId = item.roomId ?? "";
             }
 
             // Time extraction - use start/end from backend
-            const startTime = item.start ?? item.startTime ?? item.classStartTime ?? "";
+            const startTime =
+              item.start ?? item.startTime ?? item.classStartTime ?? "";
             const endTime = item.end ?? item.endTime ?? item.classEndTime ?? "";
 
             // Day of week extraction - use period for day
@@ -511,24 +511,33 @@ export function DeanSchedule() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {dayKeys.map((dayKey) => (
-                  <Card key={dayKey} className={dayKey === todayKey ? "border-primary bg-primary/5" : ""}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center justify-between">
-                        {dayLabel[dayKey]}
-                        {dayKey === todayKey ? (
-                            <Badge variant="default" className="text-xs">Bu gün</Badge>
-                        ) : (
-                            <Badge variant="secondary">{getEntriesForDay(dayKey).length}</Badge>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="space-y-2">
-                      {getEntriesForDay(dayKey).length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-4 text-center">
-                            Dərs yoxdur.
-                          </p>
+                <Card
+                  key={dayKey}
+                  className={
+                    dayKey === todayKey ? "border-primary bg-primary/5" : ""
+                  }
+                >
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center justify-between">
+                      {dayLabel[dayKey]}
+                      {dayKey === todayKey ? (
+                        <Badge variant="default" className="text-xs">
+                          Bu gün
+                        </Badge>
                       ) : (
+                        <Badge variant="secondary">
+                          {getEntriesForDay(dayKey).length}
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+
+                  <CardContent className="space-y-2">
+                    {getEntriesForDay(dayKey).length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">
+                        Dərs yoxdur.
+                      </p>
+                    ) : (
                       getEntriesForDay(dayKey).map((entry) => (
                         <div
                           key={entry.id}

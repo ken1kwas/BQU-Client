@@ -6,10 +6,7 @@ import { Button } from "./components/ui/button";
 import { Card, CardContent } from "./components/ui/card";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
-
-interface LoginPageProps {
-  onLoginSuccess: (role: string | undefined) => void;
-}
+import type { LoginPageProps } from "./types/loginPage";
 
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [login, setLogin] = useState("");
@@ -39,7 +36,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       const role = (res as any).roleName as string | undefined;
       onLoginSuccess(role);
     } catch (err: any) {
-      setError(err.message || "Daxil olmaq başarısız oldu. Lütfən yenidən cəhd edin.");
+      setError(
+        err.message || "Daxil olmaq başarısız oldu. Lütfən yenidən cəhd edin.",
+      );
     } finally {
       setLoading(false);
     }
@@ -62,9 +61,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         "Əgər bu e-poçt mövcuddursa, sıfırlama linki göndərilib.",
       );
     } catch (err: any) {
-      setForgotError(
-        err?.message || "Hazırda sorğunuz işlənə bilmədi.",
-      );
+      setForgotError(err?.message || "Hazırda sorğunuz işlənə bilmədi.");
     } finally {
       setForgotLoading(false);
     }
@@ -159,7 +156,8 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   <div className="space-y-1">
                     <h3 className="text-lg font-semibold">Şifrə unuttunuz</h3>
                     <p className="text-sm text-muted-foreground">
-                      E-poçtunuzu daxil edin və siz bir sıfırlama linki alacaqsınız.
+                      E-poçtunuzu daxil edin və siz bir sıfırlama linki
+                      alacaqsınız.
                     </p>
                   </div>
 
@@ -184,7 +182,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
                   {forgotError && (
                     <Alert variant="destructive">
-                      <AlertTitle>Sıfırlama linki göndərilə bilinmədi</AlertTitle>
+                      <AlertTitle>
+                        Sıfırlama linki göndərilə bilinmədi
+                      </AlertTitle>
                       <AlertDescription>{forgotError}</AlertDescription>
                     </Alert>
                   )}
@@ -195,7 +195,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       className="flex-1"
                       disabled={forgotLoading}
                     >
-                      {forgotLoading ? "Göndərilir..." : "Sıfırlama linki göndər"}
+                      {forgotLoading
+                        ? "Göndərilir..."
+                        : "Sıfırlama linki göndər"}
                     </Button>
                     <Button
                       type="button"

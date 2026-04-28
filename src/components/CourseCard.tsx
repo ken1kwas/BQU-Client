@@ -9,28 +9,18 @@ import {
 import { Clock, MapPin, User, Users } from "lucide-react";
 import { downloadSyllabusFile } from "../api";
 import { toast } from "sonner";
-
-interface CourseCardProps {
-  title: string;
-  code: string;
-  time: string;
-  location: string;
-  instructor: string;
-  type: string;
-  variant?: "today" | "week";
-  topic?: string;
-  group?: string;
-  userRole?: "student" | "teacher";
-  syllabusTaughtSubjectId?: string | number;
-  hasSyllabus?: boolean;
-}
+import type { CourseCardProps } from "../types/courseCard";
 
 const getTypeLabel = (type: string) => {
   switch (type) {
-    case "lecture": return "Lecture";
-    case "seminar": return "Seminar";
-    case "lab": return "Lab";
-    default: return type;
+    case "lecture":
+      return "Lecture";
+    case "seminar":
+      return "Seminar";
+    case "lab":
+      return "Lab";
+    default:
+      return type;
   }
 };
 
@@ -109,9 +99,7 @@ export function CourseCard({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={handleSyllabusView}>
-          Göstər
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSyllabusView}>Göstər</DropdownMenuItem>
         <DropdownMenuItem onClick={handleSyllabusDownload}>
           Endir
         </DropdownMenuItem>
@@ -124,12 +112,19 @@ export function CourseCard({
       <div className="p-3 rounded-lg border relative pb-10">
         <div className="space-y-2 pr-20">
           <div className="flex items-start gap-2">
-            <span className="font-medium overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{title}</span>
+            <span
+              className="font-medium overflow-hidden"
+              style={{
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
+              {title}
+            </span>
           </div>
           {topic && (
-            <div className="text-sm text-muted-foreground italic">
-              {topic}
-            </div>
+            <div className="text-sm text-muted-foreground italic">{topic}</div>
           )}
           {userRole === "teacher" && (
             <>
@@ -163,8 +158,15 @@ export function CourseCard({
               <span>{location}</span>
             </div>
           </div>
-          <Badge variant={getTypeBadgeVariant(type)} className="absolute top-3 right-3 text-xs">{getTypeLabel(type)}</Badge>
-          <Badge variant="outline" className="absolute bottom-3 left-3 text-xs">{code}</Badge>
+          <Badge
+            variant={getTypeBadgeVariant(type)}
+            className="absolute top-3 right-3 text-xs"
+          >
+            {getTypeLabel(type)}
+          </Badge>
+          <Badge variant="outline" className="absolute bottom-3 left-3 text-xs">
+            {code}
+          </Badge>
           {syllabusButton}
         </div>
       </div>
@@ -175,7 +177,16 @@ export function CourseCard({
     <div className="p-3 rounded-lg border relative pb-10">
       <div className="space-y-2 pr-20">
         <div className="flex items-start gap-2">
-          <span className="font-medium overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{title}</span>
+          <span
+            className="font-medium overflow-hidden"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+            }}
+          >
+            {title}
+          </span>
         </div>
         <Badge
           variant={getTypeBadgeVariant(type)}
@@ -184,9 +195,7 @@ export function CourseCard({
           {getTypeLabel(type)}
         </Badge>
         {topic && (
-          <div className="text-sm text-muted-foreground italic">
-            {topic}
-          </div>
+          <div className="text-sm text-muted-foreground italic">{topic}</div>
         )}
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           {userRole === "student" ? (
@@ -211,7 +220,9 @@ export function CourseCard({
             <span>{location}</span>
           </div>
         </div>
-        <Badge variant="outline" className="absolute bottom-3 left-3 text-xs">{code}</Badge>
+        <Badge variant="outline" className="absolute bottom-3 left-3 text-xs">
+          {code}
+        </Badge>
         {syllabusButton}
       </div>
     </div>
