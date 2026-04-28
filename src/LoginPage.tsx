@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { forgotPassword, signIn } from "./api";
+import { forgotPassword, signIn } from "./api/index";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
 import { Button } from "./components/ui/button";
 import { Card, CardContent } from "./components/ui/card";

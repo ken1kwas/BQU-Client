@@ -9,7 +9,7 @@ import {
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { CourseCard } from "./CourseCard";
-import { getStudentSchedule, getTeacherSchedule, toArray } from "../api";
+import { getStudentSchedule, getTeacherSchedule, toArray } from "../api/index";
 import type {
   ScheduleDay,
   ScheduleEntry,

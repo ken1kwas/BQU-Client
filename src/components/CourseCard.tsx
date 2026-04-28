@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Clock, MapPin, User, Users } from "lucide-react";
-import { downloadSyllabusFile } from "../api";
+import { downloadSyllabusFile } from "../api/index";
 import { toast } from "sonner";
 import type { CourseCardProps } from "../types/courseCard";
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { listStudents, listTaughtSubjects, toArray } from "../api";
+import { listStudents, listTaughtSubjects, toArray } from "../api/index";
 import {
   createStudentSubjectEnrollment,
   deleteStudentSubjectEnrollment,

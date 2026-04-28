@@ -15,7 +15,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { CourseCard } from "./CourseCard";
-import { getStudentDashboard, getStudentProfile, toArray } from "../api";
+import { getStudentDashboard, getStudentProfile, toArray } from "../api/index";
 import type {
   DashboardCourse,
   DashboardNotification,

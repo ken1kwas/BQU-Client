@@ -22,7 +22,7 @@ import {
   listTaughtSubjects,
   getGroupSchedule,
   toArray,
-} from "../api";
+} from "../api/index";
 import type { ScheduleEntry } from "../types/deanSchedule";
 
 const dayKeys = [

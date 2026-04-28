@@ -6,7 +6,7 @@ import {
   Loader2,
 } from "lucide-react";
 
-import { getStudentAcademicHistory, toArray } from "../api";
+import { getStudentAcademicHistory, toArray } from "../api/index";
 import { Badge } from "./ui/badge";
 import {
   Card,

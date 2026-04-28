@@ -10,7 +10,7 @@ import {
   UserSquare2,
   Users,
 } from "lucide-react";
-import { getStudentById } from "../api";
+import { getStudentById } from "../api/index";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";

@@ -10,7 +10,7 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Tabs, TabsContent } from "./ui/tabs";
 import { Loader2 } from "lucide-react";
-import { getStudentGrades, toArray } from "../api";
+import { getStudentGrades, toArray } from "../api/index";
 import type { GradeCourse } from "../types/grades";
 
 const COLLOQUIUM_COUNT = 3;

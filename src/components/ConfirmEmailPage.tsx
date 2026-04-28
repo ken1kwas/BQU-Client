@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { confirmMyEmail } from "../api";
+import { confirmMyEmail } from "../api/index";
 import {
   Card,
   CardContent,

@@ -26,7 +26,7 @@ import {
   getStudentProfile,
   getTeacherProfile,
   logout,
-} from "../api";
+} from "../api/index";
 import {
   Dialog,
   DialogContent,

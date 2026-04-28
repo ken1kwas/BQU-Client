@@ -38,7 +38,7 @@ import {
   setGroupExamDate,
   toArray,
   updateFinalExam,
-} from "../api";
+} from "../api/index";
 import {
   Select,
   SelectContent,

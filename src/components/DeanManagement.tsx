@@ -89,7 +89,7 @@ import {
   deleteStudent,
   ensureHHMMSS,
   uploadStudentsExcel,
-} from "../api";
+} from "../api/index";
 import type {
   Course,
   Group,

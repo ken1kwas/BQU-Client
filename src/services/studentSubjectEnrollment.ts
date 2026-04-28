@@ -1,4 +1,4 @@
-import { apiJson, toArray } from "../api";
+import { apiJson, toArray } from "../api/index";
 import type {
   CreateStudentSubjectEnrollmentDto,
   StudentSubjectEnrollmentDto,
@@ -8,7 +8,8 @@ import type {
 function pickString(...values: unknown[]): string {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "number" && Number.isFinite(value))
+      return String(value);
   }
   return "";
 }
@@ -43,10 +44,13 @@ export async function listStudentSubjectEnrollments() {
 export function createStudentSubjectEnrollment(
   payload: CreateStudentSubjectEnrollmentDto,
 ) {
-  return apiJson<StudentSubjectEnrollmentDto>("/api/studentsubjectenrollments", {
-    method: "POST",
-    json: payload,
-  });
+  return apiJson<StudentSubjectEnrollmentDto>(
+    "/api/studentsubjectenrollments",
+    {
+      method: "POST",
+      json: payload,
+    },
+  );
 }
 
 export function updateStudentSubjectEnrollment(
@@ -76,4 +80,3 @@ export function deleteStudentSubjectEnrollment(
     },
   );
 }
-
