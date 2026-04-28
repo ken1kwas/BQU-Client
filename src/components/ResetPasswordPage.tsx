@@ -13,8 +13,7 @@ import {
 } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-
-type ResetStatus = "idle" | "success" | "error";
+import type { ResetStatus } from "../types/resetPasswordPage";
 
 export function ResetPasswordPage() {
   const searchParams = useMemo(
@@ -69,7 +68,7 @@ export function ResetPasswordPage() {
         response?.message ||
         response?.responseMessage ||
         response?.data?.message ||
-        "Sizin şifrəniz uğurla sıfırlanmışdır."
+        "Sizin şifrəniz uğurla sıfırlanmışdır.";
 
       setStatus("success");
       setMessage(responseMessage);
@@ -82,7 +81,8 @@ export function ResetPasswordPage() {
     } catch (error: any) {
       setStatus("error");
       setMessage(
-        error?.message || "Bu sıfırlama linki keçərsiz və ya müddəti başa çatmışdır.",
+        error?.message ||
+          "Bu sıfırlama linki keçərsiz və ya müddəti başa çatmışdır.",
       );
     } finally {
       setSubmitting(false);
@@ -117,9 +117,7 @@ export function ResetPasswordPage() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          <Alert
-            variant={status === "error" ? "destructive" : "default"}
-          >
+          <Alert variant={status === "error" ? "destructive" : "default"}>
             <AlertTitle>
               {status === "success"
                 ? "Uğurlu"
@@ -139,7 +137,9 @@ export function ResetPasswordPage() {
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                disabled={submitting || status === "success" || !userId || !token}
+                disabled={
+                  submitting || status === "success" || !userId || !token
+                }
                 placeholder="Yeni şifrənizi daxil edin"
               />
             </div>
@@ -152,7 +152,9 @@ export function ResetPasswordPage() {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={submitting || status === "success" || !userId || !token}
+                disabled={
+                  submitting || status === "success" || !userId || !token
+                }
                 placeholder="Yeni şifrənizi təkrarlayın"
               />
             </div>
@@ -161,7 +163,9 @@ export function ResetPasswordPage() {
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={submitting || status === "success" || !userId || !token}
+                disabled={
+                  submitting || status === "success" || !userId || !token
+                }
               >
                 {submitting ? "Sıfırlanır..." : "Şifri sıfırla"}
               </Button>

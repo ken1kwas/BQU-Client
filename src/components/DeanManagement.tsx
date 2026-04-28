@@ -62,10 +62,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import {
-  DeanStudentDetail,
-  type DeanStudentDetailStudent,
-} from "./DeanStudentDetail";
+import { DeanStudentDetail } from "./DeanStudentDetail";
+import type { DeanStudentDetailStudent } from "../types/deanStudentDetail";
 import {
   listRooms,
   listTeachers,
@@ -92,97 +90,17 @@ import {
   ensureHHMMSS,
   uploadStudentsExcel,
 } from "../api";
-
-interface Room {
-  id: number;
-  name: string;
-  building: string;
-  capacity: number;
-  type: string;
-}
-
-interface Teacher {
-  id: number;
-  name: string;
-  surname?: string;
-  middleName?: string;
-  userName?: string;
-  email: string;
-  department: string;
-  phone: string;
-  position?: number;
-}
-
-interface Course {
-  id: number;
-  code: string;
-  title: string;
-  credits: number;
-  type: string;
-  department: string;
-  departmentName?: string;
-  teacherId?: number;
-  teacherName?: string;
-  groupId?: number;
-  groupCode?: string;
-  studentCount?: number;
-  hasSyllabus?: boolean;
-  year?: number;
-  semester?: number;
-}
-
-interface Group {
-  id: number;
-  code?: string;
-  groupCode?: string;
-  department: string;
-  departmentName?: string;
-  departmentId?: string;
-  year: number;
-  studentCount: number;
-  specializationId?: string;
-  specializationName?: string;
-  educationLanguage?: number;
-  educationLevel?: number;
-}
-
-interface Student {
-  id: string;
-  studentId: string;
-  name: string;
-  email?: string;
-  groupId?: number;
-  groupCode: string;
-  year: number;
-  specialization: string;
-  dateOfBirth?: string;
-  phoneNumber?: string;
-  address?: string;
-  language?: string;
-  yearOfAdmission?: string;
-  admissionScore?: number;
-}
-
-type CourseFormClassTime = {
-  start: string;
-  end: string;
-  day: number;
-  room: string;
-  frequency: number;
-  classType?: number | null;
-};
-
-type GeneratedClassPreview = {
-  key: string;
-  sourceIndex: number;
-  sequence: number;
-  dateLabel: string;
-  day: number;
-  room: string;
-  start: string;
-  end: string;
-  classType: number;
-};
+import type {
+  Course,
+  Group,
+  Room,
+  Student,
+  Teacher,
+} from "../types/deanManagement";
+import type {
+  CourseFormClassTime,
+  GeneratedClassPreview,
+} from "../types/courseForm";
 
 const ALLOWED_COURSE_HOURS = [15, 30, 45, 50, 60, 75, 90, 105] as const;
 
@@ -250,20 +168,9 @@ const mapRoomFromApi = (r: any): Room => {
     type = "";
   }
   const roomName =
-    r.roomName ??
-    r.name ??
-    r.Name ??
-    r.RoomName ??
-    r.room ??
-    r.Room ??
-    "";
+    r.roomName ?? r.name ?? r.Name ?? r.RoomName ?? r.room ?? r.Room ?? "";
 
-  const roomId =
-    r.id ??
-    r.Id ??
-    r.roomId ??
-    r.RoomId ??
-    "";
+  const roomId = r.id ?? r.Id ?? r.roomId ?? r.RoomId ?? "";
 
   return {
     id: roomId,
@@ -279,8 +186,6 @@ const mapTeacherFromApi = (t: any): Teacher => {
   const surname = t.surname ?? t.lastName ?? "";
   const middleName = t.middleName ?? "";
   const userName = t.userName ?? t.username ?? "";
-  const fullName =
-    `${firstName} ${surname} ${middleName}`.trim() || t.fullName || userName || "";
   return {
     id: t.id ?? t.Id ?? t.teacherId,
     name: firstName,
@@ -294,7 +199,11 @@ const mapTeacherFromApi = (t: any): Teacher => {
   };
 };
 
-const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: any[]): Group => {
+const mapGroupFromApi = (
+  g: any,
+  departmentsList?: any[],
+  specializationsList?: any[],
+): Group => {
   const specialization = g.specialization ?? {};
   const specializationId =
     g.specializationId ?? specialization.id ?? specialization.Id;
@@ -328,7 +237,12 @@ const mapGroupFromApi = (g: any, departmentsList?: any[], specializationsList?: 
       return String(sId) === String(specializationId);
     });
     if (foundSpec) {
-      const specName = foundSpec.name ?? foundSpec.Name ?? foundSpec.title ?? foundSpec.Title ?? "";
+      const specName =
+        foundSpec.name ??
+        foundSpec.Name ??
+        foundSpec.title ??
+        foundSpec.Title ??
+        "";
       if (specName) {
         departmentName = specName;
       }
@@ -367,9 +281,10 @@ const mapStudentFromApi = (s: any): Student => {
   const firstName = s.name ?? s.firstName ?? s.givenName ?? "";
   const surname = s.surname ?? s.lastName ?? s.familyName ?? "";
   const middleName = s.middleName ?? "";
-  const constructedName = firstName && surname
-    ? `${firstName} ${middleName ? middleName + " " : ""}${surname}`.trim()
-    : "";
+  const constructedName =
+    firstName && surname
+      ? `${firstName} ${middleName ? middleName + " " : ""}${surname}`.trim()
+      : "";
   const fullName = s.fullName ?? constructedName ?? s.name ?? "";
 
   return {
@@ -386,9 +301,16 @@ const mapStudentFromApi = (s: any): Student => {
     name: fullName,
     email: s.email ?? s.emailAddress ?? "",
     groupId: s.groupId ?? s.group?.id ?? s.groupId,
-    groupCode: s.groupName ?? s.groupCode ?? s.group?.groupCode ?? s.group?.code ?? s.group?.name ?? "",
+    groupCode:
+      s.groupName ??
+      s.groupCode ??
+      s.group?.groupCode ??
+      s.group?.code ??
+      s.group?.name ??
+      "",
     year: s.year ?? s.currentYear ?? s.academicYear ?? 0,
-    specialization: s.speciality ?? s.specialization ?? s.specializationName ?? "",
+    specialization:
+      s.speciality ?? s.specialization ?? s.specializationName ?? "",
     dateOfBirth: s.dateOfBirth ?? s.birthDate ?? s.dob,
     phoneNumber: s.phoneNumber ?? s.phone ?? s.mobile ?? "",
     address: s.address ?? "",
@@ -401,7 +323,7 @@ const mapStudentFromApi = (s: any): Student => {
 const FREQUENCY_LABELS: Record<number, string> = {
   1: "Alt",
   2: "Üst",
-  3: "Hər ikisi"
+  3: "Hər ikisi",
 };
 
 const DAY_LABELS: Record<number, string> = {
@@ -411,7 +333,7 @@ const DAY_LABELS: Record<number, string> = {
   4: "Cümə axşamı",
   5: "Cümə",
   6: "Şənbə",
-  7: "Bazar günü"
+  7: "Bazar günü",
 };
 
 const CLASS_TYPE_OPTIONS = [
@@ -527,19 +449,21 @@ const mapCourseFromApi = (c: any): Course => {
     title: c.title ?? c.name ?? "",
     credits: c.credits ?? 0,
     type: c.type ?? "Lecture",
-    department: (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
-    teacherId: c.teacherId ?? (typeof teacher === "object" ? teacher.id : undefined),
+    department:
+      (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
+    teacherId:
+      c.teacherId ?? (typeof teacher === "object" ? teacher.id : undefined),
     teacherName: teacherName,
     groupId: c.groupId ?? group.id,
     groupCode: c.groupCode ?? group.groupCode ?? "",
     studentCount: c.studentCount ?? 0,
     hasSyllabus: Boolean(c.syllabusId),
-    departmentName: (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
+    departmentName:
+      (c as any).departmentName ?? dept.name ?? dept.departmentName ?? "",
     year: c.year,
     semester: c.semester ?? c.semster,
   };
 };
-
 
 export function DeanManagement() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -603,7 +527,8 @@ export function DeanManagement() {
   const teachersPerPage = 10;
 
   const [teacherSearchQuery, setTeacherSearchQuery] = useState("");
-  const [teacherPositionFilter, setTeacherPositionFilter] = useState<string>("all");
+  const [teacherPositionFilter, setTeacherPositionFilter] =
+    useState<string>("all");
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -626,14 +551,16 @@ export function DeanManagement() {
         const departmentsList = toArray(deptsResp);
         const specializationsList = toArray(specsResp);
 
-
         setRooms(toArray(roomsResp).map(mapRoomFromApi));
         setTeachers(toArray(teachersResp).map(mapTeacherFromApi));
-        setGroups(toArray(groupsResp).map((g: any) => mapGroupFromApi(g, departmentsList, specializationsList)));
+        setGroups(
+          toArray(groupsResp).map((g: any) =>
+            mapGroupFromApi(g, departmentsList, specializationsList),
+          ),
+        );
         setCourses(toArray(coursesResp).map(mapCourseFromApi));
         setDepartments(departmentsList);
         setSpecializations(specializationsList);
-
       } catch (err) {
         // Ignore
       }
@@ -660,7 +587,9 @@ export function DeanManagement() {
           if (groups.length === 0) {
             return;
           }
-          const groupObj = groups.find((g) => (g.code || g.groupCode) === studentGroupFilter);
+          const groupObj = groups.find(
+            (g) => (g.code || g.groupCode) === studentGroupFilter,
+          );
           const groupId =
             studentGroupFilter !== "all" ? groupObj?.id?.toString() : undefined;
           const year =
@@ -705,9 +634,12 @@ export function DeanManagement() {
             } catch (filterErr) {
               // Показываем предупреждение пользователю только если список пустой
               if (students.length === 0 && !studentsLoaded) {
-                toast.error("Unable to load students. The server returned an error (500). Please check the backend logs.", {
-                  duration: 5000,
-                });
+                toast.error(
+                  "Unable to load students. The server returned an error (500). Please check the backend logs.",
+                  {
+                    duration: 5000,
+                  },
+                );
                 // Устанавливаем пустой массив, чтобы показать, что данных нет
                 setStudents([]);
               }
@@ -812,7 +744,7 @@ export function DeanManagement() {
       classTimes: [
         ...(courseForm.classTimes || []),
         { start: "", end: "", day: 1, room: "", frequency: 3, classType: null },
-      ]
+      ],
     });
   };
 
@@ -882,11 +814,19 @@ export function DeanManagement() {
         });
         toast.success("Course updated successfully");
       } else {
-        if (courseForm.credits === undefined || courseForm.credits === null || courseForm.credits === 0) {
+        if (
+          courseForm.credits === undefined ||
+          courseForm.credits === null ||
+          courseForm.credits === 0
+        ) {
           toast.error("Credits is required");
           return;
         }
-        if (courseForm.hours === undefined || courseForm.hours === null || courseForm.hours === 0) {
+        if (
+          courseForm.hours === undefined ||
+          courseForm.hours === null ||
+          courseForm.hours === 0
+        ) {
           toast.error("Hours is required");
           return;
         }
@@ -902,12 +842,16 @@ export function DeanManagement() {
           (g) => String(g.id) === String(courseForm.groupId),
         );
         const selectedGroupYear =
-          typeof selectedGroup?.year === "number" ? selectedGroup.year : undefined;
+          typeof selectedGroup?.year === "number"
+            ? selectedGroup.year
+            : undefined;
         if (
           typeof selectedGroupYear === "number" &&
           Number(courseForm.year) < selectedGroupYear
         ) {
-          toast.error(`Year can't be less than group's current year (${selectedGroupYear})`);
+          toast.error(
+            `Year can't be less than group's current year (${selectedGroupYear})`,
+          );
           return;
         }
 
@@ -921,7 +865,14 @@ export function DeanManagement() {
 
         const validClassTimes = (courseForm.classTimes || [])
           .filter((ct: CourseFormClassTime) => {
-            return ct.start && ct.end && ct.room && ct.room.trim() && ct.day && ct.frequency !== undefined;
+            return (
+              ct.start &&
+              ct.end &&
+              ct.room &&
+              ct.room.trim() &&
+              ct.day &&
+              ct.frequency !== undefined
+            );
           })
           .map((ct: CourseFormClassTime) => {
             const startTime = ensureHHMMSS(ct.start);
@@ -930,8 +881,15 @@ export function DeanManagement() {
             const room = String(ct.room).trim();
             const frequency = Number(ct.frequency);
 
-            if (!startTime || startTime === "00:00:00" || !endTime || endTime === "00:00:00") {
-              throw new Error("Start and end times are required for class times");
+            if (
+              !startTime ||
+              startTime === "00:00:00" ||
+              !endTime ||
+              endTime === "00:00:00"
+            ) {
+              throw new Error(
+                "Start and end times are required for class times",
+              );
             }
             if (!room) {
               throw new Error("Room is required for class times");
@@ -940,7 +898,9 @@ export function DeanManagement() {
               throw new Error("Valid day (1-7) is required for class times");
             }
             if (!frequency || frequency < 1 || frequency > 3) {
-              throw new Error("Valid frequency (1-3) is required for class times");
+              throw new Error(
+                "Valid frequency (1-3) is required for class times",
+              );
             }
 
             return {
@@ -955,10 +915,18 @@ export function DeanManagement() {
 
         if (!autoCreateClassTypes) {
           if (generatedClasses.length === 0) {
-            toast.error("Add hours and complete class times to generate classes");
+            toast.error(
+              "Add hours and complete class times to generate classes",
+            );
             return;
           }
-          if (validClassTimes.some((classTime) => classTime.classType === null || classTime.classType === undefined)) {
+          if (
+            validClassTimes.some(
+              (classTime) =>
+                classTime.classType === null ||
+                classTime.classType === undefined,
+            )
+          ) {
             toast.error("Select a class type for each class time");
             return;
           }
@@ -1037,7 +1005,11 @@ export function DeanManagement() {
           toast.error("Specify education language and level for new group");
           return;
         }
-          console.log("SUBMIT educationLanguage =", groupForm.educationLanguage, groupForm);
+        console.log(
+          "SUBMIT educationLanguage =",
+          groupForm.educationLanguage,
+          groupForm,
+        );
         await createGroup({
           ...basePayload,
           educationLanguage: Number(groupForm.educationLanguage),
@@ -1046,7 +1018,11 @@ export function DeanManagement() {
         toast.success("Group added successfully");
       }
       const resp = await listGroups(1, 100);
-      setGroups(toArray(resp).map((g: any) => mapGroupFromApi(g, departments, specializations)));
+      setGroups(
+        toArray(resp).map((g: any) =>
+          mapGroupFromApi(g, departments, specializations),
+        ),
+      );
     } catch (error: any) {
       if (editingGroupId) {
         setGroups(
@@ -1160,19 +1136,21 @@ export function DeanManagement() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         toast.success("Import completed. Report downloaded.");
-      }
-      else if (
+      } else if (
         typeof result === "object" &&
         result !== null &&
         !(result instanceof Blob)
       ) {
         if ((result as any).message || (result as any).error) {
-          toast.error((result as any).message || (result as any).error || "Error importing file");
+          toast.error(
+            (result as any).message ||
+              (result as any).error ||
+              "Error importing file",
+          );
         } else {
           toast.success("File uploaded successfully");
         }
-      }
-      else {
+      } else {
         toast.success("File uploaded successfully");
       }
 
@@ -1190,8 +1168,7 @@ export function DeanManagement() {
           if (studentsArray.length > 0) {
             setStudents(studentsArray.map(mapStudentFromApi));
           }
-        } catch (filterErr) {
-        }
+        } catch (filterErr) {}
       }
       setIsUploadDialogOpen(false);
       event.target.value = "";
@@ -1228,12 +1205,15 @@ export function DeanManagement() {
         !(result instanceof Blob)
       ) {
         if ((result as any).message || (result as any).error) {
-          toast.error((result as any).message || (result as any).error || "Error importing file");
+          toast.error(
+            (result as any).message ||
+              (result as any).error ||
+              "Error importing file",
+          );
         } else {
           toast.success("File uploaded successfully");
         }
-      }
-      else {
+      } else {
         toast.success("File uploaded successfully");
       }
 
@@ -1301,19 +1281,26 @@ export function DeanManagement() {
     filteredStudents.length,
   );
 
-  const filteredTeachers = teachers.filter(teacher => {
+  const filteredTeachers = teachers.filter((teacher) => {
     const searchLower = teacherSearchQuery.toLowerCase();
-    const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""} ${teacher.userName || ""}`.toLowerCase();
+    const fullName =
+      `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""} ${teacher.userName || ""}`.toLowerCase();
     const matchesSearch = !teacherSearchQuery || fullName.includes(searchLower);
-    const matchesPosition = teacherPositionFilter === "all" ||
+    const matchesPosition =
+      teacherPositionFilter === "all" ||
       (teacher.position && String(teacher.position) === teacherPositionFilter);
 
     return matchesSearch && matchesPosition;
   });
 
-  const teacherTotalPages = Math.ceil(filteredTeachers.length / teachersPerPage);
+  const teacherTotalPages = Math.ceil(
+    filteredTeachers.length / teachersPerPage,
+  );
   const teacherStartIndex = (teacherCurrentPage - 1) * teachersPerPage + 1;
-  const teacherEndIndex = Math.min(teacherCurrentPage * teachersPerPage, filteredTeachers.length);
+  const teacherEndIndex = Math.min(
+    teacherCurrentPage * teachersPerPage,
+    filteredTeachers.length,
+  );
   const generatedClassPreview = buildGeneratedClassPreview(
     courseForm.classTimes || [],
     courseForm.hours,
@@ -1365,9 +1352,14 @@ export function DeanManagement() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Fənnlərin idarəsi</CardTitle>
-                  <CardDescription>Fənn məlumatlarını əlavə edin, redaktə edin və ya silin</CardDescription>
+                  <CardDescription>
+                    Fənn məlumatlarını əlavə edin, redaktə edin və ya silin
+                  </CardDescription>
                 </div>
-                <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
+                <Dialog
+                  open={isCourseDialogOpen}
+                  onOpenChange={setIsCourseDialogOpen}
+                >
                   <DialogTrigger asChild>
                     <Button onClick={handleAddCourse}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -1376,9 +1368,15 @@ export function DeanManagement() {
                   </DialogTrigger>
                   <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>{editingCourseId ? "Edit Course" : "Yeni fənn əlavə edin"}</DialogTitle>
+                      <DialogTitle>
+                        {editingCourseId
+                          ? "Edit Course"
+                          : "Yeni fənn əlavə edin"}
+                      </DialogTitle>
                       <DialogDescription>
-                        {editingCourseId ? "Update course information" : "Yeni fənn üçün detalları daxil edin\n"}
+                        {editingCourseId
+                          ? "Update course information"
+                          : "Yeni fənn üçün detalları daxil edin\n"}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -1390,7 +1388,12 @@ export function DeanManagement() {
                             placeholder="m.ü, TRX-1"
                             maxLength={20}
                             value={courseForm.code || ""}
-                            onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
+                            onChange={(e) =>
+                              setCourseForm({
+                                ...courseForm,
+                                code: e.target.value,
+                              })
+                            }
                           />
                         </div>
                         <div className="space-y-2">
@@ -1400,7 +1403,12 @@ export function DeanManagement() {
                             placeholder="m.ü, Tarix"
                             maxLength={100}
                             value={courseForm.title || ""}
-                            onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                            onChange={(e) =>
+                              setCourseForm({
+                                ...courseForm,
+                                title: e.target.value,
+                              })
+                            }
                           />
                         </div>
                       </div>
@@ -1409,18 +1417,34 @@ export function DeanManagement() {
                           <Label htmlFor="course-department">Kafedra</Label>
                           <Select
                             value={courseForm.departmentId?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, departmentId: value })}
+                            onValueChange={(value) =>
+                              setCourseForm({
+                                ...courseForm,
+                                departmentId: value,
+                              })
+                            }
                           >
                             <SelectTrigger id="course-department">
                               <SelectValue placeholder="Kafedra seçin" />
                             </SelectTrigger>
                             <SelectContent>
-                              {departments.map(dept => {
-                                const deptId = dept?.id ?? dept?.Id ?? dept?.departmentId;
-                                const deptName = dept?.name ?? dept?.Name ?? dept?.title ?? dept?.Title ?? "";
+                              {departments.map((dept) => {
+                                const deptId =
+                                  dept?.id ?? dept?.Id ?? dept?.departmentId;
+                                const deptName =
+                                  dept?.name ??
+                                  dept?.Name ??
+                                  dept?.title ??
+                                  dept?.Title ??
+                                  "";
                                 if (!deptId || !deptName) return null;
                                 return (
-                                  <SelectItem key={String(deptId)} value={String(deptId)}>{deptName}</SelectItem>
+                                  <SelectItem
+                                    key={String(deptId)}
+                                    value={String(deptId)}
+                                  >
+                                    {deptName}
+                                  </SelectItem>
                                 );
                               })}
                             </SelectContent>
@@ -1430,16 +1454,24 @@ export function DeanManagement() {
                           <Label htmlFor="course-teacher">Müəllim</Label>
                           <Select
                             value={courseForm.teacherId?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, teacherId: value })}
+                            onValueChange={(value) =>
+                              setCourseForm({ ...courseForm, teacherId: value })
+                            }
                           >
                             <SelectTrigger id="course-teacher">
                               <SelectValue placeholder="Müəllim seçin" />
                             </SelectTrigger>
                             <SelectContent>
-                              {teachers.map(teacher => {
-                                const fullName = `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() || teacher.userName || `Teacher ${teacher.id}`;
+                              {teachers.map((teacher) => {
+                                const fullName =
+                                  `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() ||
+                                  teacher.userName ||
+                                  `Teacher ${teacher.id}`;
                                 return (
-                                  <SelectItem key={teacher.id} value={teacher.id.toString()}>
+                                  <SelectItem
+                                    key={teacher.id}
+                                    value={teacher.id.toString()}
+                                  >
                                     {fullName}
                                   </SelectItem>
                                 );
@@ -1454,11 +1486,18 @@ export function DeanManagement() {
                           <Select
                             value={courseForm.groupId?.toString() || ""}
                             onValueChange={(value) => {
-                              const nextGroup = groups.find((g) => String(g.id) === String(value));
+                              const nextGroup = groups.find(
+                                (g) => String(g.id) === String(value),
+                              );
                               const nextGroupYear =
-                                typeof nextGroup?.year === "number" ? nextGroup.year : undefined;
+                                typeof nextGroup?.year === "number"
+                                  ? nextGroup.year
+                                  : undefined;
                               setCourseForm((prev) => {
-                                const nextForm: any = { ...prev, groupId: value };
+                                const nextForm: any = {
+                                  ...prev,
+                                  groupId: value,
+                                };
                                 if (
                                   typeof nextGroupYear === "number" &&
                                   (nextForm.year === undefined ||
@@ -1475,8 +1514,13 @@ export function DeanManagement() {
                               <SelectValue placeholder="Qrup seçin" />
                             </SelectTrigger>
                             <SelectContent>
-                              {groups.map(group => (
-                                <SelectItem key={group.id} value={group.id.toString()}>{group.code || group.groupCode}</SelectItem>
+                              {groups.map((group) => (
+                                <SelectItem
+                                  key={group.id}
+                                  value={group.id.toString()}
+                                >
+                                  {group.code || group.groupCode}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1492,12 +1536,18 @@ export function DeanManagement() {
                             onChange={(e) => {
                               const value = e.target.value;
                               if (value === "") {
-                                setCourseForm({ ...courseForm, credits: undefined });
+                                setCourseForm({
+                                  ...courseForm,
+                                  credits: undefined,
+                                });
                                 return;
                               }
                               const numValue = parseInt(value, 10);
                               if (!isNaN(numValue) && numValue >= 0) {
-                                setCourseForm({ ...courseForm, credits: numValue });
+                                setCourseForm({
+                                  ...courseForm,
+                                  credits: numValue,
+                                });
                               }
                             }}
                           />
@@ -1520,7 +1570,10 @@ export function DeanManagement() {
                             </SelectTrigger>
                             <SelectContent>
                               {ALLOWED_COURSE_HOURS.map((hours) => (
-                                <SelectItem key={hours} value={hours.toString()}>
+                                <SelectItem
+                                  key={hours}
+                                  value={hours.toString()}
+                                >
                                   {hours}
                                 </SelectItem>
                               ))}
@@ -1531,7 +1584,12 @@ export function DeanManagement() {
                           <Label htmlFor="course-year">Kurs</Label>
                           <Select
                             value={courseForm.year?.toString() || ""}
-                            onValueChange={(value: string) => setCourseForm({ ...courseForm, year: parseInt(value) })}
+                            onValueChange={(value: string) =>
+                              setCourseForm({
+                                ...courseForm,
+                                year: parseInt(value),
+                              })
+                            }
                           >
                             <SelectTrigger id="course-year">
                               <SelectValue placeholder="Select year" />
@@ -1548,7 +1606,12 @@ export function DeanManagement() {
                           <Label htmlFor="course-semester">Semestr</Label>
                           <Select
                             value={courseForm.semester?.toString() || ""}
-                            onValueChange={(value) => setCourseForm({ ...courseForm, semester: parseInt(value) })}
+                            onValueChange={(value) =>
+                              setCourseForm({
+                                ...courseForm,
+                                semester: parseInt(value),
+                              })
+                            }
                           >
                             <SelectTrigger id="course-semester">
                               <SelectValue placeholder="Semestr seçin" />
@@ -1567,7 +1630,9 @@ export function DeanManagement() {
                           <div className="flex items-start gap-3 rounded-md border p-3">
                             <Checkbox
                               id="course-auto-create-class-types"
-                              checked={courseForm.autoCreateClassTypes !== false}
+                              checked={
+                                courseForm.autoCreateClassTypes !== false
+                              }
                               onCheckedChange={(checked) =>
                                 setCourseForm({
                                   ...courseForm,
@@ -1583,7 +1648,9 @@ export function DeanManagement() {
                                 Auto create class types
                               </Label>
                               <p className="text-sm text-muted-foreground">
-                                Checked sends <code>classType: null</code>. Unchecked lets you set a type for each schedule slot and preview the generated classes below.
+                                Checked sends <code>classType: null</code>.
+                                Unchecked lets you set a type for each schedule
+                                slot and preview the generated classes below.
                               </p>
                             </div>
                           </div>
@@ -1593,201 +1660,288 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label>Dərs Vaxtları</Label>
-                          <Button type="button" variant="outline" size="sm" onClick={addClassTime}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addClassTime}
+                          >
                             <Plus className="h-4 w-4 mr-1" />
                             Dərs vaxtları əlavə edin
                           </Button>
                         </div>
                         <div className="space-y-3">
-                          {(courseForm.classTimes || []).map((classTime, index) => (
-                            <Card key={index} className="p-4">
-                              <div className="space-y-3">
-                                <div className="space-y-2">
-                                  <Label>Ders Saati</Label>
-                                  <Select
-                                    value={findClassTimePreset(classTime.start, classTime.end)?.id ?? ""}
-                                    onValueChange={(value) => updateClassTimePreset(index, value)}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Vaxt araligi secin" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {CLASS_TIME_PRESETS.map((preset) => (
-                                        <SelectItem key={preset.id} value={preset.id}>
-                                          {preset.label} ({preset.description}) {preset.start}-{preset.end}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  {classTime.start && classTime.end && (
-                                    <p className="text-sm text-muted-foreground">
-                                      Secilen vaxt: {classTime.start}-{classTime.end}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
+                          {(courseForm.classTimes || []).map(
+                            (classTime, index) => (
+                              <Card key={index} className="p-4">
+                                <div className="space-y-3">
                                   <div className="space-y-2">
-                                    <Label>Başlanma Saatı</Label>
-                                    <Input
-                                      type="time"
-                                      value={classTime.start}
-                                      readOnly
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Bitmə Saatı</Label>
-                                    <Input
-                                      type="time"
-                                      value={classTime.end}
-                                      readOnly
-                                    />
-                                  </div>
-                                </div>
-                                <div className="grid grid-cols-3 gap-3">
-                                  <div className="space-y-2">
-                                    <Label>Gün</Label>
-                                    <Select
-                                      value={classTime.day.toString()}
-                                      onValueChange={(value) => updateClassTime(index, "day", parseInt(value))}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {Object.entries(DAY_LABELS).map(([value, label]) => (
-                                          <SelectItem key={value} value={value}>{label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Otaq</Label>
-                                    <Select
-                                      value={classTime.room}
-                                      onValueChange={(value) => updateClassTime(index, "room", value)}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Otaq seçin" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {rooms.length === 0 ? (
-                                          <SelectItem value="" disabled>No rooms available</SelectItem>
-                                        ) : (
-                                          rooms.map(room => {
-                                            const roomId = room.id;
-                                            const roomName = room.name || "";
-                                            const roomCapacity = room.capacity || 0;
-
-                                            if (!roomId || !roomName) return null;
-
-                                            return (
-                                              <SelectItem key={String(roomId)} value={roomName}>
-                                                {roomName} {roomCapacity > 0 ? `(${roomCapacity})` : ""}
-                                              </SelectItem>
-                                            );
-                                          })
-                                        )}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Həftə</Label>
-                                    <Select
-                                      value={classTime.frequency.toString()}
-                                      onValueChange={(value) => updateClassTime(index, "frequency", parseInt(value))}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
-                                          <SelectItem key={value} value={value}>{label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                                {courseForm.autoCreateClassTypes === false && (
-                                  <div className="space-y-2">
-                                    <Label>Class type for this schedule slot</Label>
+                                    <Label>Ders Saati</Label>
                                     <Select
                                       value={
-                                        classTime.classType === null || classTime.classType === undefined
-                                          ? ""
-                                          : String(classTime.classType)
+                                        findClassTimePreset(
+                                          classTime.start,
+                                          classTime.end,
+                                        )?.id ?? ""
                                       }
                                       onValueChange={(value) =>
-                                        updateClassTime(index, "classType", Number(value))
+                                        updateClassTimePreset(index, value)
                                       }
                                     >
                                       <SelectTrigger>
-                                        <SelectValue placeholder="Select class type" />
+                                        <SelectValue placeholder="Vaxt araligi secin" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {CLASS_TYPE_OPTIONS.map((option) => (
-                                          <SelectItem key={option.value} value={String(option.value)}>
-                                            {option.label}
+                                        {CLASS_TIME_PRESETS.map((preset) => (
+                                          <SelectItem
+                                            key={preset.id}
+                                            value={preset.id}
+                                          >
+                                            {preset.label} ({preset.description}
+                                            ) {preset.start}-{preset.end}
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                  </div>
-                                )}
-                                {(courseForm.classTimes || []).length > 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => removeClassTime(index)}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    Remove
-                                  </Button>
-                                )}
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                      {!editingCourseId && courseForm.autoCreateClassTypes === false && (
-                        <div className="space-y-3">
-                          <div>
-                            <Label>Generated classes</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Preview of the classes that will be created from the schedule slots above.
-                            </p>
-                          </div>
-                          {generatedClassPreview.length === 0 ? (
-                            <Card className="p-4 text-sm text-muted-foreground">
-                              Add hours and at least one complete class time to see generated classes.
-                            </Card>
-                          ) : (
-                            <div className="space-y-3">
-                              {generatedClassPreview.map((generatedClass) => (
-                                <Card key={generatedClass.key} className="p-4">
-                                  <div className="grid gap-3 md:grid-cols-[1.2fr_1fr] md:items-end">
-                                    <div className="space-y-1">
-                                      <p className="font-medium">Class {generatedClass.sequence}</p>
+                                    {classTime.start && classTime.end && (
                                       <p className="text-sm text-muted-foreground">
-                                        {generatedClass.dateLabel} • {DAY_LABELS[generatedClass.day]} • {generatedClass.start}-{generatedClass.end} • {generatedClass.room}
+                                        Secilen vaxt: {classTime.start}-
+                                        {classTime.end}
                                       </p>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                      <Label>Başlanma Saatı</Label>
+                                      <Input
+                                        type="time"
+                                        value={classTime.start}
+                                        readOnly
+                                      />
                                     </div>
-                                    <div className="space-y-1">
-                                      <Label>Class type</Label>
-                                      <p className="text-sm font-medium">
-                                        {generatedClass.classType === 0 ? "Lecture" : "Seminar"}
-                                      </p>
+                                    <div className="space-y-2">
+                                      <Label>Bitmə Saatı</Label>
+                                      <Input
+                                        type="time"
+                                        value={classTime.end}
+                                        readOnly
+                                      />
                                     </div>
                                   </div>
-                                </Card>
-                              ))}
-                            </div>
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-2">
+                                      <Label>Gün</Label>
+                                      <Select
+                                        value={classTime.day.toString()}
+                                        onValueChange={(value) =>
+                                          updateClassTime(
+                                            index,
+                                            "day",
+                                            parseInt(value),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {Object.entries(DAY_LABELS).map(
+                                            ([value, label]) => (
+                                              <SelectItem
+                                                key={value}
+                                                value={value}
+                                              >
+                                                {label}
+                                              </SelectItem>
+                                            ),
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Otaq</Label>
+                                      <Select
+                                        value={classTime.room}
+                                        onValueChange={(value) =>
+                                          updateClassTime(index, "room", value)
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Otaq seçin" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {rooms.length === 0 ? (
+                                            <SelectItem value="" disabled>
+                                              No rooms available
+                                            </SelectItem>
+                                          ) : (
+                                            rooms.map((room) => {
+                                              const roomId = room.id;
+                                              const roomName = room.name || "";
+                                              const roomCapacity =
+                                                room.capacity || 0;
+
+                                              if (!roomId || !roomName)
+                                                return null;
+
+                                              return (
+                                                <SelectItem
+                                                  key={String(roomId)}
+                                                  value={roomName}
+                                                >
+                                                  {roomName}{" "}
+                                                  {roomCapacity > 0
+                                                    ? `(${roomCapacity})`
+                                                    : ""}
+                                                </SelectItem>
+                                              );
+                                            })
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Həftə</Label>
+                                      <Select
+                                        value={classTime.frequency.toString()}
+                                        onValueChange={(value) =>
+                                          updateClassTime(
+                                            index,
+                                            "frequency",
+                                            parseInt(value),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {Object.entries(FREQUENCY_LABELS).map(
+                                            ([value, label]) => (
+                                              <SelectItem
+                                                key={value}
+                                                value={value}
+                                              >
+                                                {label}
+                                              </SelectItem>
+                                            ),
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                  {courseForm.autoCreateClassTypes ===
+                                    false && (
+                                    <div className="space-y-2">
+                                      <Label>
+                                        Class type for this schedule slot
+                                      </Label>
+                                      <Select
+                                        value={
+                                          classTime.classType === null ||
+                                          classTime.classType === undefined
+                                            ? ""
+                                            : String(classTime.classType)
+                                        }
+                                        onValueChange={(value) =>
+                                          updateClassTime(
+                                            index,
+                                            "classType",
+                                            Number(value),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select class type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {CLASS_TYPE_OPTIONS.map((option) => (
+                                            <SelectItem
+                                              key={option.value}
+                                              value={String(option.value)}
+                                            >
+                                              {option.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  )}
+                                  {(courseForm.classTimes || []).length > 1 && (
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => removeClassTime(index)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Remove
+                                    </Button>
+                                  )}
+                                </div>
+                              </Card>
+                            ),
                           )}
                         </div>
-                      )}
+                      </div>
+                      {!editingCourseId &&
+                        courseForm.autoCreateClassTypes === false && (
+                          <div className="space-y-3">
+                            <div>
+                              <Label>Generated classes</Label>
+                              <p className="text-sm text-muted-foreground">
+                                Preview of the classes that will be created from
+                                the schedule slots above.
+                              </p>
+                            </div>
+                            {generatedClassPreview.length === 0 ? (
+                              <Card className="p-4 text-sm text-muted-foreground">
+                                Add hours and at least one complete class time
+                                to see generated classes.
+                              </Card>
+                            ) : (
+                              <div className="space-y-3">
+                                {generatedClassPreview.map((generatedClass) => (
+                                  <Card
+                                    key={generatedClass.key}
+                                    className="p-4"
+                                  >
+                                    <div className="grid gap-3 md:grid-cols-[1.2fr_1fr] md:items-end">
+                                      <div className="space-y-1">
+                                        <p className="font-medium">
+                                          Class {generatedClass.sequence}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                          {generatedClass.dateLabel} •{" "}
+                                          {DAY_LABELS[generatedClass.day]} •{" "}
+                                          {generatedClass.start}-
+                                          {generatedClass.end} •{" "}
+                                          {generatedClass.room}
+                                        </p>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <Label>Class type</Label>
+                                        <p className="text-sm font-medium">
+                                          {generatedClass.classType === 0
+                                            ? "Lecture"
+                                            : "Seminar"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </Card>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsCourseDialogOpen(false)}>Bağla</Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCourseDialogOpen(false)}
+                      >
+                        Bağla
+                      </Button>
                       <Button onClick={handleSaveCourse}>Save</Button>
                     </div>
                   </DialogContent>
@@ -1881,35 +2035,59 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-code">Kod</Label>
                         <Input
-                            id="group-code"
-                            placeholder="m.ü, C-25"
-                            maxLength={20}
-                            value={groupForm.code || groupForm.groupCode || ""}
-                            onChange={(e) =>
-                                setGroupForm({ ...groupForm, code: e.target.value, groupCode: e.target.value })
-                            }
+                          id="group-code"
+                          placeholder="m.ü, C-25"
+                          maxLength={20}
+                          value={groupForm.code || groupForm.groupCode || ""}
+                          onChange={(e) =>
+                            setGroupForm({
+                              ...groupForm,
+                              code: e.target.value,
+                              groupCode: e.target.value,
+                            })
+                          }
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="group-specialization">İxtisas</Label>
                         <Select
-                            value={groupForm.specializationId || ""}
-                            onValueChange={(value) =>
-                                setGroupForm(prev => ({ ...prev, specializationId: value }))
-                            }>
+                          value={groupForm.specializationId || ""}
+                          onValueChange={(value) =>
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              specializationId: value,
+                            }))
+                          }
+                        >
                           <SelectTrigger id="group-specialization">
                             <SelectValue placeholder="İxtisas seçin" />
                           </SelectTrigger>
                           <SelectContent>
                             {specializations.length === 0 ? (
-                              <SelectItem value="" disabled>No specializations available</SelectItem>
+                              <SelectItem value="" disabled>
+                                No specializations available
+                              </SelectItem>
                             ) : (
-                              specializations.map(spec => {
-                                const specId = spec?.id ?? spec?.Id ?? spec?.ID ?? spec?.specializationId;
-                                const specName = spec?.name ?? spec?.Name ?? spec?.title ?? spec?.Title ?? "";
+                              specializations.map((spec) => {
+                                const specId =
+                                  spec?.id ??
+                                  spec?.Id ??
+                                  spec?.ID ??
+                                  spec?.specializationId;
+                                const specName =
+                                  spec?.name ??
+                                  spec?.Name ??
+                                  spec?.title ??
+                                  spec?.Title ??
+                                  "";
                                 if (!specId || !specName) return null;
                                 return (
-                                  <SelectItem key={String(specId)} value={String(specId)}>{specName}</SelectItem>
+                                  <SelectItem
+                                    key={String(specId)}
+                                    value={String(specId)}
+                                  >
+                                    {specName}
+                                  </SelectItem>
                                 );
                               })
                             )}
@@ -1919,10 +2097,13 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-year">Kurs</Label>
                         <Select
-                            value={groupForm.year?.toString() || ""}
-                            onValueChange={(value) =>
-                                setGroupForm(prev => ({ ...prev, year: Number(value) }))
-                            }
+                          value={groupForm.year?.toString() || ""}
+                          onValueChange={(value) =>
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              year: Number(value),
+                            }))
+                          }
                         >
                           <SelectTrigger id="group-year">
                             <SelectValue placeholder="Kurs seçin" />
@@ -1938,10 +2119,13 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-language">Təhsil dili</Label>
                         <Select
-                            value={groupForm.educationLanguage?.toString() || ""}
-                            onValueChange={(value) =>
-                                setGroupForm(prev => ({ ...prev, educationLanguage: Number(value) }))
-                            }
+                          value={groupForm.educationLanguage?.toString() || ""}
+                          onValueChange={(value) =>
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              educationLanguage: Number(value),
+                            }))
+                          }
                         >
                           <SelectTrigger id="group-language">
                             <SelectValue placeholder="Dil seçin" />
@@ -1956,10 +2140,13 @@ export function DeanManagement() {
                       <div className="space-y-2">
                         <Label htmlFor="group-level">Təhsil səviyyəsi</Label>
                         <Select
-                            value={groupForm.educationLevel?.toString() || ""}
-                            onValueChange={(value) =>
-                                setGroupForm(prev => ({ ...prev, educationLevel: Number(value) }))
-                            }
+                          value={groupForm.educationLevel?.toString() || ""}
+                          onValueChange={(value) =>
+                            setGroupForm((prev) => ({
+                              ...prev,
+                              educationLevel: Number(value),
+                            }))
+                          }
                         >
                           <SelectTrigger id="group-level">
                             <SelectValue placeholder="Səviyyə seçin" />
@@ -1986,26 +2173,34 @@ export function DeanManagement() {
             </CardHeader>
             <CardContent>
               <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Kod</TableHead>
-                        <TableHead>İxtisas</TableHead>
-                        <TableHead>Dil</TableHead>
-                        <TableHead>Tələbə Sayı</TableHead>
-                        <TableHead>Təhsil Səviyyəsi</TableHead>
-                        <TableHead>Kurs</TableHead>
-                        <TableHead className="text-right">Əməllər</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {groups.map((group, index) => (
-                        <TableRow key={group.id ?? `${group.code || group.groupCode}-${index}`}>
-                          <TableCell className="font-medium">{group.code || group.groupCode || "-"}</TableCell>
-                          <TableCell>{group.department || group.departmentName || "-"}</TableCell>
-                          <TableCell>{group.educationLanguage }</TableCell>
-                          <TableCell>{group.studentCount}</TableCell>
-                          <TableCell>{group.educationLevel}</TableCell>
-                          <TableCell>{group.year} kurs</TableCell>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Kod</TableHead>
+                    <TableHead>İxtisas</TableHead>
+                    <TableHead>Dil</TableHead>
+                    <TableHead>Tələbə Sayı</TableHead>
+                    <TableHead>Təhsil Səviyyəsi</TableHead>
+                    <TableHead>Kurs</TableHead>
+                    <TableHead className="text-right">Əməllər</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groups.map((group, index) => (
+                    <TableRow
+                      key={
+                        group.id ?? `${group.code || group.groupCode}-${index}`
+                      }
+                    >
+                      <TableCell className="font-medium">
+                        {group.code || group.groupCode || "-"}
+                      </TableCell>
+                      <TableCell>
+                        {group.department || group.departmentName || "-"}
+                      </TableCell>
+                      <TableCell>{group.educationLanguage}</TableCell>
+                      <TableCell>{group.studentCount}</TableCell>
+                      <TableCell>{group.educationLevel}</TableCell>
+                      <TableCell>{group.year} kurs</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -2047,7 +2242,8 @@ export function DeanManagement() {
                       <DialogHeader>
                         <DialogTitle>Excel Fayl Format Məlumatı</DialogTitle>
                         <DialogDescription>
-                          Tələbələrin Excel vasitəsi ilə əlavə olunması üçün tələb olunan format
+                          Tələbələrin Excel vasitəsi ilə əlavə olunması üçün
+                          tələb olunan format
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
@@ -2055,7 +2251,8 @@ export function DeanManagement() {
                           <FileSpreadsheet className="h-4 w-4" />
                           <AlertTitle>Tələb olunan sütunlar</AlertTitle>
                           <AlertDescription>
-                            Excel faylınız bu dəqiq ardıcıllıqla aşağıdakı sütunları daxil etməlidir:
+                            Excel faylınız bu dəqiq ardıcıllıqla aşağıdakı
+                            sütunları daxil etməlidir:
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
@@ -2101,7 +2298,10 @@ export function DeanManagement() {
                           <AlertTitle>Important Notes</AlertTitle>
                           <AlertDescription>
                             <ul className="list-disc list-inside space-y-1 text-sm">
-                              <li>Birinci sətirdə sütun başlıqları olmalıdır ya boş olmalıdır</li>
+                              <li>
+                                Birinci sətirdə sütun başlıqları olmalıdır ya
+                                boş olmalıdır
+                              </li>
                               <li>Bütün sahələr mütləqdir</li>
                               <li>Fayl formatı: yalnız .xlsx və ya .xls</li>
                               <li>
@@ -2137,9 +2337,12 @@ export function DeanManagement() {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Excel vasitəsi ilə tələbələri yüklə</DialogTitle>
+                        <DialogTitle>
+                          Excel vasitəsi ilə tələbələri yüklə
+                        </DialogTitle>
                         <DialogDescription>
-                          Bir neçə tələbələni əlavə etmək üçün Excel faylını yükləyin
+                          Bir neçə tələbələni əlavə etmək üçün Excel faylını
+                          yükləyin
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
@@ -2147,7 +2350,9 @@ export function DeanManagement() {
                           <Info className="h-4 w-4" />
                           <AlertTitle>Yükləmədən əvvəl</AlertTitle>
                           <AlertDescription>
-                            Excel faylınızın tələb olunan formata uyğun olduğundan əmin olun. Tələblərə baxmaq və ya şablonu yükləmək üçün "Excel Formatı" üzərinə klikləyin.
+                            Excel faylınızın tələb olunan formata uyğun
+                            olduğundan əmin olun. Tələblərə baxmaq və ya şablonu
+                            yükləmək üçün "Excel Formatı" üzərinə klikləyin.
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
@@ -2180,7 +2385,8 @@ export function DeanManagement() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>Tələbə əlavə edilməsi</AlertTitle>
                 <AlertDescription>
-                  Tələbələr yalnız Excel faylı yükləmə yolu ilə toplu şəkildə əlavə edilə bilər.
+                  Tələbələr yalnız Excel faylı yükləmə yolu ilə toplu şəkildə
+                  əlavə edilə bilər.
                 </AlertDescription>
               </Alert>
               <div className="flex items-center gap-4 mb-4">
@@ -2267,7 +2473,9 @@ export function DeanManagement() {
                         </TableCell>
                         <TableCell>{student.name || "-"}</TableCell>
                         <TableCell>{student.groupCode || "-"}</TableCell>
-                        <TableCell>{student.year ? `${student.year} kurs` : "-"}</TableCell>
+                        <TableCell>
+                          {student.year ? `${student.year} kurs` : "-"}
+                        </TableCell>
                         <TableCell>{student.yearOfAdmission || "-"}</TableCell>
                         <TableCell>{student.admissionScore ?? "-"}</TableCell>
                         <TableCell className="text-right">
@@ -2290,7 +2498,9 @@ export function DeanManagement() {
                                 event.stopPropagation();
                                 setStudentPendingDelete(student);
                               }}
-                              disabled={deletingStudentId === String(student.id)}
+                              disabled={
+                                deletingStudentId === String(student.id)
+                              }
                               aria-label={`Delete ${student.name || "student"}`}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -2303,7 +2513,8 @@ export function DeanManagement() {
               </Table>
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
-                  Ümumi {filteredStudents.length} tələbədən {startIndex + 1}-dən {endIndex}-a qədəri göstərilir
+                  Ümumi {filteredStudents.length} tələbədən {startIndex + 1}-dən{" "}
+                  {endIndex}-a qədəri göstərilir
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">
@@ -2360,7 +2571,6 @@ export function DeanManagement() {
               </AlertDialog>
             </CardContent>
           </Card>
-
         </TabsContent>
         <TabsContent value="teachers" className="space-y-4">
           <Card>
@@ -2370,7 +2580,10 @@ export function DeanManagement() {
                   <CardTitle>Müəllimlərin İdarəsi</CardTitle>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Dialog open={isTeacherFormatInfoOpen} onOpenChange={setIsTeacherFormatInfoOpen}>
+                  <Dialog
+                    open={isTeacherFormatInfoOpen}
+                    onOpenChange={setIsTeacherFormatInfoOpen}
+                  >
                     <DialogTrigger asChild>
                       <Button variant="outline">
                         <Info className="h-4 w-4 mr-2" />
@@ -2381,7 +2594,8 @@ export function DeanManagement() {
                       <DialogHeader>
                         <DialogTitle>Excel Fayl Format Məlumatı</DialogTitle>
                         <DialogDescription>
-                          Müəllimlərin Excel vasitəsi ilə əlavə olunması üçün tələb olunan format
+                          Müəllimlərin Excel vasitəsi ilə əlavə olunması üçün
+                          tələb olunan format
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
@@ -2389,7 +2603,8 @@ export function DeanManagement() {
                           <FileSpreadsheet className="h-4 w-4" />
                           <AlertTitle>Tələb olunan sütunlar</AlertTitle>
                           <AlertDescription>
-                            Excel faylınız bu dəqiq ardıcıllıqla aşağıdakı sütunları daxil etməlidir:
+                            Excel faylınız bu dəqiq ardıcıllıqla aşağıdakı
+                            sütunları daxil etməlidir:
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
@@ -2435,11 +2650,16 @@ export function DeanManagement() {
                           <AlertTitle>Important Notes</AlertTitle>
                           <AlertDescription>
                             <ul className="list-disc list-outside pl-5 space-y-1 text-sm">
-                              <li>Birinci sətirdə sütun başlıqları olmalıdır ya boş olmalıdır</li>
+                              <li>
+                                Birinci sətirdə sütun başlıqları olmalıdır ya
+                                boş olmalıdır
+                              </li>
                               <li>Bütün sahələr mütləqdir</li>
                               <li>Fayl formatı: yalnız .xlsx və ya .xls</li>
                               <li>
-                                <span>Müəllimin vəzifələri yalnız bunlar ola bilər:</span>
+                                <span>
+                                  Müəllimin vəzifələri yalnız bunlar ola bilər:
+                                </span>
 
                                 <ul className="mt-1 list-[circle] list-outside pl-5 space-y-1">
                                   <li>Teacher</li>
@@ -2454,7 +2674,12 @@ export function DeanManagement() {
                         </Alert>
                       </div>
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsTeacherFormatInfoOpen(false)}>Bağla</Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsTeacherFormatInfoOpen(false)}
+                        >
+                          Bağla
+                        </Button>
                         <Button onClick={downloadTeacherTemplate}>
                           <FileSpreadsheet className="h-4 w-4 mr-2" />
                           Şablonu yükləyin
@@ -2462,7 +2687,10 @@ export function DeanManagement() {
                       </div>
                     </DialogContent>
                   </Dialog>
-                  <Dialog open={isTeacherUploadDialogOpen} onOpenChange={setIsTeacherUploadDialogOpen}>
+                  <Dialog
+                    open={isTeacherUploadDialogOpen}
+                    onOpenChange={setIsTeacherUploadDialogOpen}
+                  >
                     <DialogTrigger asChild>
                       <Button>
                         <Upload className="h-4 w-4 mr-2" />
@@ -2471,9 +2699,12 @@ export function DeanManagement() {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Excel vasitəsi ilə müəllimləri yüklə</DialogTitle>
+                        <DialogTitle>
+                          Excel vasitəsi ilə müəllimləri yüklə
+                        </DialogTitle>
                         <DialogDescription>
-                          Bir neçə müəllimi əlavə etmək üçün Excel faylını yükləyin
+                          Bir neçə müəllimi əlavə etmək üçün Excel faylını
+                          yükləyin
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-4">
@@ -2481,11 +2712,15 @@ export function DeanManagement() {
                           <Info className="h-4 w-4" />
                           <AlertTitle>Yükləmədən əvvəl</AlertTitle>
                           <AlertDescription>
-                            Excel faylınızın tələb olunan formata uyğun olduğundan əmin olun. Tələblərə baxmaq və ya şablonu yükləmək üçün "Excel Formatı" üzərinə klikləyin.
+                            Excel faylınızın tələb olunan formata uyğun
+                            olduğundan əmin olun. Tələblərə baxmaq və ya şablonu
+                            yükləmək üçün "Excel Formatı" üzərinə klikləyin.
                           </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
-                          <Label htmlFor="teacher-file">Excel faylını seçin</Label>
+                          <Label htmlFor="teacher-file">
+                            Excel faylını seçin
+                          </Label>
                           <Input
                             id="teacher-file"
                             type="file"
@@ -2495,7 +2730,12 @@ export function DeanManagement() {
                         </div>
                       </div>
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsTeacherUploadDialogOpen(false)}>Bağla</Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsTeacherUploadDialogOpen(false)}
+                        >
+                          Bağla
+                        </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -2507,7 +2747,8 @@ export function DeanManagement() {
                 <Info className="h-4 w-4" />
                 <AlertTitle>Müəllim əlavə edilməsi</AlertTitle>
                 <AlertDescription>
-                  Müəllimlər yalnız Excel faylı yükləmə yolu ilə toplu şəkildə əlavə edilə bilər.
+                  Müəllimlər yalnız Excel faylı yükləmə yolu ilə toplu şəkildə
+                  əlavə edilə bilər.
                 </AlertDescription>
               </Alert>
               <div className="flex items-center gap-4 mb-4">
@@ -2552,41 +2793,56 @@ export function DeanManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTeachers.slice((teacherCurrentPage - 1) * teachersPerPage, teacherCurrentPage * teachersPerPage).map((teacher, index) => {
-                    const positionLabels: Record<number, string> = {
-                      1: "Teacher",
-                      2: "Head Teacher",
-                      3: "Docent",
-                      4: "Professor",
-                      5: "Head Of Department",
-                    };
-                    const positionLabel = teacher.position ? positionLabels[teacher.position] || "Teacher" : "Teacher";
+                  {filteredTeachers
+                    .slice(
+                      (teacherCurrentPage - 1) * teachersPerPage,
+                      teacherCurrentPage * teachersPerPage,
+                    )
+                    .map((teacher, index) => {
+                      const positionLabels: Record<number, string> = {
+                        1: "Teacher",
+                        2: "Head Teacher",
+                        3: "Docent",
+                        4: "Professor",
+                        5: "Head Of Department",
+                      };
+                      const positionLabel = teacher.position
+                        ? positionLabels[teacher.position] || "Teacher"
+                        : "Teacher";
 
-                    return (
-                      <TableRow key={`${teacher.id}-${index}`}>
-                        <TableCell className="font-medium">{teacher.name || ""}</TableCell>
-                        <TableCell>{teacher.surname || ""}</TableCell>
-                        <TableCell>{teacher.middleName || ""}</TableCell>
-                        <TableCell>{teacher.userName || ""}</TableCell>
-                        <TableCell>
-                          <Badge>{positionLabel}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                      return (
+                        <TableRow key={`${teacher.id}-${index}`}>
+                          <TableCell className="font-medium">
+                            {teacher.name || ""}
+                          </TableCell>
+                          <TableCell>{teacher.surname || ""}</TableCell>
+                          <TableCell>{teacher.middleName || ""}</TableCell>
+                          <TableCell>{teacher.userName || ""}</TableCell>
+                          <TableCell>
+                            <Badge>{positionLabel}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                 </TableBody>
               </Table>
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
-                  Ümumi {filteredTeachers.length} müəllimdən {teacherStartIndex + 1}-dən {teacherEndIndex}-a qədəri göstərilir
+                  Ümumi {filteredTeachers.length} müəllimdən{" "}
+                  {teacherStartIndex + 1}-dən {teacherEndIndex}-a qədəri
+                  göstərilir
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Səhifə {teacherCurrentPage}/{teacherTotalPages}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Səhifə {teacherCurrentPage}/{teacherTotalPages}
+                  </span>
                   <div className="flex gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setTeacherCurrentPage(teacherCurrentPage - 1)}
+                      onClick={() =>
+                        setTeacherCurrentPage(teacherCurrentPage - 1)
+                      }
                       disabled={teacherCurrentPage === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -2594,7 +2850,9 @@ export function DeanManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setTeacherCurrentPage(teacherCurrentPage + 1)}
+                      onClick={() =>
+                        setTeacherCurrentPage(teacherCurrentPage + 1)
+                      }
                       disabled={teacherCurrentPage >= teacherTotalPages}
                     >
                       <ChevronRight className="h-4 w-4" />

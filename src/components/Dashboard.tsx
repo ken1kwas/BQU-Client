@@ -16,26 +16,10 @@ import {
 } from "lucide-react";
 import { CourseCard } from "./CourseCard";
 import { getStudentDashboard, getStudentProfile, toArray } from "../api";
-
-interface DashboardCourse {
-  id: string | number;
-  title: string;
-  code: string;
-  time: string;
-  location: string;
-  type: string;
-  instructor?: string;
-  taughtSubjectId?: string | number;
-}
-
-interface DashboardNotification {
-  id: string | number;
-  type: string;
-  course: string;
-  code?: string;
-  message: string;
-  timestamp: string;
-}
+import type {
+  DashboardCourse,
+  DashboardNotification,
+} from "../types/dashboard";
 
 function formatTimeValue(value: any): string {
   if (!value) return "";
@@ -466,7 +450,9 @@ export function Dashboard() {
             {loading ? (
               <p>Yüklənir…</p>
             ) : notifications.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Yeniləmələr yoxdur.</p>
+              <p className="text-muted-foreground text-sm">
+                Yeniləmələr yoxdur.
+              </p>
             ) : (
               notifications.map((notification) => {
                 let Icon = AlertCircle;

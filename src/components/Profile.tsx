@@ -37,12 +37,8 @@ import {
 } from "./ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { toast } from "sonner";
-
-interface ProfileProps {
-  userRole?: "student" | "teacher" | "dean";
-}
-
-type AnyObj = Record<string, any>;
+import type { ProfileProps } from "../types/profile";
+import type { AnyObj } from "../types/helpers";
 
 function pick(obj: AnyObj | null | undefined, keys: string[]): any {
   if (!obj) return "";
@@ -53,14 +49,27 @@ function pick(obj: AnyObj | null | undefined, keys: string[]): any {
   return "";
 }
 
-function unwrapProfile(resp: any, role: "student" | "teacher" | "dean"): AnyObj {
+function unwrapProfile(
+  resp: any,
+  role: "student" | "teacher" | "dean",
+): AnyObj {
   if (!resp) return {};
   const inner = resp.data ?? resp;
   if (role === "dean") return inner.deanProfile ?? inner.profile ?? inner;
   if (role === "teacher") {
-    return inner.teacherProfile ?? inner.teacherAcademicInfo ?? inner.profile ?? inner;
+    return (
+      inner.teacherProfile ??
+      inner.teacherAcademicInfo ??
+      inner.profile ??
+      inner
+    );
   }
-  return inner.studentProfile ?? inner.studentAcademicInfoDto ?? inner.profile ?? inner;
+  return (
+    inner.studentProfile ??
+    inner.studentAcademicInfoDto ??
+    inner.profile ??
+    inner
+  );
 }
 
 function formatDate(value: any): string {
@@ -91,7 +100,9 @@ function ProfileInfoTile({
         <div className="mt-0.5 text-muted-foreground">{icon}</div>
         <div className="min-w-0 flex-1">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-1 break-words font-medium text-foreground">{value}</p>
+          <p className="mt-1 break-words font-medium text-foreground">
+            {value}
+          </p>
         </div>
       </div>
     </div>
@@ -146,14 +157,28 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
     const name = pick(profile, ["name", "firstName", "givenName"]);
     const surname = pick(profile, ["surname", "lastName", "familyName"]);
     const email = pick(profile, ["email", "Email", "mail"]);
-    const phone = pick(profile, ["phone", "phoneNumber", "mobile", "mobilePhone"]);
+    const phone = pick(profile, [
+      "phone",
+      "phoneNumber",
+      "mobile",
+      "mobilePhone",
+    ]);
     const dateOfBirth = pick(profile, ["dateOfBirth", "birthDate", "dob"]);
-    const employeeId = pick(profile, ["employeeId", "employeeID", "staffId", "staffID"]);
+    const employeeId = pick(profile, [
+      "employeeId",
+      "employeeID",
+      "staffId",
+      "staffID",
+    ]);
     const userName = pick(profile, ["userName", "username", "userCode"]);
     const admissionYear = pick(profile, ["admissionYear", "joinYear"]);
     const faculty = pick(profile, ["faculty", "facultyName"]);
     const stateName = pick(profile, ["stateName", "departmentName"]);
-    const specialization = pick(profile, ["specialization", "major", "program"]);
+    const specialization = pick(profile, [
+      "specialization",
+      "major",
+      "program",
+    ]);
     const finCode = pick(profile, ["finCode", "fin", "pin"]);
     const roleName = pick(profile, ["roleName", "role"]);
     const status = pick(profile, ["status", "accountStatus"]) || "Active";
@@ -178,12 +203,13 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
 
   const fullName = `${info.name} ${info.surname}`.trim() || EMPTY_VALUE;
   const hasEmail = Boolean(String(info.email || "").trim());
-  const initials = (fullName === EMPTY_VALUE ? "U" : fullName)
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "U";
+  const initials =
+    (fullName === EMPTY_VALUE ? "U" : fullName)
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "U";
 
   function resetPasswordDialog() {
     setPasswordStep("check");
@@ -301,7 +327,9 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
                   ? "Muellim Profili"
                   : "Telebe Profili"}
             </h1>
-            <p className="text-muted-foreground">Profil melumatlariniza baxin ve idare edin</p>
+            <p className="text-muted-foreground">
+              Profil melumatlariniza baxin ve idare edin
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -349,7 +377,9 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0 space-y-2">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                      <h2 className="truncate">{loading ? "Yuklenir..." : fullName}</h2>
+                      <h2 className="truncate">
+                        {loading ? "Yuklenir..." : fullName}
+                      </h2>
                       <Badge variant="default" className="w-fit">
                         {info.status}
                       </Badge>
@@ -371,7 +401,9 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
 
                   {(isTeacher || isDean) && (
                     <p className="text-sm text-muted-foreground">
-                      {isDean ? info.roleName || EMPTY_VALUE : info.faculty || EMPTY_VALUE}
+                      {isDean
+                        ? info.roleName || EMPTY_VALUE
+                        : info.faculty || EMPTY_VALUE}
                     </p>
                   )}
                 </div>
@@ -459,7 +491,10 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
         </Card>
       </div>
 
-      <Dialog open={isPasswordDialogOpen} onOpenChange={handlePasswordDialogChange}>
+      <Dialog
+        open={isPasswordDialogOpen}
+        onOpenChange={handlePasswordDialogChange}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Sifreni deyis</DialogTitle>
@@ -473,7 +508,10 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
           <div className="space-y-4">
             {passwordStep === "check" ? (
               <div className="space-y-2">
-                <label htmlFor="current-password" className="text-sm font-medium">
+                <label
+                  htmlFor="current-password"
+                  className="text-sm font-medium"
+                >
                   Cari sifre
                 </label>
                 <Input
@@ -500,7 +538,10 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="repeat-password" className="text-sm font-medium">
+                  <label
+                    htmlFor="repeat-password"
+                    className="text-sm font-medium"
+                  >
                     Yeni sifreni tekrar edin
                   </label>
                   <Input
@@ -547,7 +588,11 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
             </Button>
             <Button
               type="button"
-              onClick={passwordStep === "check" ? handleCheckPassword : handleResetPassword}
+              onClick={
+                passwordStep === "check"
+                  ? handleCheckPassword
+                  : handleResetPassword
+              }
               disabled={passwordLoading}
             >
               {passwordLoading
@@ -565,8 +610,8 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
           <DialogHeader>
             <DialogTitle>Add Email</DialogTitle>
             <DialogDescription>
-              Enter the email address you want to connect to your account. We will send
-              a confirmation link to that inbox.
+              Enter the email address you want to connect to your account. We
+              will send a confirmation link to that inbox.
             </DialogDescription>
           </DialogHeader>
 
@@ -608,7 +653,11 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
             >
               Close
             </Button>
-            <Button type="button" onClick={handleAddEmail} disabled={emailLoading}>
+            <Button
+              type="button"
+              onClick={handleAddEmail}
+              disabled={emailLoading}
+            >
               {emailLoading ? "Sending..." : "Send confirmation link"}
             </Button>
           </DialogFooter>

@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, GraduationCap, Loader2, Users } from "lucide-react";
 
-import { getStudentUpcomingFinals, type StudentUpcomingFinal } from "../api";
+import { getStudentUpcomingFinals, toArray } from "../api";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-
-type FinalWithSortDate = StudentUpcomingFinal & {
-  sortDate: Date | null;
-};
+import type { FinalWithSortDate } from "../types/studentFinals";
 
 function parseDdMmYyyy(value: string | null): Date | null {
   if (!value) return null;

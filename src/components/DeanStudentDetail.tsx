@@ -16,47 +16,12 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import type { GradeCourse } from "./Grades";
+import type { GradeCourse } from "../types/grades";
+import type {
+  DeanStudentDetailProps,
+  StudentDetailResponse,
+} from "../types/deanStudentDetail";
 import * as GradesModule from "./Grades";
-
-export interface DeanStudentDetailStudent {
-  id: string;
-}
-
-interface StudentClass {
-  id: string;
-  taughtSubjectId: string;
-  name: string;
-  classType: string;
-  professor: string;
-  start: string;
-  end: string;
-  period: string;
-  room: string;
-  code: string;
-  isUpperWeek: boolean;
-}
-
-interface StudentDetailResponse {
-  name?: string;
-  groupCode?: string;
-  specializationName?: string;
-  admissionYear?: string;
-  course?: number;
-  admissionScore?: number;
-  email?: string | null;
-  todayClasses?: StudentClass[];
-  grades?: StudentGradesDto | null;
-}
-
-interface StudentGradesDto {
-  academicPerformance?: unknown[];
-}
-
-interface DeanStudentDetailProps {
-  student: DeanStudentDetailStudent;
-  onBack: () => void;
-}
 
 const EMPTY_VALUE = "-";
 
@@ -99,10 +64,7 @@ function InfoItem({
   );
 }
 
-export function DeanStudentDetail({
-  student,
-  onBack,
-}: DeanStudentDetailProps) {
+export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
   const [details, setDetails] = useState<StudentDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,7 +128,6 @@ export function DeanStudentDetail({
             Back to students
           </Button>
         </div>
-
       </div>
 
       {error && (
@@ -180,7 +141,6 @@ export function DeanStudentDetail({
       <Card>
         <CardContent className="pt-6">
           <div className="mb-6 flex flex-col gap-6 md:flex-row md:items-center">
-
             <div className="flex-1">
               <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center">
                 <h2>{fullName}</h2>
@@ -242,9 +202,7 @@ export function DeanStudentDetail({
 
       <Tabs defaultValue="classes" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="classes">
-            Today&apos;s Classes
-          </TabsTrigger>
+          <TabsTrigger value="classes">Today&apos;s Classes</TabsTrigger>
           <TabsTrigger value="grades">Grades</TabsTrigger>
         </TabsList>
 
@@ -276,7 +234,9 @@ export function DeanStudentDetail({
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-lg font-semibold">{item.name}</h3>
+                              <h3 className="text-lg font-semibold">
+                                {item.name}
+                              </h3>
                               <Badge variant="secondary">
                                 {formatValue(item.classType)}
                               </Badge>

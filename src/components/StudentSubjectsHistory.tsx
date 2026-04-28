@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpenText, CalendarRange, GraduationCap, Loader2 } from "lucide-react";
+import {
+  BookOpenText,
+  CalendarRange,
+  GraduationCap,
+  Loader2,
+} from "lucide-react";
 
 import { getStudentAcademicHistory, toArray } from "../api";
 import { Badge } from "./ui/badge";
@@ -18,19 +23,13 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-
-type SubjectHistoryEntry = {
-  taughtSubjectId: string;
-  taughtSubjectName: string;
-  dateFrom: string;
-  dateTo: string;
-  professorName: string;
-};
+import type { SubjectHistoryEntry } from "../types/studentSubjectsHistory";
 
 function pickString(...values: unknown[]): string {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "number" && Number.isFinite(value))
+      return String(value);
   }
   return "";
 }
@@ -135,7 +134,8 @@ export function StudentSubjectsHistory() {
         <CardHeader>
           <CardTitle>Akademik Tarixçə</CardTitle>
           <CardDescription>
-            Hər sətir tarixçənizdən tamamlanmış və ya planlaşdırılmış bir fən dövrünü göstərir.
+            Hər sətir tarixçənizdən tamamlanmış və ya planlaşdırılmış bir fən
+            dövrünü göstərir.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -147,7 +147,8 @@ export function StudentSubjectsHistory() {
             <div className="rounded-lg border border-dashed p-10 text-center">
               <p className="font-medium">Fənlər tarixçəsi tapılmadı</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Arxiv serveriniz məlumat qaytardıqdan sonra akademik tarixçəniz burada görünəcəkdir.
+                Arxiv serveriniz məlumat qaytardıqdan sonra akademik tarixçəniz
+                burada görünəcəkdir.
               </p>
             </div>
           ) : (
