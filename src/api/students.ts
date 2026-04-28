@@ -131,10 +131,19 @@ export async function getStudentUpcomingFinals(): Promise<
   }));
 }
 
-export function markStudentAbsence(studentId: string, classId: string) {
+export function markStudentAbsence(
+  studentId: string,
+  classId: string,
+  seminarId?: string | null,
+) {
   return apiJson<any>(
     `/api/students/${encodeURIComponent(studentId)}/classes/${encodeURIComponent(classId)}/mark-absence`,
-    { method: "PUT" },
+    {
+      method: "PUT",
+      json: {
+        seminarId: seminarId ?? "",
+      },
+    },
   );
 }
 

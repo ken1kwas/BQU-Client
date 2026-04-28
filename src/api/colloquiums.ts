@@ -13,11 +13,18 @@ export function updateSeminarGrade(
   studentId: string,
   seminarId: string,
   grade: number,
+  classId: string,
 ) {
-  const q = new URLSearchParams({ grade: String(grade) });
   return apiJson<any>(
-    `/api/students/${encodeURIComponent(studentId)}/seminars/${encodeURIComponent(seminarId)}/grade?${q}`,
-    { method: "PUT" },
+    `/api/seminars/${encodeURIComponent(seminarId)}/grade`,
+    {
+      method: "PUT",
+      json: {
+        grade,
+        classId,
+        studentId,
+      },
+    },
   );
 }
 
