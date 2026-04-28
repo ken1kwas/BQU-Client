@@ -1020,7 +1020,11 @@ export function TeacherCourseDetail({
           }
 
           if (looksLikeStudentGuid(actualStudentId)) {
-            await markStudentAbsence(actualStudentId, session.id);
+            await markStudentAbsence(
+              actualStudentId,
+              session.id,
+              currentStudent.seminarIds?.[sessionIndex] ?? null,
+            );
             commitSnapshot(value === "absent" ? "absent" : "present");
           }
         } catch (e: any) {
@@ -1040,6 +1044,13 @@ export function TeacherCourseDetail({
 
     const grade = parseInt(value, 10);
     if (grade < 0 || grade > 10) return;
+    if (originalAttendance?.attendance === "absent") {
+      toast.warning(
+        "Q.B. olan seminara qiymet vermek olmaz. Evvelce davamiyyeti i.e edin.",
+      );
+      revertAttendance();
+      return;
+    }
 
     try {
       if (!studentIdStr || studentIdStr.trim() === "") {
@@ -1085,25 +1096,6 @@ export function TeacherCourseDetail({
 
       let seminarId = currentStudent.seminarIds?.[sessionIndex] ?? null;
 
-      if (originalAttendance?.attendance === "absent" && session?.id) {
-        try {
-          await markStudentAbsence(actualStudentId, session.id);
-          commitSnapshot("present");
-        } catch (toggleError: any) {
-          console.error(
-            "Error updating attendance before seminar grade:",
-            toggleError,
-          );
-          const errorMessage =
-            toggleError?.message ??
-            toggleError?.response?.data?.message ??
-            "Failed to update attendance";
-          toast.error(errorMessage);
-          revertAttendance();
-          return;
-        }
-      }
-
       const resolvedSeminarId =
         typeof seminarId === "string" && seminarId.trim()
           ? seminarId.trim()
@@ -1120,8 +1112,12 @@ export function TeacherCourseDetail({
         );
       }
 
-      await updateSeminarGrade(actualStudentId, resolvedSeminarId, grade);
-      // Update snapshot to reflect that attendance is now "present" due to grade
+      await updateSeminarGrade(
+        actualStudentId,
+        resolvedSeminarId,
+        grade,
+        String(session?.id ?? ""),
+      );
       commitSnapshot("present");
 
       if (seminarId !== resolvedSeminarId) {
@@ -1549,7 +1545,11 @@ export function TeacherCourseDetail({
         }
 
         try {
-          await markStudentAbsence(actualStudentId, String(session.id));
+          await markStudentAbsence(
+            actualStudentId,
+            String(session.id),
+            student.seminarIds?.[sessionIndex] ?? null,
+          );
           ok += 1;
           const snapshot =
             attendanceSnapshotRef.current.get(String(student.id)) ?? [];
