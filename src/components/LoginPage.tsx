@@ -1,74 +1,35 @@
-import { useState } from "react";
-
-import { forgotPassword, signIn } from "./api/index";
-import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
-import { Button } from "./components/ui/button";
-import { Card, CardContent } from "./components/ui/card";
-import { Input } from "./components/ui/input";
-import { Label } from "./components/ui/label";
-import type { LoginPageProps } from "./types/loginPage";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { useLoginPage } from "../hooks/useLoginPage";
+import type { LoginPageProps } from "../types/loginPage";
 
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
-  const [login, setLogin] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [email, setEmail] = useState("");
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotMessage, setForgotMessage] = useState("");
-  const [forgotError, setForgotError] = useState("");
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    if (!login || !password) {
-      setError("Daxil olun və şifrə daxil edin");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await signIn(login, password);
-      const role = (res as any).roleName as string | undefined;
-      onLoginSuccess(role);
-    } catch (err: any) {
-      setError(
-        err.message || "Daxil olmaq başarısız oldu. Lütfən yenidən cəhd edin.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function onForgotPasswordSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setForgotError("");
-    setForgotMessage("");
-
-    if (!email.trim()) {
-      setForgotError("Lütfən e-poçt ünvanınızı daxil edin.");
-      return;
-    }
-
-    try {
-      setForgotLoading(true);
-      await forgotPassword(email.trim());
-      setForgotMessage(
-        "Əgər bu e-poçt mövcuddursa, sıfırlama linki göndərilib.",
-      );
-    } catch (err: any) {
-      setForgotError(err?.message || "Hazırda sorğunuz işlənə bilmədi.");
-    } finally {
-      setForgotLoading(false);
-    }
-  }
+  const {
+    mode,
+    login,
+    setLogin,
+    password,
+    setPassword,
+    email,
+    setEmail,
+    showPassword,
+    togglePasswordVisibility,
+    isSigningIn,
+    isSendingResetLink,
+    signInError,
+    forgotMessage,
+    forgotError,
+    openForgotPassword,
+    returnToSignIn,
+    onSubmit,
+    onForgotPasswordSubmit,
+  } = useLoginPage({ onLoginSuccess });
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foregroundpy-12">
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="w-full max-w-md">
           <Card className="rounded-2xl border border-border shadow-lg">
@@ -80,7 +41,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 </p>
               </div>
 
-              {!showForgotPassword ? (
+              {mode === "signin" ? (
                 <form onSubmit={onSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="login">Daxil ol</Label>
@@ -108,7 +69,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword((value) => !value)}
+                        onClick={togglePasswordVisibility}
                         className="absolute inset-y-0 right-2 my-auto h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
                         aria-label={
                           showPassword ? "Şifrəni gizlət" : "Şifrəni göstər"
@@ -119,9 +80,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     </div>
                   </div>
 
-                  {error && (
+                  {signInError && (
                     <div className="text-sm text-destructive" role="alert">
-                      {error}
+                      {signInError}
                     </div>
                   )}
 
@@ -136,19 +97,18 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     <button
                       type="button"
                       className="font-medium text-primary hover:underline hover: cursor-pointer"
-                      onClick={() => {
-                        setShowForgotPassword(true);
-                        setError("");
-                        setForgotError("");
-                        setForgotMessage("");
-                      }}
+                      onClick={openForgotPassword}
                     >
                       Şifrə unuttunuz?
                     </button>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Daxil oluruq..." : "Daxil ol"}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSigningIn}
+                  >
+                    {isSigningIn ? "Daxil oluruq..." : "Daxil ol"}
                   </Button>
                 </form>
               ) : (
@@ -193,9 +153,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     <Button
                       type="submit"
                       className="flex-1"
-                      disabled={forgotLoading}
+                      disabled={isSendingResetLink}
                     >
-                      {forgotLoading
+                      {isSendingResetLink
                         ? "Göndərilir..."
                         : "Sıfırlama linki göndər"}
                     </Button>
@@ -203,10 +163,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       type="button"
                       variant="outline"
                       className="flex-1"
-                      onClick={() => {
-                        setShowForgotPassword(false);
-                        setForgotError("");
-                      }}
+                      onClick={returnToSignIn}
                     >
                       Logində qayıt
                     </Button>

@@ -49,7 +49,7 @@ import {
 } from "./components/ui/sidebar";
 import { Toaster } from "./components/ui/sonner";
 import logo from "@/assets/logo.svg";
-import LoginPage from "./LoginPage";
+import LoginPage from "./components/LoginPage";
 import {
   getDeanProfile,
   getStudentProfile,
