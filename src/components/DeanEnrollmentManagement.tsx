@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -6,6 +6,7 @@ import { listStudents, listTaughtSubjects, toArray } from "../api/index";
 import {
   createStudentSubjectEnrollment,
   deleteStudentSubjectEnrollment,
+  getAllStudentSubjectEnrollments,
   listStudentSubjectEnrollments,
   updateStudentSubjectEnrollment,
 } from "../services/studentSubjectEnrollment";
@@ -17,6 +18,7 @@ import type {
 } from "../types/deanEnrollmentManagement";
 import type {
   CreateStudentSubjectEnrollmentDto,
+  StudentSubjectEnrollmentGetAllResponseDto,
   StudentSubjectEnrollmentDto,
 } from "../types/studentSubjectEnrollment";
 import {
@@ -30,7 +32,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -144,6 +145,14 @@ export function DeanEnrollmentManagement() {
   const [enrollments, setEnrollments] = useState<StudentSubjectEnrollmentDto[]>(
     [],
   );
+  const [allEnrollmentsPage, setAllEnrollmentsPage] =
+    useState<StudentSubjectEnrollmentGetAllResponseDto>({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalCount: 0,
+      totalPages: 0,
+    });
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [taughtSubjects, setTaughtSubjects] = useState<TaughtSubjectOption[]>(
     [],
@@ -156,11 +165,6 @@ export function DeanEnrollmentManagement() {
   const [editor, setEditor] = useState<EnrollmentEditor>({ mode: "create" });
   const [form, setForm] = useState<EnrollmentFormState>(EMPTY_FORM);
 
-  const studentCount = useMemo(
-    () => new Set(enrollments.map((item) => item.studentId)).size,
-    [enrollments],
-  );
-
   const loadData = async (showRefreshingState = false) => {
     if (showRefreshingState) {
       setRefreshing(true);
@@ -171,14 +175,19 @@ export function DeanEnrollmentManagement() {
     try {
       setError(null);
 
-      const [enrollmentResponse, studentResponse, taughtSubjectResponse] =
+      const [enrollmentResponse, allEnrollmentResponse, studentResponse, taughtSubjectResponse] =
         await Promise.all([
           listStudentSubjectEnrollments(),
+          getAllStudentSubjectEnrollments({
+            page: allEnrollmentsPage.page,
+            pageSize: allEnrollmentsPage.pageSize,
+          }),
           listStudents(1, 200),
           listTaughtSubjects(1, 200),
         ]);
 
       setEnrollments(enrollmentResponse);
+      setAllEnrollmentsPage(allEnrollmentResponse);
       setStudents(
         toArray(studentResponse)
           .map(normalizeStudentOption)
@@ -201,18 +210,49 @@ export function DeanEnrollmentManagement() {
     loadData();
   }, []);
 
+  const loadAllEnrollmentsPage = async (
+    page: number,
+    pageSize = allEnrollmentsPage.pageSize,
+  ) => {
+    setRefreshing(true);
+    try {
+      setError(null);
+      const response = await getAllStudentSubjectEnrollments({ page, pageSize });
+      setAllEnrollmentsPage(response);
+    } catch (err: any) {
+      setError(err?.message || "Failed to load enrollments");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const openCreateDialog = () => {
     setEditor({ mode: "create" });
     setForm(EMPTY_FORM);
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (enrollment: StudentSubjectEnrollmentDto) => {
-    setEditor({ mode: "edit", enrollment });
+  const openEditDialog = (enrollment: {
+    enrollmentId: string;
+    studentId: string;
+    studentName: string;
+    taughtSubjectId: string;
+    subjectName: string;
+    attempt?: number;
+  }) => {
+    setEditor({
+      mode: "edit",
+      enrollmentId: enrollment.enrollmentId,
+      enrollment: {
+        ...enrollment,
+        attempt: enrollment.attempt ?? 1,
+      },
+    });
     setForm({
       studentId: enrollment.studentId,
       taughtSubjectId: enrollment.taughtSubjectId,
-      attempt: String(enrollment.attempt),
+      attempt:
+        typeof enrollment.attempt === "number" ? String(enrollment.attempt) : "",
     });
     setIsDialogOpen(true);
   };
@@ -224,16 +264,6 @@ export function DeanEnrollmentManagement() {
   };
 
   const handleSubmit = async () => {
-    if (!form.studentId) {
-      toast.error("Select a student");
-      return;
-    }
-
-    if (!form.taughtSubjectId) {
-      toast.error("Select a taught subject");
-      return;
-    }
-
     const parsedAttempt =
       form.attempt.trim() === "" ? undefined : Number(form.attempt);
 
@@ -249,6 +279,16 @@ export function DeanEnrollmentManagement() {
 
     try {
       if (editor.mode === "create") {
+        if (!form.studentId) {
+          toast.error("Select a student");
+          return;
+        }
+
+        if (!form.taughtSubjectId) {
+          toast.error("Select a taught subject");
+          return;
+        }
+
         const payload: CreateStudentSubjectEnrollmentDto = {
           studentId: form.studentId,
           taughtSubjectId: form.taughtSubjectId,
@@ -258,12 +298,13 @@ export function DeanEnrollmentManagement() {
         await createStudentSubjectEnrollment(payload);
         toast.success("Enrollment created successfully");
       } else {
-        await updateStudentSubjectEnrollment(
-          editor.enrollment.studentId,
-          editor.enrollment.taughtSubjectId,
-          editor.enrollment.attempt,
-          { taughtSubjectId: form.taughtSubjectId },
-        );
+        if (parsedAttempt === undefined) {
+          toast.error("Attempt is required when editing");
+          return;
+        }
+        await updateStudentSubjectEnrollment(editor.enrollmentId, {
+          attempt: parsedAttempt,
+        });
         toast.success("Enrollment updated successfully");
       }
 
@@ -276,54 +317,35 @@ export function DeanEnrollmentManagement() {
     }
   };
 
-  const handleDelete = async (enrollment: StudentSubjectEnrollmentDto) => {
+  const handleDelete = async (payload: {
+    id: string;
+    studentName: string;
+    subjectName: string;
+  }) => {
     try {
-      await deleteStudentSubjectEnrollment(
-        enrollment.studentId,
-        enrollment.taughtSubjectId,
-        enrollment.attempt,
-      );
-      setEnrollments((current) =>
-        current.filter(
-          (item) =>
-            !(
-              item.studentId === enrollment.studentId &&
-              item.taughtSubjectId === enrollment.taughtSubjectId &&
-              item.attempt === enrollment.attempt
-            ),
-        ),
-      );
+      await deleteStudentSubjectEnrollment(payload.id);
+      setAllEnrollmentsPage((current) => ({
+        ...current,
+        items: current.items.filter((item) => item.id !== payload.id),
+        totalCount: Math.max(0, current.totalCount - 1),
+      }));
       toast.success("Enrollment deleted successfully");
     } catch (err: any) {
       toast.error(err?.message || "Failed to delete enrollment");
     }
   };
 
+  const getGroupCodeForItem = (studentId: string, taughtSubjectId: string) => {
+    const matched = enrollments.find(
+      (enrollment) =>
+        enrollment.studentId === studentId &&
+        enrollment.taughtSubjectId === taughtSubjectId,
+    );
+    return matched?.groupCode || "-";
+  };
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">Total enrollments</p>
-            <p className="mt-2 text-3xl font-semibold">{enrollments.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">Students enrolled</p>
-            <p className="mt-2 text-3xl font-semibold">{studentCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">Retake records</p>
-            <p className="mt-2 text-3xl font-semibold">
-              {enrollments.filter((item) => item.attempt > 1).length}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -338,7 +360,7 @@ export function DeanEnrollmentManagement() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => loadData(true)}
+                onClick={() => loadAllEnrollmentsPage(allEnrollmentsPage.page)}
                 disabled={refreshing || loading}
               >
                 <RefreshCw
@@ -372,7 +394,7 @@ export function DeanEnrollmentManagement() {
                     <DialogDescription>
                       {editor.mode === "create"
                         ? "Assign a student to a taught subject instance."
-                        : "You can only move this enrollment to another taught subject instance."}
+                        : "Update the attempt value for this enrollment."}
                     </DialogDescription>
                   </DialogHeader>
 
@@ -414,7 +436,7 @@ export function DeanEnrollmentManagement() {
                             taughtSubjectId: value,
                           }))
                         }
-                        disabled={saving}
+                        disabled={editor.mode === "edit" || saving}
                       >
                         <SelectTrigger id="enrollment-taught-subject">
                           <SelectValue placeholder="Select subject and group" />
@@ -443,13 +465,12 @@ export function DeanEnrollmentManagement() {
                             attempt: event.target.value,
                           }))
                         }
-                        readOnly={editor.mode === "edit"}
-                        disabled={editor.mode === "edit" || saving}
+                        disabled={saving}
                       />
                       <p className="text-sm text-muted-foreground">
                         {editor.mode === "create"
                           ? "Leave blank to let the backend use its default attempt."
-                          : "Attempt is read-only when editing an existing enrollment."}
+                          : "Attempt is editable and will be sent to the update endpoint."}
                       </p>
                     </div>
                   </div>
@@ -487,95 +508,129 @@ export function DeanEnrollmentManagement() {
               {error}
             </div>
           ) : null}
-
           {loading ? (
             <div className="space-y-3">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : enrollments.length === 0 ? (
+          ) : allEnrollmentsPage.items.length === 0 ? (
             <div className="rounded-lg border border-dashed p-10 text-center">
               <p className="font-medium">No enrollments found</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Create the first student subject enrollment to get started.
-              </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student Name</TableHead>
-                  <TableHead>Subject Name</TableHead>
-                  <TableHead>Group Code</TableHead>
-                  <TableHead>Attempt</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {enrollments.map((enrollment) => (
-                  <TableRow
-                    key={`${enrollment.studentId}-${enrollment.taughtSubjectId}-${enrollment.attempt}`}
-                  >
-                    <TableCell className="font-medium">
-                      {enrollment.studentName || enrollment.studentId}
-                    </TableCell>
-                    <TableCell>{enrollment.subjectName || "-"}</TableCell>
-                    <TableCell>{enrollment.groupCode || "-"}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          enrollment.attempt > 1 ? "secondary" : "outline"
-                        }
-                      >
-                        Attempt {enrollment.attempt}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(enrollment)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button type="button" variant="ghost" size="sm">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Delete enrollment?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will remove the enrollment for{" "}
-                                {enrollment.studentName} in{" "}
-                                {enrollment.subjectName}, attempt{" "}
-                                {enrollment.attempt}.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(enrollment)}
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student Name</TableHead>
+                    <TableHead>Subject Name</TableHead>
+                    <TableHead>Group Code</TableHead>
+                    <TableHead>Subject Code</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {allEnrollmentsPage.items.map((item) => (
+                    <TableRow key={item.id || `${item.studentId}-${item.taughtSubjectId}`}>
+                      <TableCell className="font-medium">
+                        {item.studentFullName || item.studentId}
+                      </TableCell>
+                      <TableCell>{item.subjectName || "-"}</TableCell>
+                      <TableCell>
+                        {getGroupCodeForItem(item.studentId, item.taughtSubjectId)}
+                      </TableCell>
+                      <TableCell>{item.taughtSubjectCode || "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              openEditDialog({
+                                enrollmentId: item.id,
+                                studentId: item.studentId,
+                                studentName: item.studentFullName || item.studentId,
+                                taughtSubjectId: item.taughtSubjectId,
+                                subjectName: item.subjectName || "-",
+                              })
+                            }
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button type="button" variant="ghost" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete enrollment?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will remove the enrollment for{" "}
+                                  {item.studentFullName || item.studentId} in{" "}
+                                  {item.subjectName || "-"}.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    handleDelete({
+                                      id: item.id,
+                                      studentName:
+                                        item.studentFullName || item.studentId,
+                                      subjectName: item.subjectName || "-",
+                                    })
+                                  }
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Page {allEnrollmentsPage.page} of{" "}
+                  {Math.max(1, allEnrollmentsPage.totalPages)} ({allEnrollmentsPage.totalCount} total)
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={refreshing || allEnrollmentsPage.page <= 1}
+                    onClick={() =>
+                      loadAllEnrollmentsPage(allEnrollmentsPage.page - 1)
+                    }
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      refreshing ||
+                      allEnrollmentsPage.page >= allEnrollmentsPage.totalPages
+                    }
+                    onClick={() =>
+                      loadAllEnrollmentsPage(allEnrollmentsPage.page + 1)
+                    }
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

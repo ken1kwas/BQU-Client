@@ -23,5 +23,9 @@ export type EnrollmentEditor =
     }
   | {
       mode: "edit";
-      enrollment: StudentSubjectEnrollmentDto;
+      enrollmentId: string;
+      enrollment: Pick<
+        StudentSubjectEnrollmentDto,
+        "studentId" | "studentName" | "taughtSubjectId" | "subjectName" | "attempt"
+      >;
     };
