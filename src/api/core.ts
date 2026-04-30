@@ -179,6 +179,7 @@ export async function apiJson<T>(
 export function unwrapApiResult<T = any>(resp: any): T {
   if (resp == null || typeof resp !== "object") return resp as T;
   if (resp.data !== undefined) return resp.data as T;
+  if (resp.Data !== undefined) return resp.Data as T;
   return resp as T;
 }
 

@@ -991,13 +991,7 @@ export function TeacherCourseDetail({
         return;
       }
 
-      const currentAttendance =
-        currentStudentBeforeUpdate?.activityAttendance[sessionIndex];
-      const needsToggle =
-        (value === "absent" && currentAttendance?.attendance !== "absent") ||
-        (value === "present" && currentAttendance?.attendance === "absent");
-
-      if (needsToggle && session?.id) {
+      if (session?.id) {
         try {
           let actualStudentId: string = String(currentStudent.id);
 

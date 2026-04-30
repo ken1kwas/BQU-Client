@@ -1,6 +1,8 @@
-import { apiJson, toArray } from "../api/index";
+import { apiJson, toArray, unwrapApiResult } from "../api/index";
 import type {
   CreateStudentSubjectEnrollmentDto,
+  StudentSubjectEnrollmentGetAllResponseDto,
+  StudentSubjectEnrollmentListItemDto,
   StudentSubjectEnrollmentDto,
   UpdateStudentSubjectEnrollmentDto,
 } from "../types/studentSubjectEnrollment";
@@ -36,45 +38,86 @@ function normalizeEnrollment(item: any): StudentSubjectEnrollmentDto {
   };
 }
 
+function normalizeEnrollmentListItem(
+  item: any,
+): StudentSubjectEnrollmentListItemDto {
+  return {
+    id: pickString(item?.id, item?.Id),
+    studentId: pickString(item?.studentId, item?.StudentId),
+    studentFullName: pickString(item?.studentFullName, item?.StudentFullName),
+    subjectName: pickString(item?.subjectName, item?.SubjectName),
+    taughtSubjectId: pickString(item?.taughtSubjectId, item?.TaughtSubjectId),
+    taughtSubjectCode: pickString(
+      item?.taughtSubjectCode,
+      item?.TaughtSubjectCode,
+    ),
+  };
+}
+
 export async function listStudentSubjectEnrollments() {
-  const response = await apiJson<any>("/api/studentsubjectenrollments");
+  const response = await apiJson<any>("/api/student-subject-enrollments");
   return toArray(response).map(normalizeEnrollment);
+}
+
+export async function getAllStudentSubjectEnrollments(options?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<StudentSubjectEnrollmentGetAllResponseDto> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 10;
+  const query = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+
+  const raw = await apiJson<any>(`/api/student-subject-enrollments?${query}`);
+  const data = unwrapApiResult<any>(raw);
+  const items = toArray<any>(data?.items ?? data?.Items).map(
+    normalizeEnrollmentListItem,
+  );
+
+  return {
+    items,
+    page: pickNumber(data?.page, data?.Page, page),
+    pageSize: pickNumber(data?.pageSize, data?.PageSize, pageSize),
+    totalCount: pickNumber(data?.totalCount, data?.TotalCount, 0),
+    totalPages: pickNumber(data?.totalPages, data?.TotalPages, 0),
+  };
 }
 
 export function createStudentSubjectEnrollment(
   payload: CreateStudentSubjectEnrollmentDto,
 ) {
-  return apiJson<StudentSubjectEnrollmentDto>(
-    "/api/studentsubjectenrollments",
+  return apiJson<any>(
+    "/api/student-subject-enrollments",
     {
       method: "POST",
-      json: payload,
+      json: {
+        ...payload,
+        attempt: payload.attempt ?? null,
+      },
     },
-  );
+  ).then((raw) => unwrapApiResult<string>(raw));
 }
 
 export function updateStudentSubjectEnrollment(
-  studentId: string,
-  taughtSubjectId: string,
-  attempt: number,
+  enrollmentId: string,
   payload: UpdateStudentSubjectEnrollmentDto,
 ) {
-  return apiJson<StudentSubjectEnrollmentDto>(
-    `/api/studentsubjectenrollments/${encodeURIComponent(studentId)}/${encodeURIComponent(taughtSubjectId)}/${attempt}`,
+  return apiJson<any>(
+    `/api/student-subject-enrollments/${encodeURIComponent(enrollmentId)}`,
     {
       method: "PUT",
       json: payload,
     },
-  );
+  ).then((raw) => unwrapApiResult(raw));
 }
 
 export function deleteStudentSubjectEnrollment(
-  studentId: string,
-  taughtSubjectId: string,
-  attempt: number,
+  enrollmentId: string,
 ) {
   return apiJson<void>(
-    `/api/studentsubjectenrollments/${encodeURIComponent(studentId)}/${encodeURIComponent(taughtSubjectId)}/${attempt}`,
+    `/api/student-subject-enrollments/${encodeURIComponent(enrollmentId)}`,
     {
       method: "DELETE",
     },
