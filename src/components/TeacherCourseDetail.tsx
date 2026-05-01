@@ -9,6 +9,7 @@ import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ArrowLeft, Users, Calendar, Send, Loader2 } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Select,
@@ -128,11 +129,15 @@ export function TeacherCourseDetail({
   initialStudentCount,
   initialHours,
 }: {
-  courseId: string | number;
-  onBack: () => void;
+  courseId?: string | number;
+  onBack?: () => void;
   initialStudentCount?: number;
   initialHours?: number;
 }) {
+  const params = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const resolvedId = String(courseId ?? params.courseId ?? "");
   const pendingAssignmentChanges = useRef<
     Map<
       string,
@@ -144,12 +149,12 @@ export function TeacherCourseDetail({
       }
     >
   >(new Map());
-  const taughtSubjectId = String(courseId);
+  const taughtSubjectId = String(resolvedId);
 
   const [students, setStudents] = useState<Student[]>([]);
   const [courseTitle, setCourseTitle] = useState<string>("");
   const [courseHours, setCourseHours] = useState<number | undefined>(
-    initialHours,
+    initialHours ?? (location.state as any)?.hours,
   );
   const [sessions, setSessions] = useState<CourseSession[]>([]);
   const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
@@ -891,6 +896,11 @@ export function TeacherCourseDetail({
     }
   };
 
+  const handleDefaultBack = () => {
+    if (onBack) return onBack();
+    navigate("/teacher/courses", { replace: true });
+  };
+
   const refreshColloquiums = async () => {
     try {
       const colloquiumsResp =
@@ -1616,7 +1626,7 @@ export function TeacherCourseDetail({
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={onBack}>
+        <Button variant="ghost" size="sm" onClick={handleDefaultBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Fənnlərə qayıt
         </Button>

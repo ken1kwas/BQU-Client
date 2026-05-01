@@ -6,11 +6,14 @@ import {
   Routes,
   useLocation,
   useNavigate,
+  Outlet,
 } from "react-router-dom";
 
 import { ConfirmEmailPage } from "../components/ConfirmEmailPage";
 import LoginPage from "../components/LoginPage";
 import { ResetPasswordPage } from "../components/ResetPasswordPage";
+import { TeacherCourseDetail } from "../components/TeacherCourseDetail";
+import { TeacherCourses } from "../components/TeacherCourses";
 import { SidebarProvider } from "../components/ui/sidebar";
 import { Toaster } from "../components/ui/sonner";
 import { AppShell } from "../layouts/AppShell";
@@ -144,34 +147,6 @@ function AppWorkspace({
     navigate("/login", { replace: true });
   };
 
-  const renderContent = () => {
-    if (!userRole) return null;
-
-    if (userRole === "dean") {
-      return <DeanWorkspace activeView={activeView} />;
-    }
-
-    if (userRole === "teacher") {
-      const teacherCourseMatch = location.pathname.match(
-        /^\/teacher\/courses\/([^/]+)$/,
-      );
-
-      return (
-        <TeacherWorkspace
-          activeView={activeView}
-          courseId={teacherCourseMatch?.[1] ?? null}
-          courseState={
-            (location.state as SelectedCourse | null | undefined) ?? null
-          }
-          onCourseSelect={handleCourseSelect}
-          onBackToCourses={handleBackToCourses}
-        />
-      );
-    }
-
-    return <StudentWorkspace activeView={activeView} />;
-  };
-
   if (!token && !DEV_BYPASS_LOGIN) {
     return <Navigate to="/login" replace />;
   }
@@ -192,8 +167,9 @@ function AppWorkspace({
         userRole={userRole}
         onNavigate={(viewId) => navigate(`/${userRole}/${viewId}`)}
         handleLogout={handleLogout}
-        renderContent={renderContent}
-      />
+      >
+        <Outlet />
+      </AppShell>
       <Toaster />
     </SidebarProvider>
   );
@@ -209,6 +185,50 @@ export function AppRoutes() {
     setLoadingRole,
     clearSession,
   } = useAuthSession();
+
+  // Default content renderer for routes that don't have a dedicated nested
+  // route. Uses the same workspace components as before.
+  function WorkspaceIndex() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    if (!userRole) return null;
+
+    if (userRole === "dean") {
+      const activeView = getActiveViewFromPath(userRole, location.pathname);
+      return <DeanWorkspace activeView={activeView} />;
+    }
+
+    if (userRole === "teacher") {
+      const activeView = getActiveViewFromPath(userRole, location.pathname);
+      const handleCourseSelect = (course: string | number | SelectedCourse) => {
+        const courseData =
+          course && typeof course === "object"
+            ? course
+            : { id: course as string | number };
+        navigate(`/teacher/courses/${courseData.id}`, {
+          state: {
+            studentCount: courseData.studentCount,
+            hours: courseData.hours,
+          },
+        });
+      };
+
+      return (
+        <TeacherWorkspace
+          activeView={activeView}
+          courseId={null}
+          courseState={null}
+          onCourseSelect={handleCourseSelect}
+          onBackToCourses={() =>
+            navigate("/teacher/courses", { replace: true })
+          }
+        />
+      );
+    }
+
+    const activeView = getActiveViewFromPath("student", location.pathname);
+    return <StudentWorkspace activeView={activeView} />;
+  }
 
   return (
     <Routes>
@@ -250,7 +270,14 @@ export function AppRoutes() {
             clearSession={clearSession}
           />
         }
-      />
+      >
+        <Route index element={<WorkspaceIndex />} />
+        <Route path="teacher">
+          <Route path="courses" element={<TeacherCourses />} />
+          <Route path="courses/:courseId" element={<TeacherCourseDetail />} />
+        </Route>
+        <Route path="*" element={<WorkspaceIndex />} />
+      </Route>
     </Routes>
   );
 }

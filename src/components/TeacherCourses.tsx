@@ -9,6 +9,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { FileUp, Users, BookOpen, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 // removed AddTopics dialog-related imports (not used anymore)
 import {
@@ -77,7 +78,7 @@ const mapTopicsFromApi = (raw: any): CourseTopic[] => {
 export function TeacherCourses({
   onCourseSelect,
 }: {
-  onCourseSelect: (
+  onCourseSelect?: (
     course:
       | string
       | number
@@ -86,6 +87,7 @@ export function TeacherCourses({
 }) {
   // Local state for courses loaded from the backend
   const [courses, setCourses] = useState<TeacherCourse[]>([]);
+  const navigate = useNavigate();
 
   // Fetch teacher courses on mount
   const refreshCourses = async () => {
@@ -248,13 +250,18 @@ export function TeacherCourses({
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() =>
-                    onCourseSelect({
+                  onClick={() => {
+                    const payload = {
                       id: course.id,
                       studentCount: course.studentCount,
                       hours: course.hours,
-                    })
-                  }
+                    };
+                    if (onCourseSelect) {
+                      onCourseSelect(payload);
+                    } else {
+                      navigate(String(course.id), { state: payload });
+                    }
+                  }}
                 >
                   Qiymətləri idarə edin
                 </Button>

@@ -27,5 +27,6 @@ export type AppShellProps = {
   onNavigate: (view: string) => void;
   handleRoleSwitch?: () => void;
   handleLogout: () => void;
-  renderContent: () => ReactNode;
+  renderContent?: () => ReactNode;
+  children?: ReactNode;
 };
