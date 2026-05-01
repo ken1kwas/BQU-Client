@@ -1659,7 +1659,7 @@ export function TeacherCourseDetail({
 
         <TabsContent value="activity" className="space-y-4">
           <Card className="w-full min-w-0 overflow-hidden">
-            <CardHeader className="flex-shrink-0 space-y-4">
+            <CardHeader className="shrink-0 space-y-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <CardTitle>Fəaliyyət və İştirakın İzlənməsi</CardTitle>
@@ -1668,7 +1668,7 @@ export function TeacherCourseDetail({
                     Tək dərs qeydləri avtomatik yadda saxlanılır.
                   </CardDescription>
                 </div>
-                <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <Select
                     value={selectedColumn?.toString() || ""}
                     onValueChange={(v: string) =>
