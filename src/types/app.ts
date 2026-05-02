@@ -24,10 +24,9 @@ export type AppShellProps = {
   navigation: NavigationGroup[];
   activeView: string;
   userRole: UserRole;
-  selectedCourse: SelectedCourse | null;
-  setActiveView: (view: string) => void;
-  setSelectedCourse: (course: SelectedCourse | null) => void;
+  onNavigate: (view: string) => void;
   handleRoleSwitch?: () => void;
   handleLogout: () => void;
-  renderContent: () => ReactNode;
+  renderContent?: () => ReactNode;
+  children?: ReactNode;
 };

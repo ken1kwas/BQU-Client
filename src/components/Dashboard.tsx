@@ -484,7 +484,7 @@ export function Dashboard() {
                     key={notification.id}
                     className="flex items-start gap-3 p-3 rounded-lg border"
                   >
-                    <div className="flex-shrink-0 mt-1">
+                    <div className="shrink-0 mt-1">
                       <Icon className={`h-4 w-4 ${color}`} />
                     </div>
                     <div className="flex-1 space-y-1">
