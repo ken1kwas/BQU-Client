@@ -97,7 +97,7 @@ function buildStudentLabel(student: any) {
     student?.studentId,
     student?.userId,
   );
-  return fullName || fallbackId || "Unnamed student";
+  return fullName || fallbackId || "Adsız tələbə";
 }
 
 function normalizeStudentOption(student: any): StudentOption {
@@ -131,12 +131,13 @@ function normalizeTaughtSubjectOption(item: any): TaughtSubjectOption {
   return {
     id: pickString(item?.id, item?.Id, item?.taughtSubjectId),
     label: groupCode ? `${subjectName} (${groupCode})` : subjectName,
-    subjectName: subjectName || "Unnamed subject",
+    subjectName: subjectName || "Adsız fənn",
   };
 }
 
 const EMPTY_FORM: EnrollmentFormState = {
   studentId: "",
+  failedSubjectCode: "",
   taughtSubjectId: "",
   attempt: "",
 };
@@ -199,7 +200,7 @@ export function DeanEnrollmentManagement() {
           .filter((item) => item.id && item.subjectName),
       );
     } catch (err: any) {
-      setError(err?.message || "Failed to load enrollments");
+      setError(err?.message || "Alt Qrupları yükləmə alışması başarısız oldu");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -220,7 +221,7 @@ export function DeanEnrollmentManagement() {
       const response = await getAllStudentSubjectEnrollments({ page, pageSize });
       setAllEnrollmentsPage(response);
     } catch (err: any) {
-      setError(err?.message || "Failed to load enrollments");
+      setError(err?.message || "Alt Qrupları yükləmə alışması başarısız oldu");
     } finally {
       setRefreshing(false);
     }
@@ -248,11 +249,12 @@ export function DeanEnrollmentManagement() {
         attempt: enrollment.attempt ?? 1,
       },
     });
-    setForm({
-      studentId: enrollment.studentId,
-      taughtSubjectId: enrollment.taughtSubjectId,
-      attempt:
-        typeof enrollment.attempt === "number" ? String(enrollment.attempt) : "",
+      setForm({
+        studentId: enrollment.studentId,
+        failedSubjectCode: "",
+        taughtSubjectId: enrollment.taughtSubjectId,
+        attempt:
+          typeof enrollment.attempt === "number" ? String(enrollment.attempt) : "",
     });
     setIsDialogOpen(true);
   };
@@ -271,7 +273,7 @@ export function DeanEnrollmentManagement() {
       parsedAttempt !== undefined &&
       (!Number.isInteger(parsedAttempt) || parsedAttempt < 1)
     ) {
-      toast.error("Attempt must be a whole number starting from 1");
+      toast.error("Cəhd 1-dən başlayan tam rəqəm olmalıdır");
       return;
     }
 
@@ -280,38 +282,43 @@ export function DeanEnrollmentManagement() {
     try {
       if (editor.mode === "create") {
         if (!form.studentId) {
-          toast.error("Select a student");
+          toast.error("Tələbə seçin");
           return;
         }
 
         if (!form.taughtSubjectId) {
-          toast.error("Select a taught subject");
+          toast.error("Tədris olunan fənn seçin");
+          return;
+        }
+        if (!form.failedSubjectCode.trim()) {
+          toast.error("Uğursuz fənn kodu daxil edin");
           return;
         }
 
         const payload: CreateStudentSubjectEnrollmentDto = {
           studentId: form.studentId,
+          failedSubjectCode: form.failedSubjectCode.trim(),
           taughtSubjectId: form.taughtSubjectId,
           ...(parsedAttempt !== undefined ? { attempt: parsedAttempt } : {}),
         };
 
         await createStudentSubjectEnrollment(payload);
-        toast.success("Enrollment created successfully");
+        toast.success("Alt Qrup uğurlu şəkildə yaradıldı");
       } else {
         if (parsedAttempt === undefined) {
-          toast.error("Attempt is required when editing");
+          toast.error("Redaktə edərkən cəhd tələb olunur");
           return;
         }
         await updateStudentSubjectEnrollment(editor.enrollmentId, {
           attempt: parsedAttempt,
         });
-        toast.success("Enrollment updated successfully");
+        toast.success("Alt Qrup uğurlu şəkildə yeniləndi");
       }
 
       resetDialog();
       await loadData(true);
     } catch (err: any) {
-      toast.error(err?.message || "Failed to save enrollment");
+      toast.error(err?.message || "Alt Qrupı saxlamaq alışması başarısız oldu");
     } finally {
       setSaving(false);
     }
@@ -329,9 +336,9 @@ export function DeanEnrollmentManagement() {
         items: current.items.filter((item) => item.id !== payload.id),
         totalCount: Math.max(0, current.totalCount - 1),
       }));
-      toast.success("Enrollment deleted successfully");
+      toast.success("Alt Qrup uğurlu şəkildə silindi");
     } catch (err: any) {
-      toast.error(err?.message || "Failed to delete enrollment");
+      toast.error(err?.message || "Alt Qrupı silmə alışması başarısız oldu");
     }
   };
 
@@ -350,10 +357,9 @@ export function DeanEnrollmentManagement() {
         <CardHeader>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
-              <CardTitle>Subject enrollments</CardTitle>
+              <CardTitle>Fənn alt qrupları</CardTitle>
               <CardDescription>
-                Manage which taught subject instance each student is enrolled
-                in, including retake attempts.
+                Hər bir tələbənin hansı müəllim-tərəfindən tədris olunan fənn nümunəsinə alt qrupa qeydiyyatdan keçirildiğini, o cümlədən yenidən cəhd etməyi idarə edin.
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -366,7 +372,7 @@ export function DeanEnrollmentManagement() {
                 <RefreshCw
                   className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
                 />
-                Refresh
+                Yenilə
               </Button>
               <Dialog
                 open={isDialogOpen}
@@ -381,26 +387,26 @@ export function DeanEnrollmentManagement() {
                 <DialogTrigger asChild>
                   <Button type="button" onClick={openCreateDialog}>
                     <Plus className="h-4 w-4" />
-                    Add enrollment
+                    Alt Qrup əlavə et
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-xl">
                   <DialogHeader>
                     <DialogTitle>
                       {editor.mode === "create"
-                        ? "Create enrollment"
-                        : "Edit enrollment"}
+                        ? "Alt Qrup yarat"
+                        : "Alt Qrupı redaktə et"}
                     </DialogTitle>
                     <DialogDescription>
                       {editor.mode === "create"
-                        ? "Assign a student to a taught subject instance."
-                        : "Update the attempt value for this enrollment."}
+                        ? "Tələbəni müəllim-tərəfindən tədris olunan fənn nümunəsinə təyin edin."
+                        : "Bu alt qrup üçün cəhd dəyərini yeniləyin."}
                     </DialogDescription>
                   </DialogHeader>
 
                   <div className="space-y-4 py-2">
                     <div className="space-y-2">
-                      <Label htmlFor="enrollment-student">Student</Label>
+                      <Label htmlFor="enrollment-student">Tələbə</Label>
                       <Select
                         value={form.studentId}
                         onValueChange={(value) =>
@@ -412,7 +418,7 @@ export function DeanEnrollmentManagement() {
                         disabled={editor.mode === "edit" || saving}
                       >
                         <SelectTrigger id="enrollment-student">
-                          <SelectValue placeholder="Select student" />
+                          <SelectValue placeholder="Tələbə seçin" />
                         </SelectTrigger>
                         <SelectContent>
                           {students.map((student) => (
@@ -425,8 +431,26 @@ export function DeanEnrollmentManagement() {
                     </div>
 
                     <div className="space-y-2">
+                      <Label htmlFor="enrollment-failed-subject-code">
+                        Uğursuz fənn kodu
+                      </Label>
+                      <Input
+                        id="enrollment-failed-subject-code"
+                        placeholder="məs. CS101"
+                        value={form.failedSubjectCode}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            failedSubjectCode: event.target.value,
+                          }))
+                        }
+                        disabled={editor.mode === "edit" || saving}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
                       <Label htmlFor="enrollment-taught-subject">
-                        Taught subject
+                        Tədris olunan fənn
                       </Label>
                       <Select
                         value={form.taughtSubjectId}
@@ -439,7 +463,7 @@ export function DeanEnrollmentManagement() {
                         disabled={editor.mode === "edit" || saving}
                       >
                         <SelectTrigger id="enrollment-taught-subject">
-                          <SelectValue placeholder="Select subject and group" />
+                          <SelectValue placeholder="Fənn və qrupunu seçin" />
                         </SelectTrigger>
                         <SelectContent>
                           {taughtSubjects.map((subject) => (
@@ -452,12 +476,12 @@ export function DeanEnrollmentManagement() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="enrollment-attempt">Attempt</Label>
+                      <Label htmlFor="enrollment-attempt">Cəhd</Label>
                       <Input
                         id="enrollment-attempt"
                         type="number"
                         min="1"
-                        placeholder="Defaults to 1"
+                        placeholder="Standart olaraq 1"
                         value={form.attempt}
                         onChange={(event) =>
                           setForm((current) => ({
@@ -469,8 +493,8 @@ export function DeanEnrollmentManagement() {
                       />
                       <p className="text-sm text-muted-foreground">
                         {editor.mode === "create"
-                          ? "Leave blank to let the backend use its default attempt."
-                          : "Attempt is editable and will be sent to the update endpoint."}
+                          ? "Arxanın standart cəhdini istifadə etməsinə icazə vermək üçün boş buraxın."
+                          : "Cəhd redaktə edilə bilər və yenilənmə nöqtəsinə göndəriləcəkdir."}
                       </p>
                     </div>
                   </div>
@@ -482,7 +506,7 @@ export function DeanEnrollmentManagement() {
                       onClick={resetDialog}
                       disabled={saving}
                     >
-                      Cancel
+                      Ləğv et
                     </Button>
                     <Button
                       type="button"
@@ -493,8 +517,8 @@ export function DeanEnrollmentManagement() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : null}
                       {editor.mode === "create"
-                        ? "Create enrollment"
-                        : "Save changes"}
+                        ? "Alt Qrup yarat"
+                        : "Dəyişiklikləri yadda saxla"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -516,18 +540,18 @@ export function DeanEnrollmentManagement() {
             </div>
           ) : allEnrollmentsPage.items.length === 0 ? (
             <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="font-medium">No enrollments found</p>
+              <p className="font-medium">Alt Qruplar tapılmadı</p>
             </div>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Student Name</TableHead>
-                    <TableHead>Subject Name</TableHead>
-                    <TableHead>Group Code</TableHead>
-                    <TableHead>Subject Code</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Tələbənin adı</TableHead>
+                    <TableHead>Fənn adı</TableHead>
+                    <TableHead>Qrup kodu</TableHead>
+                    <TableHead>Fənn kodu</TableHead>
+                    <TableHead className="text-right">Fəaliyyətlər</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -567,15 +591,15 @@ export function DeanEnrollmentManagement() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Delete enrollment?</AlertDialogTitle>
+                                <AlertDialogTitle>Alt Qrupı silmək?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This will remove the enrollment for{" "}
-                                  {item.studentFullName || item.studentId} in{" "}
-                                  {item.subjectName || "-"}.
+                                  Bu, {" "}
+                                  {item.studentFullName || item.studentId} üçün {" "}
+                                  {item.subjectName || "-"} -də alt qrupı silir.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogCancel>Ləğv et</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() =>
                                     handleDelete({
@@ -586,7 +610,7 @@ export function DeanEnrollmentManagement() {
                                     })
                                   }
                                 >
-                                  Delete
+                                  Sil
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -599,8 +623,7 @@ export function DeanEnrollmentManagement() {
               </Table>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Page {allEnrollmentsPage.page} of{" "}
-                  {Math.max(1, allEnrollmentsPage.totalPages)} ({allEnrollmentsPage.totalCount} total)
+                  Səhifə {allEnrollmentsPage.page} / {Math.max(1, allEnrollmentsPage.totalPages)} ({allEnrollmentsPage.totalCount} cəmi)
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -612,7 +635,7 @@ export function DeanEnrollmentManagement() {
                       loadAllEnrollmentsPage(allEnrollmentsPage.page - 1)
                     }
                   >
-                    Previous
+                    Əvvəlki
                   </Button>
                   <Button
                     type="button"
@@ -626,7 +649,7 @@ export function DeanEnrollmentManagement() {
                       loadAllEnrollmentsPage(allEnrollmentsPage.page + 1)
                     }
                   >
-                    Next
+                    Sonrakı
                   </Button>
                 </div>
               </div>

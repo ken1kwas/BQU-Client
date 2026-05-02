@@ -26,6 +26,7 @@ export interface StudentSubjectEnrollmentGetAllResponseDto {
 
 export interface CreateStudentSubjectEnrollmentDto {
   studentId: string;
+  failedSubjectCode: string;
   taughtSubjectId: string;
   attempt?: number | null;
 }

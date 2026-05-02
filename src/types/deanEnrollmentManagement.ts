@@ -13,6 +13,7 @@ export type TaughtSubjectOption = {
 
 export type EnrollmentFormState = {
   studentId: string;
+  failedSubjectCode: string;
   taughtSubjectId: string;
   attempt: string;
 };
