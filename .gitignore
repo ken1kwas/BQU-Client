@@ -7,3 +7,8 @@ node_modules/
 
 # IDE
 .idea/
+
+# build
+build/
+!build/students-template.xlsx
+!build/teacher-template.xlsx

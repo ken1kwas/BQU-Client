@@ -1229,10 +1229,14 @@ export function DeanManagement() {
 
   const downloadTeacherTemplate = async () => {
     try {
-      const fileName = "TeacherTemplate(2).xlsx";
+      const fileName = "teacher-template.xlsx";
       const resp = await fetch(`/${encodeURIComponent(fileName)}`);
       if (!resp.ok) {
         throw new Error("Template file not found");
+      }
+      const ct = (resp.headers.get("content-type") || "").toLowerCase();
+      if (ct.includes("text/html")) {
+        throw new Error("Template response is invalid");
       }
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
@@ -1250,10 +1254,14 @@ export function DeanManagement() {
   };
   const downloadTemplate = async () => {
     try {
-      const fileName = "students-template (2).xlsx";
+      const fileName = "students-template.xlsx";
       const resp = await fetch(`/${encodeURIComponent(fileName)}`);
       if (!resp.ok) {
         throw new Error("Template file not found");
+      }
+      const ct = (resp.headers.get("content-type") || "").toLowerCase();
+      if (ct.includes("text/html")) {
+        throw new Error("Template response is invalid");
       }
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
