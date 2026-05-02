@@ -79,7 +79,7 @@ export const deanNavigation: NavigationGroup[] = [
   {
     title: "Main",
     items: [
-      { title: "Enrollments", icon: FileSpreadsheet, id: "enrollments" },
+      { title: "Alt qruplar", icon: FileSpreadsheet, id: "enrollments" },
       { title: "İdarəetmə", icon: Settings, id: "management" },
       {
         title: "Semester imtahanları",
