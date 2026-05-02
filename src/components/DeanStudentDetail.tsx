@@ -10,10 +10,20 @@ import {
   UserSquare2,
   Users,
 } from "lucide-react";
-import { getStudentById } from "../api/index";
+import { getStudentById, resetStudentPassword } from "../api/index";
+import { toast } from "sonner";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import type { GradeCourse } from "../types/grades";
@@ -68,6 +78,9 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
   const [details, setDetails] = useState<StudentDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,6 +132,25 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
   const fullName = info.name || "Student";
   const courseLabel = info.course ? `${info.course} course` : EMPTY_VALUE;
 
+  const handleResetPassword = async () => {
+    if (!newPassword.trim()) {
+      toast.error("Xais olunur yeni şifrə daxil edin");
+      return;
+    }
+
+    try {
+      setIsResettingPassword(true);
+      await resetStudentPassword(student.id, newPassword.trim());
+      toast.success("Tələbənin şifrəsi uğurla sıfırlandı");
+      setNewPassword("");
+      setIsResetDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Tələbənin şifrəsi sıfırlanarkən xəta baş verdi");
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -128,6 +160,9 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
             Back to students
           </Button>
         </div>
+        <Button onClick={() => setIsResetDialogOpen(true)}>
+          Reset Password
+        </Button>
       </div>
 
       {error && (
@@ -313,6 +348,46 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Şifrəni dəyiş</DialogTitle>
+            <DialogDescription>
+            {fullName} üçün yeni şifrə təyin edin.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Yeni Şifrə</p>
+            <Input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Yeni şifrəni daxil edin"
+              autoFocus
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsResetDialogOpen(false)}
+              disabled={isResettingPassword}
+            >
+              İmtina
+            </Button>
+            <Button
+              type="button"
+              onClick={handleResetPassword}
+              disabled={isResettingPassword}
+            >
+              {isResettingPassword ? "Sıfırlanır..." : "Şifrəni Sıfırla"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

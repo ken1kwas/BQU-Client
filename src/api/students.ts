@@ -210,6 +210,21 @@ export function deleteStudent(id: string | number) {
   });
 }
 
+export function resetStudentPassword(
+  id: string | number,
+  newPassword: string,
+) {
+  return apiJson<any>(
+    `/api/students/${encodeURIComponent(String(id))}/reset-password`,
+    {
+      method: "PUT",
+      json: {
+        newPassword,
+      },
+    },
+  );
+}
+
 export function createStudent(req: {
   name: string;
   surname: string;
