@@ -24,6 +24,8 @@ import {
   checkUserPassword,
   getDeanProfile,
   getStudentProfile,
+  getStudentTranscriptExcel,
+  getStudentTranscriptPdf,
   getTeacherProfile,
   logout,
 } from "../api/index";
@@ -125,6 +127,9 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
   const [emailError, setEmailError] = useState("");
   const [emailSuccess, setEmailSuccess] = useState("");
   const [emailLoading, setEmailLoading] = useState(false);
+  const [downloadingTranscript, setDownloadingTranscript] = useState<
+    "excel" | "pdf" | null
+  >(null);
 
   const isTeacher = userRole === "teacher";
   const isDean = userRole === "dean";
@@ -241,6 +246,37 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
     logout();
     window.location.reload();
   };
+
+  function downloadBlobFile(blob: Blob, fileName: string) {
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  async function handleTranscriptDownload(type: "excel" | "pdf") {
+    try {
+      setDownloadingTranscript(type);
+      const result =
+        type === "excel"
+          ? await getStudentTranscriptExcel()
+          : await getStudentTranscriptPdf();
+      downloadBlobFile(result.blob, result.fileName);
+      toast.success(
+        type === "excel"
+          ? "Transcript Excel fayli yuklendi."
+          : "Transcript PDF fayli yuklendi.",
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Transcript yuklenmedi.");
+    } finally {
+      setDownloadingTranscript(null);
+    }
+  }
 
   async function handleCheckPassword() {
     if (!currentPassword.trim()) {
@@ -360,6 +396,30 @@ export function Profile({ userRole = "student" }: ProfileProps = {}) {
               <LogOut className="mr-2 h-4 w-4" />
               Cixis
             </Button>
+            {!isTeacher && !isDean && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTranscriptDownload("excel")}
+                  disabled={downloadingTranscript !== null}
+                >
+                  {downloadingTranscript === "excel"
+                    ? "Yuklenir..."
+                    : "Transcript Excel"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTranscriptDownload("pdf")}
+                  disabled={downloadingTranscript !== null}
+                >
+                  {downloadingTranscript === "pdf"
+                    ? "Yuklenir..."
+                    : "Transcript PDF"}
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
