@@ -1,10 +1,12 @@
 import {
   BASE_URL,
+  extractFileNameFromDisposition,
   apiForm,
   apiJson,
   authHeader,
   fetchOrThrow,
   getToken,
+  parseError,
   unwrapApiResult,
 } from "./core";
 
@@ -243,4 +245,47 @@ export function importStudentsExcel(file: File) {
   const form = new FormData();
   form.append("file", file);
   return apiForm<any>("/api/students/import", form);
+}
+
+export type DownloadedTranscriptFile = {
+  blob: Blob;
+  fileName: string;
+};
+
+async function downloadTranscript(path: string, fallbackFileName: string) {
+  const resp = await fetch(`${BASE_URL}${path}`, {
+    method: "GET",
+    headers: authHeader(),
+  });
+
+  if (!resp.ok) {
+    throw new Error(await parseError(resp));
+  }
+
+  const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+  if (contentType.includes("application/json")) {
+    throw new Error(await parseError(resp));
+  }
+
+  const blob = await resp.blob();
+  return {
+    blob,
+    fileName:
+      extractFileNameFromDisposition(resp.headers.get("content-disposition")) ||
+      fallbackFileName,
+  } satisfies DownloadedTranscriptFile;
+}
+
+export function getStudentTranscriptExcel() {
+  return downloadTranscript(
+    "/api/students/me/get-transcript-excel",
+    "transcript.xlsx",
+  );
+}
+
+export function getStudentTranscriptPdf() {
+  return downloadTranscript(
+    "/api/students/me/get-transcript-pdf",
+    "transcript.pdf",
+  );
 }
