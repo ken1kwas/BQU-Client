@@ -25,9 +25,10 @@ const formatTopicDate = (value: any): string => {
   if (!value) return "";
   const date = new Date(value);
   if (!Number.isNaN(date.getTime())) {
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
     });
   }
   return String(value);
