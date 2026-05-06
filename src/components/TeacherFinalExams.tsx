@@ -44,6 +44,26 @@ function gradeLabel(grade: number | null): string {
   return String(grade);
 }
 
+function formatTeacherDate(value: string | null | undefined): string {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+
+  const slashMatch = String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const [, month, day, year] = slashMatch;
+    return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+  }
+
+  return String(value);
+}
+
 export function TeacherFinalExams() {
   const [exams, setExams] = useState<TeacherFinalExamDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -201,7 +221,7 @@ export function TeacherFinalExams() {
                       </div>
                     </TableCell>
                     <TableCell>{exam.groupCode || "-"}</TableCell>
-                    <TableCell>{exam.formattedDate || "-"}</TableCell>
+                    <TableCell>{formatTeacherDate(exam.formattedDate)}</TableCell>
                     <TableCell>
                       <Badge variant={gradeBadgeVariant(exam.grade)}>
                         {gradeLabel(exam.grade)}
