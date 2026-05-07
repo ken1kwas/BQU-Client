@@ -266,8 +266,6 @@ function SidebarTrigger({
 }: React.ComponentProps<typeof Button>) {
   const { toggleSidebar, isMobile } = useSidebar();
 
-  // Only render the mobile trigger. On desktop the sidebar is always open
-  // and toggling is disabled to avoid layout shifts.
   if (!isMobile) return null;
 
   return (
