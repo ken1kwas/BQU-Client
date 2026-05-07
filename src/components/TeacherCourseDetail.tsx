@@ -1215,12 +1215,7 @@ export function TeacherCourseDetail({
         if (String(student.id) === String(studentId)) {
           const newAssignments = [...student.assignments];
           newAssignments[assignmentIndex] = grade;
-
-          // Track this change
           const independentWorkId = student.assignmentIds?.[assignmentIndex];
-
-          // Create a unique key for tracking this change
-          // Format: "studentId:assignmentIndex" or use the independentWorkId if it exists
           const changeKey =
             independentWorkId || `${student.id}:${assignmentIndex}`;
 
@@ -1259,19 +1254,14 @@ export function TeacherCourseDetail({
   };
 
   const applyBulkValue = useCallback(
-    async (value: string) => {
+    (value: string) => {
       if (selectedColumn === null || !value) return;
 
       const session = sessions[selectedColumn];
-      const isSeminarGrade =
-        session?.type === "S" &&
-        value !== "present" &&
-        value !== "absent" &&
-        !Number.isNaN(parseInt(value, 10));
+      const canBulkUpdate = session?.type === "S";
 
-      // Update UI state immediately for better UX
-      // Use functional update to get current students state
-      let studentsToUpdate: Student[] = [];
+      if (!canBulkUpdate) return;
+
       setStudents((prevStudents) => {
         const updated = prevStudents.map((student) => {
           const newData = [...student.activityAttendance];
@@ -1280,64 +1270,17 @@ export function TeacherCourseDetail({
           } else if (value === "present") {
             newData[selectedColumn] = { attendance: "present", grade: null };
           } else {
-            const grade = parseInt(value);
-            newData[selectedColumn] = { attendance: "present", grade };
+            const grade = parseInt(value, 10);
+            if (grade >= 0 && grade <= 10) {
+              newData[selectedColumn] = { attendance: "present", grade };
+            }
           }
           return { ...student, activityAttendance: newData };
         });
-
-        // For seminar grades, collect students that need API updates
-        if (isSeminarGrade) {
-          const grade = parseInt(value, 10);
-          if (grade >= 0 && grade <= 10) {
-            studentsToUpdate = prevStudents.filter((s) => {
-              // Only update students that don't already have this grade
-              const currentValue = s.activityAttendance[selectedColumn];
-              return (
-                !currentValue ||
-                currentValue.grade !== grade ||
-                currentValue.attendance !== "present"
-              );
-            });
-          }
-        }
-
         return updated;
       });
 
       setBulkValue("");
-
-      // For seminar grades, call updateActivityAttendance for each student sequentially
-      // This prevents infinite loops by ensuring each API call completes before the next one
-      // Use a flag to prevent Select components from triggering onValueChange during bulk update
-      if (isSeminarGrade && studentsToUpdate.length > 0) {
-        const grade = parseInt(value, 10);
-        if (grade >= 0 && grade <= 10) {
-          setIsBulkUpdating(true); // Set flag to prevent state updates from triggering Select onValueChange
-          try {
-            // Update each student sequentially to prevent race conditions and infinite loops
-            for (const student of studentsToUpdate) {
-              try {
-                // Skip state update since we already updated it above
-                await updateActivityAttendance(
-                  student.id,
-                  selectedColumn,
-                  value,
-                  true,
-                );
-              } catch (error) {
-                console.error(
-                  `Failed to update grade for student ${student.id}:`,
-                  error,
-                );
-                // Continue with next student even if one fails
-              }
-            }
-          } finally {
-            setIsBulkUpdating(false); // Reset flag after all updates complete
-          }
-        }
-      }
     },
     [selectedColumn, sessions],
   );
@@ -1359,7 +1302,6 @@ export function TeacherCourseDetail({
       !Number.isNaN(data.grade) &&
       data.grade >= 0
     ) {
-      // If grade is 0, show attendance state instead of "0"
       if (data.grade === 0) {
         return data.attendance;
       }
@@ -1505,10 +1447,16 @@ export function TeacherCourseDetail({
     let ok = 0;
     let err = 0;
     try {
-      const pending: Array<{
+      const pendingAttendance: Array<{
         student: Student;
         sessionIndex: number;
         desired: "present" | "absent";
+      }> = [];
+
+      const pendingGrades: Array<{
+        student: Student;
+        sessionIndex: number;
+        grade: number;
       }> = [];
 
       for (const student of students) {
@@ -1519,18 +1467,36 @@ export function TeacherCourseDetail({
           const cell = student.activityAttendance[idx];
           const desired = cell?.attendance ?? "absent";
           const previous = snapshot[idx] ?? "absent";
+
+          const session = sessions[idx];
+          if (session?.type === "S") {
+            const currentGrade = cell?.grade;
+            if (
+              currentGrade !== null &&
+              currentGrade !== undefined &&
+              currentGrade >= 0 &&
+              currentGrade <= 10
+            ) {
+              pendingGrades.push({
+                student,
+                sessionIndex: idx,
+                grade: currentGrade,
+              });
+            }
+          }
+
           if (desired !== previous) {
-            pending.push({ student, sessionIndex: idx, desired });
+            pendingAttendance.push({ student, sessionIndex: idx, desired });
           }
         }
       }
 
-      if (pending.length === 0) {
-        toast.info("No attendance changes to send");
+      if (pendingAttendance.length === 0 && pendingGrades.length === 0) {
+        toast.info("No changes to send");
         return;
       }
 
-      for (const item of pending) {
+      for (const item of pendingAttendance) {
         const { student, sessionIndex, desired } = item;
         const session = sessions[sessionIndex];
         if (!session?.id) continue;
@@ -1568,10 +1534,63 @@ export function TeacherCourseDetail({
           err += 1;
         }
       }
+
+      for (const item of pendingGrades) {
+        const { student, sessionIndex, grade } = item;
+        const session = sessions[sessionIndex];
+        if (!session?.id || session.type !== "S") continue;
+
+        let actualStudentId: string = String(student.id);
+        if (!looksLikeStudentGuid(actualStudentId)) {
+          if (student.userId && looksLikeStudentGuid(student.userId)) {
+            actualStudentId = student.userId;
+          } else if (
+            (student as any).user?.id &&
+            looksLikeStudentGuid((student as any).user.id)
+          ) {
+            actualStudentId = (student as any).user.id;
+          } else {
+            continue;
+          }
+        }
+
+        try {
+          // Get or resolve seminar ID
+          let seminarId = student.seminarIds?.[sessionIndex] ?? null;
+          if (!seminarId) {
+            seminarId = await resolveSeminarIdForStudentSession(
+              actualStudentId,
+              student,
+              session,
+              sessionIndex,
+            );
+          }
+
+          if (!seminarId) {
+            console.warn(
+              `No seminar ID found for student ${student.id} at session ${sessionIndex}`,
+            );
+            err += 1;
+            continue;
+          }
+
+          await updateSeminarGrade(
+            actualStudentId,
+            seminarId,
+            grade,
+            String(session.id),
+          );
+          ok += 1;
+        } catch (e) {
+          console.error(`Failed to send grade for student ${student.id}:`, e);
+          err += 1;
+        }
+      }
+
       if (ok > 0) toast.success(`Saved ${ok} change(s)`);
       if (err > 0) toast.error(`Failed to save ${err} change(s)`);
     } catch (e: any) {
-      toast.error(e?.message ?? "Failed to save attendance");
+      toast.error(e?.message ?? "Failed to save changes");
     } finally {
       setIsSendingAttendance(false);
     }
@@ -1710,11 +1729,13 @@ export function TeacherCourseDetail({
                     <SelectContent>
                       <SelectItem value="present">i.e</SelectItem>
                       <SelectItem value="absent">q.b</SelectItem>
-                      {Array.from({ length: 11 }, (_, i) => i).map((grade) => (
-                        <SelectItem key={grade} value={grade.toString()}>
-                          {grade}
-                        </SelectItem>
-                      ))}
+                      {selectedColumn !== null &&
+                        sessions[selectedColumn]?.type === "S" &&
+                        Array.from({ length: 11 }, (_, i) => i).map((grade) => (
+                          <SelectItem key={grade} value={grade.toString()}>
+                            {grade}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <Button
@@ -1731,7 +1752,7 @@ export function TeacherCourseDetail({
                     title={
                       !students.some((s) => looksLikeStudentGuid(s.id))
                         ? "Server requires student ID (GUID); not provided by current API."
-                        : "Save attendance changes (grades are saved automatically)"
+                        : "Save attendance changes and seminar grades"
                     }
                   >
                     <Send className="h-4 w-4 mr-2" />
