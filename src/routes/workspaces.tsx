@@ -2,8 +2,10 @@ import { Dashboard } from "../components/Dashboard";
 import { DeanEnrollmentManagement } from "../components/DeanEnrollmentManagement";
 import { DeanFinalExams } from "../components/DeanFinalExams";
 import { DeanManagement } from "../components/DeanManagement";
+import { DeanNotifications } from "../components/DeanNotifications";
 import { DeanSchedule } from "../components/DeanSchedule";
 import { Grades } from "../components/Grades";
+import { MyNotifications } from "../components/MyNotifications";
 import { Profile } from "../components/Profile";
 import { Schedule } from "../components/Schedule";
 import { StudentFinals } from "../components/StudentFinals";
@@ -11,6 +13,7 @@ import { StudentSubjectsHistory } from "../components/StudentSubjectsHistory";
 import { TeacherCourseDetail } from "../components/TeacherCourseDetail";
 import { TeacherCourses } from "../components/TeacherCourses";
 import { TeacherFinalExams } from "../components/TeacherFinalExams";
+import { TeacherNotifications } from "../components/TeacherNotifications";
 import type { SelectedCourse } from "../types/app";
 
 export function StudentWorkspace({ activeView }: { activeView: string }) {
@@ -21,6 +24,8 @@ export function StudentWorkspace({ activeView }: { activeView: string }) {
       return <StudentFinals />;
     case "schedule":
       return <Schedule userRole="student" />;
+    case "my-notifications":
+      return <MyNotifications roleLabel="Student" />;
     case "grades":
       return <Grades />;
     case "subjects-history":
@@ -46,6 +51,10 @@ export function DeanWorkspace({ activeView }: { activeView: string }) {
       return <DeanFinalExams mode="create" />;
     case "schedule":
       return <DeanSchedule />;
+    case "my-notifications":
+      return <MyNotifications roleLabel="Dean" />;
+    case "dean-notifications":
+      return <DeanNotifications />;
     case "profile":
       return <Profile userRole="dean" />;
     default:
@@ -84,6 +93,10 @@ export function TeacherWorkspace({
       return <TeacherFinalExams />;
     case "schedule":
       return <Schedule userRole="teacher" />;
+    case "my-notifications":
+      return <MyNotifications roleLabel="Teacher" />;
+    case "teacher-notifications":
+      return <TeacherNotifications />;
     case "profile":
       return <Profile userRole="teacher" />;
     default:
