@@ -1643,7 +1643,7 @@ export function TeacherCourseDetail({
   );
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-4 overflow-hidden px-2 sm:space-y-6 sm:px-0">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={handleDefaultBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -1697,14 +1697,14 @@ export function TeacherCourseDetail({
                     Tək dərs qeydləri avtomatik yadda saxlanılır.
                   </CardDescription>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
                   <Select
                     value={selectedColumn?.toString() || ""}
                     onValueChange={(v: string) =>
                       setSelectedColumn(v ? parseInt(v, 10) : null)
                     }
                   >
-                    <SelectTrigger className="w-full min-w-[140px] sm:w-[180px]">
+                    <SelectTrigger className="min-w-[120px] sm:w-[180px]">
                       <SelectValue placeholder="Dərs seçin" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1723,7 +1723,7 @@ export function TeacherCourseDetail({
                     }}
                     disabled={selectedColumn === null}
                   >
-                    <SelectTrigger className="w-full min-w-[120px] sm:w-[140px]">
+                    <SelectTrigger className="min-w-[100px] sm:w-[140px]">
                       <SelectValue placeholder="Toplu qeyd" />
                     </SelectTrigger>
                     <SelectContent>

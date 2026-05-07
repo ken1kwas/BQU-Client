@@ -72,9 +72,15 @@ function SidebarProvider({
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen);
-  const open = openProp ?? _open;
+  // On desktop, always keep sidebar open
+  const open = isMobile ? (openProp ?? _open) : true;
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
+      // On desktop, always keep sidebar open - don't allow changes
+      if (!isMobile) {
+        return;
+      }
+
       const openState = typeof value === "function" ? value(open) : value;
       if (setOpenProp) {
         setOpenProp(openState);
@@ -85,7 +91,7 @@ function SidebarProvider({
       // This sets the cookie to keep the sidebar state.
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
-    [setOpenProp, open],
+    [setOpenProp, open, isMobile],
   );
 
   // Helper to toggle the sidebar.
@@ -258,7 +264,11 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, isMobile } = useSidebar();
+
+  // Only render the mobile trigger. On desktop the sidebar is always open
+  // and toggling is disabled to avoid layout shifts.
+  if (!isMobile) return null;
 
   return (
     <Button
