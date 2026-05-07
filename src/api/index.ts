@@ -10,3 +10,5 @@ export * from "./taughtSubjects";
 export * from "./finals";
 export * from "./colloquiums";
 export * from "./syllabus";
+export * from "./notifications";
+export * from "./users";
