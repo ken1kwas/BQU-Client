@@ -138,9 +138,9 @@ export function TeacherFinalExams() {
       <Dialog open={isGradeDialogOpen} onOpenChange={setIsGradeDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Grade</DialogTitle>
+            <DialogTitle>Qiymət Yenilə</DialogTitle>
             <DialogDescription>
-              Enter final exam grade between 0 and 50.
+              Yekun imtahan qiymətini 0 ilə 50 arasında daxil edin.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
@@ -174,8 +174,10 @@ export function TeacherFinalExams() {
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <div>
-              <CardTitle>Final Exams</CardTitle>
-              <CardDescription>Teacher final exams list</CardDescription>
+              <CardTitle>Yekun Imtahanlar</CardTitle>
+              <CardDescription>
+                Müəllimlərin buraxılış imtahanlarının siyahısı
+              </CardDescription>
             </div>
             <Button variant="outline" onClick={loadExams} disabled={loading}>
               {loading ? "Loading..." : "Refresh"}
@@ -186,12 +188,12 @@ export function TeacherFinalExams() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Group</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Grade</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                <TableHead>Tələbə</TableHead>
+                <TableHead>Fənn</TableHead>
+                <TableHead>Qrup</TableHead>
+                <TableHead>Tarix</TableHead>
+                <TableHead>Qiymət</TableHead>
+                <TableHead className="text-right">Hərəkət</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -221,7 +223,9 @@ export function TeacherFinalExams() {
                       </div>
                     </TableCell>
                     <TableCell>{exam.groupCode || "-"}</TableCell>
-                    <TableCell>{formatTeacherDate(exam.formattedDate)}</TableCell>
+                    <TableCell>
+                      {formatTeacherDate(exam.formattedDate)}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={gradeBadgeVariant(exam.grade)}>
                         {gradeLabel(exam.grade)}
@@ -229,7 +233,7 @@ export function TeacherFinalExams() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" onClick={() => openGradeDialog(exam)}>
-                        Grade
+                        Qiymətləndir
                       </Button>
                     </TableCell>
                   </TableRow>
