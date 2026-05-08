@@ -1048,14 +1048,6 @@ export function TeacherCourseDetail({
 
     const grade = parseInt(value, 10);
     if (grade < 0 || grade > 10) return;
-    if (originalAttendance?.attendance === "absent") {
-      toast.warning(
-        "Q.B. olan seminara qiymet vermek olmaz. Evvelce davamiyyeti i.e edin.",
-      );
-      revertAttendance();
-      return;
-    }
-
     try {
       if (!studentIdStr || studentIdStr.trim() === "") {
         throw new Error("Student ID is required");
