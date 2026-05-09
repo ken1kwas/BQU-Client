@@ -105,24 +105,23 @@ export function MyNotifications({ roleLabel }: { roleLabel: string }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>{roleLabel} - My Notifications</CardTitle>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             onClick={handleMarkAllAsRead}
             disabled={isLoading || isMarkingAll || notifications.length === 0}
           >
-            {isMarkingAll ? "Marking..." : "Mark all as read"}
+            {isMarkingAll ? "Oxunur..." : "Hamısını oxunmuş kimi işarələ"}
           </Button>
           <Button variant="outline" onClick={loadNotifications} disabled={isLoading}>
-            {isLoading ? "Loading..." : "Refresh"}
+            {isLoading ? "Yüklenir..." : "Yenilə"}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {notifications.length === 0 ? (
           <div className="rounded-md border border-dashed p-8 text-center text-muted-foreground">
-            {isLoading ? "Loading notifications..." : "No notifications found"}
+            {isLoading ? "Bildirişlər yüklənir..." : "Bildiriş tapılmadı"}
           </div>
         ) : (
           notifications.map((item) => (
@@ -142,7 +141,7 @@ export function MyNotifications({ roleLabel }: { roleLabel: string }) {
                   <div className="flex flex-wrap items-center gap-2">
                     {!item.isRead && (
                       <span className="text-xs font-semibold text-red-600">
-                        Unread
+                        Oxunmamış
                       </span>
                     )}
                     <Badge
@@ -154,7 +153,7 @@ export function MyNotifications({ roleLabel }: { roleLabel: string }) {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    From:{" "}
+                    kimnən:{" "}
                     <span className="font-medium text-foreground">
                       {item.fromFullName || "-"}
                     </span>
@@ -170,10 +169,10 @@ export function MyNotifications({ roleLabel }: { roleLabel: string }) {
                     disabled={item.isRead || markingId === item.id || isMarkingAll}
                   >
                     {item.isRead
-                      ? "Read"
+                      ? "Oxunmuş"
                       : markingId === item.id
-                        ? "Marking..."
-                        : "Mark as read"}
+                        ? "İşarələnir..."
+                        : "Oxunmuş kimi işarələ"}
                   </Button>
                 </div>
               </div>

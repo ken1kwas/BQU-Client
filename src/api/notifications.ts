@@ -27,6 +27,31 @@ export function createNotification(payload: CreateNotificationRequest) {
   });
 }
 
+export type SendNotificationRequest = {
+  notificationType: NotificationType;
+  message: string;
+};
+
+export function sendNotificationToGroup(
+  groupId: string,
+  payload: SendNotificationRequest,
+) {
+  return apiJson<CreateNotificationResponse>(
+    `/api/groups/${encodeURIComponent(groupId)}/send-notification`,
+    {
+      method: "POST",
+      json: payload,
+    },
+  );
+}
+
+export function sendNotificationAsUser(payload: SendNotificationRequest) {
+  return apiJson<CreateNotificationResponse>("/api/user/send-notification", {
+    method: "POST",
+    json: payload,
+  });
+}
+
 export type NotificationMutationResponse = {
   message: string;
   isSucceeded: boolean;
