@@ -70,12 +70,10 @@ export function updateTaughtSubject(
     code: string;
     title: string;
     credits: number;
-    departmentId: string;
     teacherId: string;
-    groupId: string;
   },
 ) {
-  return apiJson<any>(`/api/taught-subjects/${id}`, {
+  return apiJson<any>(`/api/taught-subjects/${encodeURIComponent(id)}`, {
     method: "PUT",
     json: req,
   });

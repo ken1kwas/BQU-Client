@@ -1,4 +1,4 @@
-import {
+﻿import {
   Card,
   CardContent,
   CardDescription,
@@ -792,28 +792,29 @@ export function DeanManagement() {
     try {
       const isEdit = Boolean(editingCourseId);
 
-      if (
-        !courseForm.code ||
-        !courseForm.title ||
-        !courseForm.departmentId ||
-        !courseForm.teacherId ||
-        !courseForm.groupId
-      ) {
-        toast.error("Fill in code/title/department/teacher/group");
-        return;
-      }
-
       if (isEdit) {
+        if (!courseForm.code || !courseForm.title || !courseForm.teacherId) {
+          toast.error("Fill in code/title/teacher");
+          return;
+        }
         await updateTaughtSubject(String(editingCourseId), {
           code: courseForm.code,
           title: courseForm.title,
           credits: Number(courseForm.credits ?? 0),
-          departmentId: String(courseForm.departmentId),
           teacherId: String(courseForm.teacherId),
-          groupId: String(courseForm.groupId),
         });
         toast.success("Course updated successfully");
       } else {
+        if (
+          !courseForm.code ||
+          !courseForm.title ||
+          !courseForm.departmentId ||
+          !courseForm.teacherId ||
+          !courseForm.groupId
+        ) {
+          toast.error("Fill in code/title/department/teacher/group");
+          return;
+        }
         if (
           courseForm.credits === undefined ||
           courseForm.credits === null ||
@@ -1420,217 +1421,280 @@ export function DeanManagement() {
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="course-department">Kafedra</Label>
-                          <Select
-                            value={courseForm.departmentId?.toString() || ""}
-                            onValueChange={(value) =>
-                              setCourseForm({
-                                ...courseForm,
-                                departmentId: value,
-                              })
-                            }
-                          >
-                            <SelectTrigger id="course-department">
-                              <SelectValue placeholder="Kafedra seçin" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {departments.map((dept) => {
-                                const deptId =
-                                  dept?.id ?? dept?.Id ?? dept?.departmentId;
-                                const deptName =
-                                  dept?.name ??
-                                  dept?.Name ??
-                                  dept?.title ??
-                                  dept?.Title ??
-                                  "";
-                                if (!deptId || !deptName) return null;
-                                return (
-                                  <SelectItem
-                                    key={String(deptId)}
-                                    value={String(deptId)}
-                                  >
-                                    {deptName}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="course-teacher">Müəllim</Label>
-                          <Select
-                            value={courseForm.teacherId?.toString() || ""}
-                            onValueChange={(value) =>
-                              setCourseForm({ ...courseForm, teacherId: value })
-                            }
-                          >
-                            <SelectTrigger id="course-teacher">
-                              <SelectValue placeholder="Müəllim seçin" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {teachers.map((teacher) => {
-                                const fullName =
-                                  `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() ||
-                                  teacher.userName ||
-                                  `Teacher ${teacher.id}`;
-                                return (
-                                  <SelectItem
-                                    key={teacher.id}
-                                    value={teacher.id.toString()}
-                                  >
-                                    {fullName}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="course-group">Qrup</Label>
-                          <Select
-                            value={courseForm.groupId?.toString() || ""}
-                            onValueChange={(value) => {
-                              const nextGroup = groups.find(
-                                (g) => String(g.id) === String(value),
-                              );
-                              const nextGroupYear =
-                                typeof nextGroup?.year === "number"
-                                  ? nextGroup.year
-                                  : undefined;
-                              setCourseForm((prev) => {
-                                const nextForm: any = {
-                                  ...prev,
-                                  groupId: value,
-                                };
-                                if (
-                                  typeof nextGroupYear === "number" &&
-                                  (nextForm.year === undefined ||
-                                    nextForm.year === null ||
-                                    Number(nextForm.year) < nextGroupYear)
-                                ) {
-                                  nextForm.year = nextGroupYear;
+                      {editingCourseId ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="course-teacher">Müəllim</Label>
+                            <Select
+                              value={courseForm.teacherId?.toString() || ""}
+                              onValueChange={(value) =>
+                                setCourseForm({ ...courseForm, teacherId: value })
+                              }
+                            >
+                              <SelectTrigger id="course-teacher">
+                                <SelectValue placeholder="Müəllim seçin" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {teachers.map((teacher) => {
+                                  const fullName =
+                                    `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() ||
+                                    teacher.userName ||
+                                    `Teacher ${teacher.id}`;
+                                  return (
+                                    <SelectItem
+                                      key={teacher.id}
+                                      value={teacher.id.toString()}
+                                    >
+                                      {fullName}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="course-credits">Kredit sayı</Label>
+                            <Input
+                              id="course-credits"
+                              type="number"
+                              min="0"
+                              placeholder="m.ü, 5"
+                              value={courseForm.credits || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === "") {
+                                  setCourseForm({
+                                    ...courseForm,
+                                    credits: undefined,
+                                  });
+                                  return;
                                 }
-                                return nextForm;
-                              });
-                            }}
-                          >
-                            <SelectTrigger id="course-group">
-                              <SelectValue placeholder="Qrup seçin" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {groups.map((group) => (
-                                <SelectItem
-                                  key={group.id}
-                                  value={group.id.toString()}
-                                >
-                                  {group.code || group.groupCode}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                                const numValue = parseInt(value, 10);
+                                if (!isNaN(numValue) && numValue >= 0) {
+                                  setCourseForm({
+                                    ...courseForm,
+                                    credits: numValue,
+                                  });
+                                }
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="course-credits">Kredit sayı</Label>
-                          <Input
-                            id="course-credits"
-                            type="number"
-                            min="0"
-                            placeholder="m.ü, 5"
-                            value={courseForm.credits || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (value === "") {
-                                setCourseForm({
-                                  ...courseForm,
-                                  credits: undefined,
-                                });
-                                return;
-                              }
-                              const numValue = parseInt(value, 10);
-                              if (!isNaN(numValue) && numValue >= 0) {
-                                setCourseForm({
-                                  ...courseForm,
-                                  credits: numValue,
-                                });
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="course-hours">Saat</Label>
-                          <Select
-                            value={courseForm.hours?.toString() || ""}
-                            onValueChange={(value) =>
-                              setCourseForm({
-                                ...courseForm,
-                                hours: value ? parseInt(value, 10) : undefined,
-                              })
-                            }
-                          >
-                            <SelectTrigger id="course-hours">
-                              <SelectValue placeholder="Saat seçin" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ALLOWED_COURSE_HOURS.map((hours) => (
-                                <SelectItem
-                                  key={hours}
-                                  value={hours.toString()}
-                                >
-                                  {hours}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="course-year">Kurs</Label>
-                          <Select
-                            value={courseForm.year?.toString() || ""}
-                            onValueChange={(value: string) =>
-                              setCourseForm({
-                                ...courseForm,
-                                year: parseInt(value),
-                              })
-                            }
-                          >
-                            <SelectTrigger id="course-year">
-                              <SelectValue placeholder="Select year" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">1 kurs</SelectItem>
-                              <SelectItem value="2">2 kurs</SelectItem>
-                              <SelectItem value="3">3 kurs</SelectItem>
-                              <SelectItem value="4">4 kurs</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="course-semester">Semestr</Label>
-                          <Select
-                            value={courseForm.semester?.toString() || ""}
-                            onValueChange={(value) =>
-                              setCourseForm({
-                                ...courseForm,
-                                semester: parseInt(value),
-                              })
-                            }
-                          >
-                            <SelectTrigger id="course-semester">
-                              <SelectValue placeholder="Semestr seçin" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">Semestr 1</SelectItem>
-                              <SelectItem value="2">Semestr 2</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="course-department">Kafedra</Label>
+                              <Select
+                                value={courseForm.departmentId?.toString() || ""}
+                                onValueChange={(value) =>
+                                  setCourseForm({
+                                    ...courseForm,
+                                    departmentId: value,
+                                  })
+                                }
+                              >
+                                <SelectTrigger id="course-department">
+                                  <SelectValue placeholder="Kafedra seçin" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {departments.map((dept) => {
+                                    const deptId =
+                                      dept?.id ?? dept?.Id ?? dept?.departmentId;
+                                    const deptName =
+                                      dept?.name ??
+                                      dept?.Name ??
+                                      dept?.title ??
+                                      dept?.Title ??
+                                      "";
+                                    if (!deptId || !deptName) return null;
+                                    return (
+                                      <SelectItem
+                                        key={String(deptId)}
+                                        value={String(deptId)}
+                                      >
+                                        {deptName}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="course-teacher">Müəllim</Label>
+                              <Select
+                                value={courseForm.teacherId?.toString() || ""}
+                                onValueChange={(value) =>
+                                  setCourseForm({ ...courseForm, teacherId: value })
+                                }
+                              >
+                                <SelectTrigger id="course-teacher">
+                                  <SelectValue placeholder="Müəllim seçin" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {teachers.map((teacher) => {
+                                    const fullName =
+                                      `${teacher.name || ""} ${teacher.surname || ""} ${teacher.middleName || ""}`.trim() ||
+                                      teacher.userName ||
+                                      `Teacher ${teacher.id}`;
+                                    return (
+                                      <SelectItem
+                                        key={teacher.id}
+                                        value={teacher.id.toString()}
+                                      >
+                                        {fullName}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="course-group">Qrup</Label>
+                              <Select
+                                value={courseForm.groupId?.toString() || ""}
+                                onValueChange={(value) => {
+                                  const nextGroup = groups.find(
+                                    (g) => String(g.id) === String(value),
+                                  );
+                                  const nextGroupYear =
+                                    typeof nextGroup?.year === "number"
+                                      ? nextGroup.year
+                                      : undefined;
+                                  setCourseForm((prev) => {
+                                    const nextForm: any = {
+                                      ...prev,
+                                      groupId: value,
+                                    };
+                                    if (
+                                      typeof nextGroupYear === "number" &&
+                                      (nextForm.year === undefined ||
+                                        nextForm.year === null ||
+                                        Number(nextForm.year) < nextGroupYear)
+                                    ) {
+                                      nextForm.year = nextGroupYear;
+                                    }
+                                    return nextForm;
+                                  });
+                                }}
+                              >
+                                <SelectTrigger id="course-group">
+                                  <SelectValue placeholder="Qrup seçin" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {groups.map((group) => (
+                                    <SelectItem
+                                      key={group.id}
+                                      value={group.id.toString()}
+                                    >
+                                      {group.code || group.groupCode}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="course-credits">Kredit sayı</Label>
+                              <Input
+                                id="course-credits"
+                                type="number"
+                                min="0"
+                                placeholder="m.ü, 5"
+                                value={courseForm.credits || ""}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === "") {
+                                    setCourseForm({
+                                      ...courseForm,
+                                      credits: undefined,
+                                    });
+                                    return;
+                                  }
+                                  const numValue = parseInt(value, 10);
+                                  if (!isNaN(numValue) && numValue >= 0) {
+                                    setCourseForm({
+                                      ...courseForm,
+                                      credits: numValue,
+                                    });
+                                  }
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="course-hours">Saat</Label>
+                              <Select
+                                value={courseForm.hours?.toString() || ""}
+                                onValueChange={(value) =>
+                                  setCourseForm({
+                                    ...courseForm,
+                                    hours: value ? parseInt(value, 10) : undefined,
+                                  })
+                                }
+                              >
+                                <SelectTrigger id="course-hours">
+                                  <SelectValue placeholder="Saat seçin" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {ALLOWED_COURSE_HOURS.map((hours) => (
+                                    <SelectItem
+                                      key={hours}
+                                      value={hours.toString()}
+                                    >
+                                      {hours}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="course-year">Kurs</Label>
+                              <Select
+                                value={courseForm.year?.toString() || ""}
+                                onValueChange={(value: string) =>
+                                  setCourseForm({
+                                    ...courseForm,
+                                    year: parseInt(value),
+                                  })
+                                }
+                              >
+                                <SelectTrigger id="course-year">
+                                  <SelectValue placeholder="Select year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">1 kurs</SelectItem>
+                                  <SelectItem value="2">2 kurs</SelectItem>
+                                  <SelectItem value="3">3 kurs</SelectItem>
+                                  <SelectItem value="4">4 kurs</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="course-semester">Semestr</Label>
+                              <Select
+                                value={courseForm.semester?.toString() || ""}
+                                onValueChange={(value) =>
+                                  setCourseForm({
+                                    ...courseForm,
+                                    semester: parseInt(value),
+                                  })
+                                }
+                              >
+                                <SelectTrigger id="course-semester">
+                                  <SelectValue placeholder="Semestr seçin" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">Semestr 1</SelectItem>
+                                  <SelectItem value="2">Semestr 2</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </>
+                      )}
 
                       {!editingCourseId && (
                         <div className="space-y-2">
@@ -1665,7 +1729,8 @@ export function DeanManagement() {
                         </div>
                       )}
 
-                      <div className="space-y-2">
+                      {!editingCourseId && (
+                        <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Label>Dərs Vaxtları</Label>
                           <Button
@@ -1891,7 +1956,8 @@ export function DeanManagement() {
                             ),
                           )}
                         </div>
-                      </div>
+                        </div>
+                      )}
                       {!editingCourseId &&
                         courseForm.autoCreateClassTypes === false && (
                           <div className="space-y-3">
@@ -1984,13 +2050,13 @@ export function DeanManagement() {
                       <TableCell>{course.year || "-"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {/* <Button
+                          <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleEditCourse(course)} //EDIT TAUGHT SUBJECT
+                            onClick={() => handleEditCourse(course)}
                           >
                             <Pencil className="h-4 w-4" />
-                          </Button> */}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
