@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { toast } from "sonner";
 
 import {
@@ -54,19 +54,45 @@ function typeStyle(type: NotificationType): CSSProperties {
 export function MyNotifications({ roleLabel }: { roleLabel: string }) {
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const PAGE_SIZE = 20;
 
   const loadNotifications = async () => {
     try {
       setIsLoading(true);
-      const data = await getMyNotifications();
-      setNotifications(data);
+      const data = await getMyNotifications(1, PAGE_SIZE);
+      setNotifications(data.items);
+      setPage(data.page);
+      setTotalPages(data.totalPages);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to load notifications");
       setNotifications([]);
+      setPage(1);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMoreNotifications = async () => {
+    if (isLoading || isLoadingMore || page >= totalPages) return;
+
+    try {
+      setIsLoadingMore(true);
+      const nextPage = page + 1;
+      const data = await getMyNotifications(nextPage, PAGE_SIZE);
+      setNotifications((prev) => [...prev, ...data.items]);
+      setPage(data.page);
+      setTotalPages(data.totalPages);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to load more notifications");
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -74,14 +100,32 @@ export function MyNotifications({ roleLabel }: { roleLabel: string }) {
     void loadNotifications();
   }, []);
 
+  useEffect(() => {
+    const target = sentinelRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          void loadMoreNotifications();
+        }
+      },
+      { rootMargin: "120px" },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [isLoading, isLoadingMore, page, totalPages]);
+
   const handleMarkAllAsRead = async () => {
     try {
       setIsMarkingAll(true);
       await markAllNotificationsAsRead();
-      toast.success("All notifications marked as read");
+      toast.success("Bütün bildirişlər oxunmuş kimi işarələndi");
       setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
     } catch (error: any) {
-      toast.error(error?.message ?? "Failed to mark all notifications as read");
+      toast.error(error?.message ?? "Bildirişləri oxunmuş kimi işarələmək mümkün olmadı");
     } finally {
       setIsMarkingAll(false);
     }
@@ -91,7 +135,7 @@ export function MyNotifications({ roleLabel }: { roleLabel: string }) {
     try {
       setMarkingId(id);
       await markNotificationAsRead(id);
-      toast.success("Notification marked as read");
+      toast.success("Bildiriş oxunmuş kimi işarələndi");
       setNotifications((prev) =>
         prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
       );
@@ -113,7 +157,7 @@ export function MyNotifications({ roleLabel }: { roleLabel: string }) {
           >
             {isMarkingAll ? "Oxunur..." : "Hamısını oxunmuş kimi işarələ"}
           </Button>
-          <Button variant="outline" onClick={loadNotifications} disabled={isLoading}>
+          <Button variant="outline" onClick={loadNotifications} disabled={isLoading || isLoadingMore}>
             {isLoading ? "Yüklenir..." : "Yenilə"}
           </Button>
         </div>
@@ -179,7 +223,16 @@ export function MyNotifications({ roleLabel }: { roleLabel: string }) {
             </div>
           ))
         )}
+        {notifications.length > 0 && page < totalPages && (
+          <>
+            <div ref={sentinelRef} className="h-1" />
+            <div className="text-center text-xs text-muted-foreground">
+              {isLoadingMore ? "Daha çox bildiriş yüklənir..." : "Aşağı sürüşdürün"}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
 }
+

@@ -171,6 +171,9 @@ export function TeacherCourseDetail({
   const assignmentsSnapshotRef = useRef<Map<string, (number | null)[]>>(
     new Map(),
   );
+  const pendingSeminarGradeChanges = useRef<
+    Map<string, { studentId: string; sessionIndex: number; grade: number }>
+  >(new Map());
 
   const applyColloquiumsToStudents = (
     baseStudents: Student[],
@@ -881,6 +884,7 @@ export function TeacherCourseDetail({
           student.activityAttendance.map((entry) => entry.attendance),
         ]),
       );
+      pendingSeminarGradeChanges.current.clear();
       assignmentsSnapshotRef.current = new Map(
         merged.map((student) => [String(student.id), [...student.assignments]]),
       );
@@ -993,6 +997,7 @@ export function TeacherCourseDetail({
 
     // Handle attendance updates (present/absent) - not just seminar grades
     if (value === "present" || value === "absent") {
+      pendingSeminarGradeChanges.current.delete(`${studentIdStr}:${sessionIndex}`);
       const currentStudent = students.find(
         (s) => String(s.id) === studentIdStr,
       );
@@ -1048,6 +1053,11 @@ export function TeacherCourseDetail({
 
     const grade = parseInt(value, 10);
     if (grade < 0 || grade > 10) return;
+    pendingSeminarGradeChanges.current.set(`${studentIdStr}:${sessionIndex}`, {
+      studentId: studentIdStr,
+      sessionIndex,
+      grade,
+    });
     try {
       if (!studentIdStr || studentIdStr.trim() === "") {
         throw new Error("Student ID is required");
@@ -1250,21 +1260,40 @@ export function TeacherCourseDetail({
       if (selectedColumn === null || !value) return;
 
       const session = sessions[selectedColumn];
-      const canBulkUpdate = session?.type === "S";
+      const isAttendanceValue = value === "present" || value === "absent";
+      const isSeminarGradeValue =
+        session?.type === "S" &&
+        !Number.isNaN(parseInt(value, 10)) &&
+        parseInt(value, 10) >= 0 &&
+        parseInt(value, 10) <= 10;
 
-      if (!canBulkUpdate) return;
+      if (!isAttendanceValue && !isSeminarGradeValue) return;
 
       setStudents((prevStudents) => {
         const updated = prevStudents.map((student) => {
           const newData = [...student.activityAttendance];
           if (value === "absent") {
             newData[selectedColumn] = { attendance: "absent", grade: null };
+            pendingSeminarGradeChanges.current.delete(
+              `${String(student.id)}:${selectedColumn}`,
+            );
           } else if (value === "present") {
             newData[selectedColumn] = { attendance: "present", grade: null };
+            pendingSeminarGradeChanges.current.delete(
+              `${String(student.id)}:${selectedColumn}`,
+            );
           } else {
             const grade = parseInt(value, 10);
             if (grade >= 0 && grade <= 10) {
               newData[selectedColumn] = { attendance: "present", grade };
+              pendingSeminarGradeChanges.current.set(
+                `${String(student.id)}:${selectedColumn}`,
+                {
+                  studentId: String(student.id),
+                  sessionIndex: selectedColumn,
+                  grade,
+                },
+              );
             }
           }
           return { ...student, activityAttendance: newData };
@@ -1445,11 +1474,24 @@ export function TeacherCourseDetail({
         desired: "present" | "absent";
       }> = [];
 
-      const pendingGrades: Array<{
-        student: Student;
-        sessionIndex: number;
-        grade: number;
-      }> = [];
+      const pendingGrades = Array.from(pendingSeminarGradeChanges.current.values())
+        .map((change) => {
+          const student = students.find(
+            (s) => String(s.id) === String(change.studentId),
+          );
+          if (!student) return null;
+          return {
+            student,
+            sessionIndex: change.sessionIndex,
+            grade: change.grade,
+          };
+        })
+        .filter(
+          (
+            item,
+          ): item is { student: Student; sessionIndex: number; grade: number } =>
+            Boolean(item),
+        );
 
       for (const student of students) {
         if (!looksLikeStudentGuid(student.id)) continue;
@@ -1459,23 +1501,6 @@ export function TeacherCourseDetail({
           const cell = student.activityAttendance[idx];
           const desired = cell?.attendance ?? "absent";
           const previous = snapshot[idx] ?? "absent";
-
-          const session = sessions[idx];
-          if (session?.type === "S") {
-            const currentGrade = cell?.grade;
-            if (
-              currentGrade !== null &&
-              currentGrade !== undefined &&
-              currentGrade >= 0 &&
-              currentGrade <= 10
-            ) {
-              pendingGrades.push({
-                student,
-                sessionIndex: idx,
-                grade: currentGrade,
-              });
-            }
-          }
 
           if (desired !== previous) {
             pendingAttendance.push({ student, sessionIndex: idx, desired });
@@ -1573,6 +1598,9 @@ export function TeacherCourseDetail({
             String(session.id),
           );
           ok += 1;
+          pendingSeminarGradeChanges.current.delete(
+            `${String(student.id)}:${sessionIndex}`,
+          );
         } catch (e) {
           console.error(`Failed to send grade for student ${student.id}:`, e);
           err += 1;
@@ -1757,7 +1785,7 @@ export function TeacherCourseDetail({
               {isLoading ? (
                 loadingSpinner
               ) : (
-                <div className="relative border rounded-md">
+                <div className="relative max-w-full overflow-x-auto border rounded-md">
                   <Table className="min-w-max">
                     <TableHeader>
                       <TableRow>
@@ -1888,16 +1916,7 @@ export function TeacherCourseDetail({
                           {student.name}
                         </TableCell>
                         {[0, 1, 2].map((collIndex) => {
-                          // Check if previous colloquium has a valid grade (0-10)
-                          const isPreviousFilled =
-                            collIndex === 0 ||
-                            (student.colloquium[collIndex - 1] !== null &&
-                              student.colloquium[collIndex - 1] !== undefined &&
-                              student.colloquium[collIndex - 1] !== -1 &&
-                              student.colloquium[collIndex - 1]! >= 0 &&
-                              student.colloquium[collIndex - 1]! <= 10);
-
-                          const isDisabled = isLoading || !isPreviousFilled;
+                          const isDisabled = isLoading;
                           const currentValue = student.colloquium[collIndex];
                           const selectedValue =
                             currentValue === null || currentValue === undefined
@@ -1920,14 +1939,7 @@ export function TeacherCourseDetail({
                                 }
                                 disabled={isDisabled}
                               >
-                                <SelectTrigger
-                                  className={`w-[100px] mx-auto ${!isPreviousFilled ? "opacity-50 cursor-not-allowed" : ""}`}
-                                  title={
-                                    !isPreviousFilled
-                                      ? "Complete previous colloquium first"
-                                      : ""
-                                  }
-                                >
+                                <SelectTrigger className="w-[100px] mx-auto">
                                   <SelectValue placeholder="-" />
                                 </SelectTrigger>
                                 <SelectContent>

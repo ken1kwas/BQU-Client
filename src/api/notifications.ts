@@ -69,7 +69,7 @@ export type UserNotification = {
 
 type GetMyNotificationsResponse = {
   data?: {
-    notifications?: Array<{
+    items?: Array<{
       id?: string;
       fromFullName?: string;
       message?: string;
@@ -77,31 +77,52 @@ type GetMyNotificationsResponse = {
       notificationType?: number;
       isRead?: boolean;
     }>;
+    page?: number;
+    pageSize?: number;
+    totalCount?: number;
+    totalPages?: number;
   };
 };
 
-export async function getMyNotifications(): Promise<UserNotification[]> {
+export type PaginatedNotificationsResult = {
+  items: UserNotification[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+};
+
+export async function getMyNotifications(
+  page = 1,
+  pageSize = 20,
+): Promise<PaginatedNotificationsResult> {
   const raw = await apiJson<GetMyNotificationsResponse>(
-    "/api/user/me/notifications",
+    `/api/user/me/notifications?page=${page}&pageSize=${pageSize}`,
   );
 
-  const notifications = Array.isArray(raw?.data?.notifications)
-    ? raw.data.notifications
+  const notifications = Array.isArray(raw?.data?.items)
+    ? raw.data.items
     : [];
 
-  return notifications.map((item) => ({
-    id: String(item?.id ?? ""),
-    fromFullName: String(item?.fromFullName ?? ""),
-    message: String(item?.message ?? ""),
-    receiveDate: String(item?.receiveDate ?? ""),
-    notificationType:
-      typeof item?.notificationType === "number" &&
-      item.notificationType >= NotificationType.Info &&
-      item.notificationType <= NotificationType.Error
-        ? item.notificationType
-        : NotificationType.Info,
-    isRead: Boolean(item?.isRead),
-  }));
+  return {
+    items: notifications.map((item) => ({
+      id: String(item?.id ?? ""),
+      fromFullName: String(item?.fromFullName ?? ""),
+      message: String(item?.message ?? ""),
+      receiveDate: String(item?.receiveDate ?? ""),
+      notificationType:
+        typeof item?.notificationType === "number" &&
+        item.notificationType >= NotificationType.Info &&
+        item.notificationType <= NotificationType.Error
+          ? item.notificationType
+          : NotificationType.Info,
+      isRead: Boolean(item?.isRead),
+    })),
+    page: Number(raw?.data?.page ?? page),
+    pageSize: Number(raw?.data?.pageSize ?? pageSize),
+    totalCount: Number(raw?.data?.totalCount ?? 0),
+    totalPages: Number(raw?.data?.totalPages ?? 1),
+  };
 }
 
 export function markAllNotificationsAsRead() {
