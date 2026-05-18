@@ -1785,7 +1785,7 @@ export function TeacherCourseDetail({
               {isLoading ? (
                 loadingSpinner
               ) : (
-                <div className="relative border rounded-md">
+                <div className="relative max-w-full overflow-x-auto border rounded-md">
                   <Table className="min-w-max">
                     <TableHeader>
                       <TableRow>
