@@ -46,10 +46,11 @@ export function deleteGroup(id: string) {
 
 export async function setGroupExamDate(
   groupId: string,
+  taughtSubjectId: string,
   date: string,
 ): Promise<void> {
   await apiJson<null>("/api/groups/set-exam-date", {
     method: "PUT",
-    json: { groupId, date },
+    json: { groupId, taughtSubjectId, date },
   });
 }

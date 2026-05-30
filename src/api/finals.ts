@@ -4,6 +4,7 @@ export async function listFinalExams(options?: {
   search?: string;
   page?: number;
   pageSize?: number;
+  groupId?: string;
 }) {
   const search = options?.search ?? "";
   const page = options?.page ?? 1;
@@ -13,6 +14,9 @@ export async function listFinalExams(options?: {
     page: String(page),
     pageSize: String(pageSize),
   });
+  if (options?.groupId) {
+    query.set("groupId", options.groupId);
+  }
   const raw = await apiJson<any>(`/api/finals?${query.toString()}`);
   return unwrapApiResult(raw);
 }

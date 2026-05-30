@@ -370,8 +370,11 @@ export function DeanFinalExams({ mode }: Props) {
   const [isGroupOptionsLoading, setIsGroupOptionsLoading] = useState(false);
   const [selectedGroupFilterId, setSelectedGroupFilterId] = useState("all");
   const [setDateGroupId, setSetDateGroupId] = useState("");
+  const [setDateSubjectId, setSetDateSubjectId] = useState("");
   const [setDateInput, setSetDateInput] = useState("");
   const [isSettingGroupDate, setIsSettingGroupDate] = useState(false);
+  const [isGroupExamSubjectOptionsLoading, setIsGroupExamSubjectOptionsLoading] =
+    useState(false);
   const [finalsPage, setFinalsPage] = useState(1);
   const [finalsPageSize, setFinalsPageSize] = useState(10);
   const [finalsTotalPages, setFinalsTotalPages] = useState(1);
@@ -403,19 +406,6 @@ export function DeanFinalExams({ mode }: Props) {
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [createOptionsLoading, setCreateOptionsLoading] = useState(false);
-  const selectedGroupFilter =
-    selectedGroupFilterId === "all"
-      ? undefined
-      : groupOptions.find((group) => group.id === selectedGroupFilterId);
-  const selectedGroupFilterCode = selectedGroupFilter?.code
-    .trim()
-    .toLowerCase();
-  const filteredFinalExams = selectedGroupFilterCode
-    ? finalExams.filter(
-        (exam) =>
-          pickString(exam.groupCode).toLowerCase() === selectedGroupFilterCode,
-      )
-    : finalExams;
   const confirmableExams = finalExams.filter(
     (exam) => !exam.gradesConfirmed && canConfirmFinalExam(exam),
   );
@@ -473,6 +463,10 @@ export function DeanFinalExams({ mode }: Props) {
         search: finalsSearch.trim(),
         page: finalsPage,
         pageSize: finalsPageSize,
+        groupId:
+          selectedGroupFilterId && selectedGroupFilterId !== "all"
+            ? selectedGroupFilterId
+            : undefined,
       });
       const items = extractFinalExamItems(finalsResp);
       setFinalExams(items.map(mapFinalExamFromApi));
@@ -550,6 +544,22 @@ export function DeanFinalExams({ mode }: Props) {
     }
   };
 
+  const loadGroupExamSubjectOptions = async () => {
+    try {
+      setIsGroupExamSubjectOptionsLoading(true);
+      const subjectsResp = await listTaughtSubjects(1, 200);
+      setSubjectOptions(
+        toArray(subjectsResp)
+          .map(normalizeSubjectOption)
+          .filter((item) => item.id && item.label),
+      );
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to load subjects");
+    } finally {
+      setIsGroupExamSubjectOptionsLoading(false);
+    }
+  };
+
   const loadGroupOptions = async () => {
     try {
       setIsGroupOptionsLoading(true);
@@ -570,7 +580,7 @@ export function DeanFinalExams({ mode }: Props) {
   useEffect(() => {
     if (mode !== "list") return;
     void loadFinalExamsForList();
-  }, [mode, finalsPage, finalsPageSize, finalsSearch]);
+  }, [mode, finalsPage, finalsPageSize, finalsSearch, selectedGroupFilterId]);
 
   useEffect(() => {
     if (mode !== "confirm") return;
@@ -585,6 +595,7 @@ export function DeanFinalExams({ mode }: Props) {
   useEffect(() => {
     if (mode !== "list") return;
     void loadGroupOptions();
+    void loadGroupExamSubjectOptions();
   }, [mode]);
 
   useEffect(() => {
@@ -716,6 +727,10 @@ export function DeanFinalExams({ mode }: Props) {
         toast.error("Group is required");
         return;
       }
+      if (!setDateSubjectId) {
+        toast.error("Subject is required");
+        return;
+      }
       if (!setDateInput) {
         toast.error("Date is required");
         return;
@@ -724,6 +739,7 @@ export function DeanFinalExams({ mode }: Props) {
       setIsSettingGroupDate(true);
       await setGroupExamDate(
         setDateGroupId,
+        setDateSubjectId,
         new Date(setDateInput).toISOString(),
       );
       toast.success("Final exam date set for selected group");
@@ -831,11 +847,11 @@ export function DeanFinalExams({ mode }: Props) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Final imtahan yarat</CardTitle>
+          <CardTitle>Semester imtahan yarat</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-2">
-            <Label htmlFor="final-create-student-id">Student ID</Label>
+            <Label htmlFor="final-create-student-id">Telebə</Label>
             <Select
               value={createFinalExamStudentId}
               onValueChange={setCreateFinalExamStudentId}
@@ -865,7 +881,7 @@ export function DeanFinalExams({ mode }: Props) {
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="final-create-subject-id">Subject ID</Label>
+            <Label htmlFor="final-create-subject-id">Fənn</Label>
             <Select
               value={createFinalExamSubjectId}
               onValueChange={setCreateFinalExamSubjectId}
@@ -895,7 +911,7 @@ export function DeanFinalExams({ mode }: Props) {
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="final-create-date">Date and time</Label>
+            <Label htmlFor="final-create-date">Tarix və saat</Label>
             <Input
               id="final-create-date"
               type="datetime-local"
@@ -908,7 +924,7 @@ export function DeanFinalExams({ mode }: Props) {
               onClick={handleCreateFinalExam}
               disabled={createOptionsLoading}
             >
-              Final yarat
+              Semester imtahan yarat
             </Button>
           </div>
         </CardContent>
@@ -1237,8 +1253,14 @@ export function DeanFinalExams({ mode }: Props) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 grid gap-2 md:grid-cols-[1fr_180px_auto]">
-            <Select value={setDateGroupId} onValueChange={setSetDateGroupId}>
+          <div className="mb-4 grid gap-2 md:grid-cols-[1fr_1fr_180px_auto]">
+            <Select
+              value={setDateGroupId}
+              onValueChange={(value) => {
+                setSetDateGroupId(value);
+                setSetDateSubjectId("");
+              }}
+            >
               <SelectTrigger>
                 <SelectValue
                   placeholder={
@@ -1256,6 +1278,28 @@ export function DeanFinalExams({ mode }: Props) {
                 ))}
               </SelectContent>
             </Select>
+            <Select
+              value={setDateSubjectId}
+              onValueChange={setSetDateSubjectId}
+              disabled={isGroupExamSubjectOptionsLoading}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    isGroupExamSubjectOptionsLoading
+                      ? "Fənnlər yüklənir..."
+                      : "Fənn seçin"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {subjectOptions.map((subject) => (
+                  <SelectItem key={`set-date-subject-${subject.id}`} value={subject.id}>
+                    {subject.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               type="date"
               value={setDateInput}
@@ -1263,7 +1307,9 @@ export function DeanFinalExams({ mode }: Props) {
             />
             <Button
               onClick={handleSetGroupDate}
-              disabled={!setDateGroupId || !setDateInput || isSettingGroupDate}
+              disabled={
+                !setDateGroupId || !setDateSubjectId || !setDateInput || isSettingGroupDate
+              }
             >
               Qrupa final tarixi təyin et
             </Button>
@@ -1282,7 +1328,7 @@ export function DeanFinalExams({ mode }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredFinalExams.length === 0 ? (
+              {finalExams.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={8}
@@ -1292,7 +1338,7 @@ export function DeanFinalExams({ mode }: Props) {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredFinalExams.map(renderFinalExamRow)
+                finalExams.map(renderFinalExamRow)
               )}
             </TableBody>
           </Table>
