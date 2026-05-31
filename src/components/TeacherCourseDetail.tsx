@@ -174,6 +174,18 @@ export function TeacherCourseDetail({
   const pendingSeminarGradeChanges = useRef<
     Map<string, { studentId: string; sessionIndex: number; grade: number }>
   >(new Map());
+  const sessionColumnRefs = useRef<(HTMLTableCellElement | null)[]>([]);
+
+  useEffect(() => {
+    if (selectedColumn === null) return;
+    const header = sessionColumnRefs.current[selectedColumn];
+    if (!header) return;
+    header.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [selectedColumn, sessions.length]);
 
   const applyColloquiumsToStudents = (
     baseStudents: Student[],
@@ -1785,7 +1797,7 @@ export function TeacherCourseDetail({
               {isLoading ? (
                 loadingSpinner
               ) : (
-                <div className="relative max-w-full overflow-x-auto border rounded-md">
+                <div className="relative w-full max-w-full overflow-x-auto overscroll-x-contain border rounded-md [scrollbar-gutter:stable] [&_[data-slot=table-container]]:overflow-visible">
                   <Table className="min-w-max">
                     <TableHeader>
                       <TableRow>
@@ -1795,7 +1807,11 @@ export function TeacherCourseDetail({
                         {sessions.map((session, idx) => (
                           <TableHead
                             key={session.id}
-                            className={`text-center min-w-[120px] ${selectedColumn === idx ? "bg-accent" : ""}`}
+                            ref={(el) => {
+                              sessionColumnRefs.current[idx] = el;
+                            }}
+                            onClick={() => setSelectedColumn(idx)}
+                            className={`cursor-pointer text-center min-w-[120px] ${selectedColumn === idx ? "bg-accent" : ""}`}
                           >
                             <div className="text-xs">
                               <div>{session.date}</div>
