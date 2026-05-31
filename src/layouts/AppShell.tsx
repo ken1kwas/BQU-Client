@@ -110,7 +110,7 @@ export function AppShell({
         </SidebarContent>
       </Sidebar>
 
-      <SidebarInset className="flex flex-1 flex-col">
+      <SidebarInset className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
           <SidebarTrigger className="size-9 shrink-0 rounded-md border border-border" />
           <div className="min-w-0">
@@ -120,7 +120,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
           {children ?? (renderContent ? renderContent() : null)}
         </main>
       </SidebarInset>
