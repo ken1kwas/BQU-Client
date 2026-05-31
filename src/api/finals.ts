@@ -21,6 +21,26 @@ export async function listFinalExams(options?: {
   return unwrapApiResult(raw);
 }
 
+export type FinalExamToConfirmDto = {
+  id: string;
+  groupCode: string;
+  studentId: string;
+  studentName: string;
+  subjectCode: string;
+  isConfirmed: boolean;
+  formattedDate: string;
+  grade: number;
+  isAllowed: boolean;
+};
+
+export async function listFinalExamsToConfirm(): Promise<
+  FinalExamToConfirmDto[]
+> {
+  const raw = await apiJson<any>("/api/finals/to-confirm");
+  const data = unwrapApiResult<any>(raw);
+  return Array.isArray(data) ? data : [];
+}
+
 export function createFinalExam(req: {
   studentId: string;
   subjectId: string;

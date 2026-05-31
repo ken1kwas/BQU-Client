@@ -34,6 +34,7 @@ import {
   listGroups,
   listStudents,
   listFinalExams,
+  listFinalExamsToConfirm,
   listTaughtSubjects,
   setGroupExamDate,
   toArray,
@@ -498,16 +499,14 @@ export function DeanFinalExams({ mode }: Props) {
 
   const loadFinalExamsForConfirm = async () => {
     try {
-      const finalsResp = await listFinalExams({
-        search: "",
-        page: 1,
-        pageSize: 200,
-      });
-      const items = extractFinalExamItems(finalsResp);
+      setIsFinalsLoading(true);
+      const items = await listFinalExamsToConfirm();
       setFinalExams(items.map(mapFinalExamFromApi));
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to load final exams");
       setFinalExams([]);
+    } finally {
+      setIsFinalsLoading(false);
     }
   };
 
@@ -960,7 +959,16 @@ export function DeanFinalExams({ mode }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {confirmableExams.length === 0 ? (
+              {isFinalsLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground"
+                  >
+                    Yüklənir...
+                  </TableCell>
+                </TableRow>
+              ) : confirmableExams.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={5}
