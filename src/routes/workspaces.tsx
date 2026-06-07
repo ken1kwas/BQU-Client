@@ -5,6 +5,7 @@ import { DeanManagement } from "../components/DeanManagement";
 import { DeanNotifications } from "../components/DeanNotifications";
 import { DeanSchedule } from "../components/DeanSchedule";
 import { Grades } from "../components/Grades";
+import { LibraryPage } from "../components/LibraryPage";
 import { MyNotifications } from "../components/MyNotifications";
 import { Profile } from "../components/Profile";
 import { Schedule } from "../components/Schedule";
@@ -30,6 +31,8 @@ export function StudentWorkspace({ activeView }: { activeView: string }) {
       return <Grades />;
     case "subjects-history":
       return <StudentSubjectsHistory />;
+    case "library":
+      return <LibraryPage userRole="student" />;
     case "profile":
       return <Profile />;
     default:
@@ -51,6 +54,8 @@ export function DeanWorkspace({ activeView }: { activeView: string }) {
       return <DeanFinalExams mode="create" />;
     case "schedule":
       return <DeanSchedule />;
+    case "library":
+      return <LibraryPage userRole="dean" />;
     case "my-notifications":
       return <MyNotifications roleLabel="Dean" />;
     case "dean-notifications":
@@ -93,6 +98,8 @@ export function TeacherWorkspace({
       return <TeacherFinalExams />;
     case "schedule":
       return <Schedule userRole="teacher" />;
+    case "library":
+      return <LibraryPage userRole="teacher" />;
     case "my-notifications":
       return <MyNotifications roleLabel="Teacher" />;
     case "teacher-notifications":

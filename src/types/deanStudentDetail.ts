@@ -21,7 +21,10 @@ export interface StudentGradesDto {
 }
 
 export interface StudentDetailResponse {
+  fullName?: string;
   name?: string;
+  surname?: string;
+  middleName?: string;
   groupCode?: string;
   specializationName?: string;
   admissionYear?: string;

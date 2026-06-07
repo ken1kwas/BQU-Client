@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   Navigate,
@@ -37,6 +37,12 @@ import {
 } from "../config/navigation";
 
 const DEV_BYPASS_LOGIN = false;
+
+const PdfCanvasReader = lazy(() =>
+  import("../components/PdfCanvasReader").then((module) => ({
+    default: module.PdfCanvasReader,
+  })),
+);
 
 function LoginRoute({
   setToken,
@@ -240,6 +246,20 @@ export function AppRoutes() {
           ) : (
             <LoginRoute setToken={setToken} setUserRole={setUserRole} />
           )
+        }
+      />
+      <Route
+        path="/pdf-reader"
+        element={
+          <Suspense
+            fallback={
+              <div className="flex min-h-screen items-center justify-center">
+                Oxuyucu açılır...
+              </div>
+            }
+          >
+            <PdfCanvasReader />
+          </Suspense>
         }
       />
       <Route
