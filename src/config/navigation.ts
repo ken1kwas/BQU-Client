@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   History,
   Home,
+  LibraryBig,
   Settings,
   User,
 } from "lucide-react";
@@ -29,6 +30,7 @@ export const roleNavigationViews: Record<UserRole, Set<string>> = {
     "schedule",
     "grades",
     "subjects-history",
+    "library",
     "profile",
   ]),
   teacher: new Set([
@@ -37,6 +39,7 @@ export const roleNavigationViews: Record<UserRole, Set<string>> = {
     "my-notifications",
     "teacher-notifications",
     "schedule",
+    "library",
     "profile",
   ]),
   dean: new Set([
@@ -48,6 +51,7 @@ export const roleNavigationViews: Record<UserRole, Set<string>> = {
     "my-notifications",
     "dean-notifications",
     "schedule",
+    "library",
     "profile",
   ]),
 };
@@ -66,6 +70,7 @@ export const studentNavigation: NavigationGroup[] = [
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
       { title: "Qiymətləndirmə", icon: BarChart3, id: "grades" },
       { title: "Fənnlərin tarixi", icon: History, id: "subjects-history" },
+      { title: "Kitabxana", icon: LibraryBig, id: "library" },
       { title: "Profil", icon: User, id: "profile" },
     ],
   },
@@ -84,6 +89,7 @@ export const teacherNavigation: NavigationGroup[] = [
       { title: "Bildirişlərim", icon: Bell, id: "my-notifications" },
       { title: "Bildirişlər", icon: Bell, id: "teacher-notifications" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
+      { title: "Kitabxana", icon: LibraryBig, id: "library" },
       { title: "Profil", icon: User, id: "profile" },
     ],
   },
@@ -109,6 +115,7 @@ export const deanNavigation: NavigationGroup[] = [
       { title: "Bildirişlərim", icon: Bell, id: "my-notifications" },
       { title: "Bildirişlər", icon: Bell, id: "dean-notifications" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },
+      { title: "Kitabxana", icon: LibraryBig, id: "library" },
       { title: "Profil", icon: User, id: "profile" },
     ],
   },

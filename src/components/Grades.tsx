@@ -356,7 +356,7 @@ export function GradesOverview({
                               : null,
                           ]
                             .filter(Boolean)
-                            .join(" -- ") || ""}
+                            .join(" - ") || ""}
                         </CardDescription>
                       </div>
                     </div>

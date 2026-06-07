@@ -29,11 +29,13 @@ import {
 } from "./ui/table";
 import {
   addFinalExamDate,
+  bulkConfirmFinalExams,
   confirmFinalExamGrades,
   createFinalExam,
   listGroups,
   listStudents,
   listFinalExams,
+  listFinalExamsToConfirm,
   listTaughtSubjects,
   setGroupExamDate,
   toArray,
@@ -406,6 +408,7 @@ export function DeanFinalExams({ mode }: Props) {
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [createOptionsLoading, setCreateOptionsLoading] = useState(false);
+  const [isBulkConfirming, setIsBulkConfirming] = useState(false);
   const confirmableExams = finalExams.filter(
     (exam) => !exam.gradesConfirmed && canConfirmFinalExam(exam),
   );
@@ -498,16 +501,14 @@ export function DeanFinalExams({ mode }: Props) {
 
   const loadFinalExamsForConfirm = async () => {
     try {
-      const finalsResp = await listFinalExams({
-        search: "",
-        page: 1,
-        pageSize: 200,
-      });
-      const items = extractFinalExamItems(finalsResp);
+      setIsFinalsLoading(true);
+      const items = await listFinalExamsToConfirm();
       setFinalExams(items.map(mapFinalExamFromApi));
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to load final exams");
       setFinalExams([]);
+    } finally {
+      setIsFinalsLoading(false);
     }
   };
 
@@ -718,6 +719,26 @@ export function DeanFinalExams({ mode }: Props) {
       await refreshFinalExams();
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to confirm grades");
+    }
+  };
+
+  const handleBulkConfirmFinalGrades = async () => {
+    const ids = confirmableExams.map((exam) => exam.id).filter(Boolean);
+
+    if (ids.length === 0) {
+      toast.error("Təsdiq ediləcək final imtahan yoxdur");
+      return;
+    }
+
+    try {
+      setIsBulkConfirming(true);
+      const response = await bulkConfirmFinalExams(ids);
+      toast.success(response.message || "Final qiymətləri təsdiqləndi");
+      await refreshFinalExams();
+    } catch (error: any) {
+      toast.error(error?.message ?? "Final qiymətlərini təsdiqləmək mümkün olmadı");
+    } finally {
+      setIsBulkConfirming(false);
     }
   };
 
@@ -943,9 +964,23 @@ export function DeanFinalExams({ mode }: Props) {
                 Təsdiq gözləyən qiymətlər üçün bu bölmədən istifadə edin
               </CardDescription>
             </div>
-            <Button variant="outline" onClick={refreshFinalExams}>
-              Təzələ
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                onClick={handleBulkConfirmFinalGrades}
+                disabled={
+                  isFinalsLoading ||
+                  isBulkConfirming ||
+                  confirmableExams.length === 0
+                }
+              >
+                {isBulkConfirming
+                  ? "Təsdiqlənir..."
+                  : `Hamısını təsdiqlə (${confirmableExams.length})`}
+              </Button>
+              <Button variant="outline" onClick={refreshFinalExams}>
+                Təzələ
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -960,7 +995,16 @@ export function DeanFinalExams({ mode }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {confirmableExams.length === 0 ? (
+              {isFinalsLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground"
+                  >
+                    Yüklənir...
+                  </TableCell>
+                </TableRow>
+              ) : confirmableExams.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={5}

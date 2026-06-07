@@ -54,6 +54,16 @@ function getInitials(name: string) {
   );
 }
 
+function getStudentFullName(details: StudentDetailResponse | null) {
+  const explicitFullName = details?.fullName?.trim();
+  if (explicitFullName) return explicitFullName;
+
+  return [details?.name, details?.surname]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 function InfoItem({
   icon,
   label,
@@ -113,7 +123,7 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
 
   const info = useMemo(() => {
     return {
-      name: details?.name || "",
+      name: getStudentFullName(details),
       groupCode: details?.groupCode || EMPTY_VALUE,
       specialization: details?.specializationName || EMPTY_VALUE,
       admissionYear: details?.admissionYear || EMPTY_VALUE,
@@ -157,11 +167,11 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
         <div className="space-y-2">
           <Button variant="ghost" className="w-fit px-0" onClick={onBack}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to students
+            Geri Qayıt
           </Button>
         </div>
         <Button onClick={() => setIsResetDialogOpen(true)}>
-          Reset Password
+          Parol sıfırla
         </Button>
       </div>
 
@@ -175,55 +185,36 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="mb-6 flex flex-col gap-6 md:flex-row md:items-center">
-            <div className="flex-1">
-              <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center">
-                <h2>{fullName}</h2>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">{courseLabel}</Badge>
-                  <Badge variant="outline">{formatValue(info.groupCode)}</Badge>
-                  {loading && <Badge variant="secondary">Loading...</Badge>}
-                </div>
-              </div>
-
-              <div className="space-y-1 text-muted-foreground">
-                <p>Student ID: {formatValue(student.id)}</p>
-                <p>{formatValue(info.specialization)}</p>
-              </div>
-            </div>
-          </div>
-
-          <Separator className="my-6" />
-
+         
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             <InfoItem
               icon={<UserSquare2 className="h-4 w-4" />}
-              label="Student ID"
-              value={student.id}
+              label="Ad Soyad"
+              value={fullName}
             />
             <InfoItem
               icon={<Users className="h-4 w-4" />}
-              label="Group"
+              label="Qrup"
               value={info.groupCode}
             />
             <InfoItem
               icon={<GraduationCap className="h-4 w-4" />}
-              label="Course"
+              label="Kurs"
               value={courseLabel}
             />
             <InfoItem
               icon={<BookOpen className="h-4 w-4" />}
-              label="Specialization"
+              label="İxtisas"
               value={info.specialization}
             />
             <InfoItem
               icon={<CalendarDays className="h-4 w-4" />}
-              label="Admission Year"
+              label="Qəbul ili"
               value={info.admissionYear}
             />
             <InfoItem
               icon={<GraduationCap className="h-4 w-4" />}
-              label="Admission Score"
+              label="Qəbul xalı"
               value={info.admissionScore}
             />
             <InfoItem
@@ -237,8 +228,8 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
 
       <Tabs defaultValue="classes" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="classes">Today&apos;s Classes</TabsTrigger>
-          <TabsTrigger value="grades">Grades</TabsTrigger>
+          <TabsTrigger value="classes">Günün dərsleri</TabsTrigger>
+          <TabsTrigger value="grades">Qiymətlər</TabsTrigger>
         </TabsList>
 
         <TabsContent value="classes">
@@ -246,20 +237,20 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle>Today&apos;s Classes</CardTitle>
+                  <CardTitle>Günün dərsleri</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Current daily schedule for this student
+                     Telebənin bugünkü dərsleri haqqında məlumat.
                   </p>
                 </div>
                 <Badge variant="outline">
-                  {info.todayClasses.length} classes
+                  {info.todayClasses.length} {info.todayClasses.length === 1 || info.todayClasses.length === 0 ? "dərs" : "dərslər"}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent>
               {info.todayClasses.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                  No classes scheduled for today.
+                  Bu telebənin bugünkü dərsleri mövcud deyil.
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -279,7 +270,7 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
                                 <Badge variant="outline">{item.code}</Badge>
                               )}
                               {item.isUpperWeek && (
-                                <Badge variant="outline">Upper week</Badge>
+                                <Badge variant="outline">Üst həftə</Badge>
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">
@@ -330,19 +321,19 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle>Grades</CardTitle>
+                  <CardTitle>Qiymətlər</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Academic performance for this student
+                    Telebənin qiymətləri haqqında ümumi məlumat.
                   </p>
                 </div>
-                <Badge variant="outline">{grades.length} subjects</Badge>
+                <Badge variant="outline">{grades.length} {grades.length === 1 || grades.length === 0 ? "fən" : "fənlər"}</Badge>
               </div>
             </CardHeader>
             <CardContent>
               <GradesModule.GradesOverview
                 grades={grades}
                 loading={loading}
-                emptyMessage="No grades available for this student."
+                emptyMessage="Bu telebə üçün heç bir qiymət mövcud deyil."
               />
             </CardContent>
           </Card>

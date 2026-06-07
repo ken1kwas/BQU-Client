@@ -21,6 +21,26 @@ export async function listFinalExams(options?: {
   return unwrapApiResult(raw);
 }
 
+export type FinalExamToConfirmDto = {
+  id: string;
+  groupCode: string;
+  studentId: string;
+  studentName: string;
+  subjectCode: string;
+  isConfirmed: boolean;
+  formattedDate: string;
+  grade: number;
+  isAllowed: boolean;
+};
+
+export async function listFinalExamsToConfirm(): Promise<
+  FinalExamToConfirmDto[]
+> {
+  const raw = await apiJson<any>("/api/finals/to-confirm");
+  const data = unwrapApiResult<any>(raw);
+  return Array.isArray(data) ? data : [];
+}
+
 export function createFinalExam(req: {
   studentId: string;
   subjectId: string;
@@ -133,4 +153,32 @@ export async function confirmFinalExamGrades(
 
   const data = unwrapApiResult<boolean>(raw);
   return typeof data === "boolean" ? data : true;
+}
+
+export type BulkConfirmFinalExamsResponse = {
+  message: string;
+  isSucceeded: boolean;
+  statusCode: number;
+};
+
+export async function bulkConfirmFinalExams(
+  ids: string[],
+): Promise<BulkConfirmFinalExamsResponse> {
+  const raw = await apiJson<any>("/api/finals/bulk-confirm", {
+    method: "PUT",
+    json: { ids },
+  });
+
+  const data = unwrapApiResult<any>(raw);
+  const response: BulkConfirmFinalExamsResponse = {
+    message: String(data?.message ?? data?.Message ?? ""),
+    isSucceeded: Boolean(data?.isSucceeded ?? data?.IsSucceeded),
+    statusCode: Number(data?.statusCode ?? data?.StatusCode ?? 0),
+  };
+
+  if (!response.isSucceeded) {
+    throw new Error(response.message || "Failed to confirm final exams");
+  }
+
+  return response;
 }

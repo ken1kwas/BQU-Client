@@ -12,3 +12,4 @@ export * from "./colloquiums";
 export * from "./syllabus";
 export * from "./notifications";
 export * from "./users";
+export * from "./library";
