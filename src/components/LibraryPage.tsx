@@ -160,6 +160,23 @@ function readerUrlForBook(book: LibraryBook, objectUrl: string): string {
   return objectUrl;
 }
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function createReaderKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `library-pdf-${crypto.randomUUID()}`;
+  }
+
+  return `library-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function statusLabel(status: LibraryBookStatus): string {
   switch (status) {
     case "draft":
@@ -487,17 +504,26 @@ export function LibraryPage({ userRole }: LibraryPageProps) {
       const readableBlob = new Blob([blob], {
         type: mimeTypeForBook(book, contentType),
       });
-      const url = URL.createObjectURL(readableBlob);
 
       if (isPdf && pdfViewerWindow) {
+        const key = createReaderKey();
+        const dataUrl = await blobToDataUrl(readableBlob);
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            title: book.title || "Kitabxana oxuyucusu",
+            dataUrl,
+          }),
+        );
         const params = new URLSearchParams({
-          src: url,
+          key,
           title: book.title || "Kitabxana oxuyucusu",
         });
         pdfViewerWindow.location.href = `/pdf-reader?${params.toString()}`;
         return;
       }
 
+      const url = URL.createObjectURL(readableBlob);
       setReaderObjectUrl(url);
       setReaderUrl(readerUrlForBook(book, url));
 
