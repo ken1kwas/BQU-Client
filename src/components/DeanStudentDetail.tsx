@@ -239,7 +239,7 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
                 <div>
                   <CardTitle>Günün dərsleri</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                     Telebənin bugünkü dərsleri haqqında məlumat.
+                     Tələbənin bugünkü dərsleri haqqında məlumat.
                   </p>
                 </div>
                 <Badge variant="outline">
@@ -250,7 +250,7 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
             <CardContent>
               {info.todayClasses.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                  Bu telebənin bugünkü dərsleri mövcud deyil.
+                  Bu Tələbənin bugünkü dərsleri mövcud deyil.
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -323,7 +323,7 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
                 <div>
                   <CardTitle>Qiymətlər</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Telebənin qiymətləri haqqında ümumi məlumat.
+                    Tələbənin qiymətləri haqqında ümumi məlumat.
                   </p>
                 </div>
                 <Badge variant="outline">{grades.length} {grades.length === 1 || grades.length === 0 ? "fən" : "fənlər"}</Badge>
@@ -333,7 +333,7 @@ export function DeanStudentDetail({ student, onBack }: DeanStudentDetailProps) {
               <GradesModule.GradesOverview
                 grades={grades}
                 loading={loading}
-                emptyMessage="Bu telebə üçün heç bir qiymət mövcud deyil."
+                emptyMessage="Bu Tələbə üçün heç bir qiymət mövcud deyil."
               />
             </CardContent>
           </Card>
