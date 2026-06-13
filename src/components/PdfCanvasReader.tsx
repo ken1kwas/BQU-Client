@@ -8,6 +8,22 @@ function getReaderParam(name: string): string {
   return new URLSearchParams(window.location.search).get(name) ?? "";
 }
 
+function readStoredPdfData(key: string): string {
+  if (!key) return "";
+
+  const raw = localStorage.getItem(key);
+  localStorage.removeItem(key);
+
+  if (!raw) return "";
+
+  try {
+    const parsed = JSON.parse(raw) as { dataUrl?: string };
+    return parsed.dataUrl ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function PdfCanvasReader() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [title] = useState(() => getReaderParam("title") || "Kitabxana oxuyucusu");
@@ -18,19 +34,24 @@ export function PdfCanvasReader() {
     const renderedCanvases: HTMLCanvasElement[] = [];
 
     const renderPdf = async () => {
+      const sourceKey = getReaderParam("key");
       const sourceUrl = getReaderParam("src");
       const container = containerRef.current;
+      const storedDataUrl = readStoredPdfData(sourceKey);
+      const readerSource = storedDataUrl || sourceUrl;
 
-      if (!sourceUrl || !container) {
+      if (!readerSource || !container) {
         setStatus("Oxuyucu mənbəsi tapılmadı.");
         return;
       }
 
       try {
         setStatus("Sənəd yüklənir...");
-        const response = await fetch(sourceUrl);
+        const response = await fetch(readerSource);
         const bytes = await response.arrayBuffer();
-        URL.revokeObjectURL(sourceUrl);
+        if (sourceUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(sourceUrl);
+        }
         const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
 
         if (cancelled) return;

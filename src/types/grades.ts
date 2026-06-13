@@ -9,6 +9,8 @@ export interface GradeCourse {
   weeklyHours: number;
   classType: "Lecture" | "Seminar" | string;
   colloquium: (number | null)[];
+  examGrade: number | null;
+  examGradeLetter: string | null;
   seminarGrades: number[];
   assignmentScores: (number | null)[];
   assignmentsPassed: number;

@@ -111,7 +111,7 @@ export const deanNavigation: NavigationGroup[] = [
         icon: ClipboardCheck,
         id: "dean-finals-confirm",
       },
-      { title: "Final yarat", icon: FilePlus2, id: "dean-finals-create" },
+      { title: "Imtahan yarat", icon: FilePlus2, id: "dean-finals-create" },
       { title: "Bildirişlərim", icon: Bell, id: "my-notifications" },
       { title: "Bildirişlər", icon: Bell, id: "dean-notifications" },
       { title: "Cədvəl", icon: Calendar, id: "schedule" },

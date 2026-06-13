@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, GraduationCap, Loader2, Users } from "lucide-react";
 
-import { getStudentUpcomingFinals, toArray } from "../api/index";
+import { getStudentUpcomingFinals, StudentUpcomingFinal, toArray } from "../api/index";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import type { FinalWithSortDate } from "../types/studentFinals";
@@ -48,7 +48,7 @@ export function StudentFinals() {
         setFinals(result);
       } catch (err: any) {
         if (!mounted) return;
-        setError(err?.message || "Failed to load upcoming finals");
+        setError(err?.message || "Xəta baş verdi. Yenidən cəhd edin.");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -95,7 +95,7 @@ export function StudentFinals() {
       ) : finalsSorted.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground">
-            No upcoming finals right now.
+            Görünür, gələcək semester imtahanlarınız yoxdur.
           </CardContent>
         </Card>
       ) : (
@@ -115,20 +115,20 @@ export function StudentFinals() {
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
                   <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                  <span>{final.formattedDate || "Date is not set yet"}</span>
+                  <span>{final.formattedDate || "Tarix hələ qeyd edilməyib"}</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <span>
-                    {final.teacherFullName || "Teacher is not specified"}
+                    {final.teacherFullName || "Müəllim təyin edilməyib"}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
                   <GraduationCap className="h-4 w-4 text-muted-foreground" />
                   <span>
-                    Enter score:{" "}
+                    Xal qeyd et:{" "}
                     {typeof final.enterScore === "number"
                       ? final.enterScore
                       : "-"}

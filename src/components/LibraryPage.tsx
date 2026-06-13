@@ -62,6 +62,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Textarea } from "./ui/textarea";
+import { DeleteConfirmationDialog } from "./ui/delete-confirmation-dialog";
 
 type LibraryPageProps = {
   userRole: UserRole;
@@ -158,6 +159,23 @@ function canDownloadBook(book: LibraryBook): boolean {
 function readerUrlForBook(book: LibraryBook, objectUrl: string): string {
   if (book.format !== "pdf") return objectUrl;
   return objectUrl;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function createReaderKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `library-pdf-${crypto.randomUUID()}`;
+  }
+
+  return `library-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function statusLabel(status: LibraryBookStatus): string {
@@ -430,9 +448,6 @@ export function LibraryPage({ userRole }: LibraryPageProps) {
   };
 
   const handleDelete = async (book: LibraryBook) => {
-    const confirmed = window.confirm(`"${book.title}" kitabxanadan silinsin?`);
-    if (!confirmed) return;
-
     try {
       await deleteLibraryBook(book.id);
       toast.success("Kitab silindi");
@@ -487,17 +502,26 @@ export function LibraryPage({ userRole }: LibraryPageProps) {
       const readableBlob = new Blob([blob], {
         type: mimeTypeForBook(book, contentType),
       });
-      const url = URL.createObjectURL(readableBlob);
 
       if (isPdf && pdfViewerWindow) {
+        const key = createReaderKey();
+        const dataUrl = await blobToDataUrl(readableBlob);
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            title: book.title || "Kitabxana oxuyucusu",
+            dataUrl,
+          }),
+        );
         const params = new URLSearchParams({
-          src: url,
+          key,
           title: book.title || "Kitabxana oxuyucusu",
         });
         pdfViewerWindow.location.href = `/pdf-reader?${params.toString()}`;
         return;
       }
 
+      const url = URL.createObjectURL(readableBlob);
       setReaderObjectUrl(url);
       setReaderUrl(readerUrlForBook(book, url));
 
@@ -711,14 +735,26 @@ export function LibraryPage({ userRole }: LibraryPageProps) {
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      title="Kitabı sil"
-                      onClick={() => handleDelete(book)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DeleteConfirmationDialog
+                      trigger={
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          title="Kitabı sil"
+                          aria-label={`Delete ${book.title}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      }
+                      title="Kitabı silmək?"
+                      description={
+                        <>
+                          Bu əməliyyat geri qaytarıla bilməz. “{book.title}”
+                          kitabxanadan silinəcək.
+                        </>
+                      }
+                      onConfirm={() => handleDelete(book)}
+                    />
                   </div>
                 )}
               </CardFooter>

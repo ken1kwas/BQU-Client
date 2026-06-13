@@ -62,6 +62,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import { DeleteConfirmationDialog } from "./ui/delete-confirmation-dialog";
 import { DeanStudentDetail } from "./DeanStudentDetail";
 import type { DeanStudentDetailStudent } from "../types/deanStudentDetail";
 import {
@@ -2057,13 +2058,25 @@ export function DeanManagement() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteCourse(course.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <DeleteConfirmationDialog
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                aria-label={`Delete ${course.title || "course"}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            }
+                            title="Fənni silmək?"
+                            description={
+                              <>
+                                Bu əməliyyat geri qaytarıla bilməz. “
+                                {course.title || course.code}” silinəcək.
+                              </>
+                            }
+                            onConfirm={() => handleDeleteCourse(course.id)}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -2277,13 +2290,26 @@ export function DeanManagement() {
                       <TableCell>{group.year} kurs</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteGroup(group.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <DeleteConfirmationDialog
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                aria-label={`Delete ${group.code || group.groupCode || "group"}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            }
+                            title="Qrupu silmək?"
+                            description={
+                              <>
+                                Bu əməliyyat geri qaytarıla bilməz. “
+                                {group.code || group.groupCode || "Seçilmiş qrup"}”
+                                silinəcək.
+                              </>
+                            }
+                            onConfirm={() => handleDeleteGroup(group.id)}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

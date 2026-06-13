@@ -11,6 +11,7 @@ import { FileUp, Users, BookOpen, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { DeleteConfirmationDialog } from "./ui/delete-confirmation-dialog";
 // removed AddTopics dialog-related imports (not used anymore)
 import {
   listTeacherCourses,
@@ -292,13 +293,22 @@ export function TeacherCourses({
                     >
                       Sillabusu yükləyin
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleSyllabusDelete(course)}
-                    >
-                      Sillabusu sil
-                    </Button>
+                    <DeleteConfirmationDialog
+                      trigger={
+                        <Button variant="destructive" size="sm">
+                          Sillabusu sil
+                        </Button>
+                      }
+                      title="Sillabusu silmək?"
+                      description={
+                        <>
+                          Bu əməliyyat geri qaytarıla bilməz. “
+                          {course.title || course.code || "Seçilmiş fənn"}” üçün
+                          sillabus silinəcək.
+                        </>
+                      }
+                      onConfirm={() => handleSyllabusDelete(course)}
+                    />
                   </>
                 )}
               </div>
