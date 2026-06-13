@@ -62,6 +62,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Textarea } from "./ui/textarea";
+import { DeleteConfirmationDialog } from "./ui/delete-confirmation-dialog";
 
 type LibraryPageProps = {
   userRole: UserRole;
@@ -447,9 +448,6 @@ export function LibraryPage({ userRole }: LibraryPageProps) {
   };
 
   const handleDelete = async (book: LibraryBook) => {
-    const confirmed = window.confirm(`"${book.title}" kitabxanadan silinsin?`);
-    if (!confirmed) return;
-
     try {
       await deleteLibraryBook(book.id);
       toast.success("Kitab silindi");
@@ -737,14 +735,26 @@ export function LibraryPage({ userRole }: LibraryPageProps) {
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      title="Kitabı sil"
-                      onClick={() => handleDelete(book)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DeleteConfirmationDialog
+                      trigger={
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          title="Kitabı sil"
+                          aria-label={`Delete ${book.title}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      }
+                      title="Kitabı silmək?"
+                      description={
+                        <>
+                          Bu əməliyyat geri qaytarıla bilməz. “{book.title}”
+                          kitabxanadan silinəcək.
+                        </>
+                      }
+                      onConfirm={() => handleDelete(book)}
+                    />
                   </div>
                 )}
               </CardFooter>

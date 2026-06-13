@@ -11,6 +11,7 @@ import { ArrowLeft, Users, Calendar, Send, Loader2 } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
+import { DeleteConfirmationDialog } from "./ui/delete-confirmation-dialog";
 import {
   Select,
   SelectContent,
@@ -165,6 +166,11 @@ export function TeacherCourseDetail({
   const [isSendingAssignments, setIsSendingAssignments] =
     useState<boolean>(false);
   const [isBulkUpdating, setIsBulkUpdating] = useState<boolean>(false); // Flag to prevent infinite loops during bulk update
+  const [colloquiumPendingDelete, setColloquiumPendingDelete] = useState<{
+    studentId: string | number;
+    studentName: string;
+    colloquiumIndex: number;
+  } | null>(null);
   const attendanceSnapshotRef = useRef<Map<string, ("present" | "absent")[]>>(
     new Map(),
   );
@@ -1944,15 +1950,24 @@ export function TeacherCourseDetail({
                               <Select
                                 key={`${student.id}-${collIndex}`}
                                 value={selectedValue}
-                                onValueChange={(value: string) =>
-                                  updateColloquium(
+                                onValueChange={(value: string) => {
+                                  if (value === "none" && currentValue != null) {
+                                    setColloquiumPendingDelete({
+                                      studentId: student.id,
+                                      studentName: student.name,
+                                      colloquiumIndex: collIndex,
+                                    });
+                                    return;
+                                  }
+
+                                  void updateColloquium(
                                     student.id,
                                     collIndex,
                                     value === "none"
                                       ? null
                                       : parseInt(value, 10),
-                                  )
-                                }
+                                  );
+                                }}
                                 disabled={isDisabled}
                               >
                                 <SelectTrigger className="w-[100px] mx-auto">
@@ -1982,6 +1997,31 @@ export function TeacherCourseDetail({
               )}
             </CardContent>
           </Card>
+          <DeleteConfirmationDialog
+            open={Boolean(colloquiumPendingDelete)}
+            onOpenChange={(open) => {
+              if (!open) setColloquiumPendingDelete(null);
+            }}
+            title="Kollokvium qiymətini silmək?"
+            description={
+              <>
+                Bu əməliyyat geri qaytarıla bilməz. {" "}
+                {colloquiumPendingDelete?.studentName || "Seçilmiş tələbə"} üçün
+                kollokvium {Number(colloquiumPendingDelete?.colloquiumIndex) + 1}
+                qiyməti silinəcək.
+              </>
+            }
+            onConfirm={async () => {
+              if (!colloquiumPendingDelete) return;
+              const pendingDelete = colloquiumPendingDelete;
+              setColloquiumPendingDelete(null);
+              await updateColloquium(
+                pendingDelete.studentId,
+                pendingDelete.colloquiumIndex,
+                null,
+              );
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="assignments" className="space-y-4">

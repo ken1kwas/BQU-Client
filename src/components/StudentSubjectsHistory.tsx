@@ -155,8 +155,8 @@ export function StudentSubjectsHistory() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Fən</TableHead>
-                  <TableHead>Professor</TableHead>
+                  <TableHead>Fənn</TableHead>
+                  <TableHead>Müəllim</TableHead>
                   <TableHead>Dövr</TableHead>
                   <TableHead className="text-right">Status</TableHead>
                 </TableRow>

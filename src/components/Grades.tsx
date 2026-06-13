@@ -33,6 +33,18 @@ function toNumber(value: any): number {
   return Number.isFinite(num) ? num : 0;
 }
 
+function toNullableNumber(value: any): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function toNullableString(value: any): string | null {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
+  return normalized || null;
+}
+
 function clampPercentage(value: number): number {
   if (!Number.isFinite(value)) return 0;
   if (value < 0) return 0;
@@ -53,6 +65,10 @@ function isFailedGrade(value: number | null | undefined): boolean {
   return value === FAILED_GRADE;
 }
 
+function isFailedExamLetter(value: string | null | undefined): boolean {
+  return value?.trim().toUpperCase() === "F";
+}
+
 function formatGradeValue(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";
   if (isFailedGrade(value)) return "İmtahana buraxılmır";
@@ -62,6 +78,19 @@ function formatGradeValue(value: number | null | undefined): string {
 function formatOverallScore(score: number): string {
   if (isFailedGrade(score)) return "İmtahana buraxılmır";
   return `${Math.round(score)}/${OVERALL_SCORE_MAX}`;
+}
+
+function OverallScoreResult({ course }: { course: GradeCourse }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span>{formatOverallScore(course.scoreOutOf50)}</span>
+      {isFailedExamLetter(course.examGradeLetter) && (
+        <Badge variant="destructive" className="px-2 py-0 text-xs">
+          Akademik borc 
+        </Badge>
+      )}
+    </div>
+  );
 }
 
 function normalizeColloquiumGrades(value: any): (number | null)[] {
@@ -136,6 +165,126 @@ function normalizeColloquiumGrades(value: any): (number | null)[] {
   return ordered;
 }
 
+function ExamResult({
+  examGrade,
+  examGradeLetter,
+}: Pick<GradeCourse, "examGrade" | "examGradeLetter">) {
+  return (
+    <div className="col-span-2 mt-3 flex w-full items-center justify-between border-t pt-4">
+      <p className="text-left text-muted-foreground">İmtahan nəticəsi</p>
+      <div className="flex items-center justify-end gap-2">
+        <Badge
+          variant={
+            examGrade === null
+              ? "outline"
+              : isFailedGrade(examGrade)
+                ? "destructive"
+                : "secondary"
+          }
+          className="min-w-9 justify-center px-2.5 py-0.5 text-sm"
+        >
+          {formatGradeValue(examGrade)}
+        </Badge>
+        <Badge
+          variant={examGradeLetter === null ? "outline" : "secondary"}
+          className="min-w-9 justify-center px-2.5 py-0.5 text-sm"
+        >
+          {examGradeLetter ?? "-"}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+function AssessmentGrid({
+  course,
+  assignmentRatio,
+}: {
+  course: GradeCourse;
+  assignmentRatio: string;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-5 rounded-xl border bg-muted/10 p-4 text-sm">
+      <div>
+        <p className="mb-2 text-muted-foreground">Seminar balları</p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {course.seminarGrades.length > 0 ? (
+            course.seminarGrades.map((grade, idx) => (
+              <Badge
+                key={idx}
+                variant={isFailedGrade(grade) ? "destructive" : "secondary"}
+                className="px-2.5 py-0.5 text-sm"
+              >
+                {formatGradeValue(grade)}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )}
+        </div>
+      </div>
+
+      <div className="text-right">
+        <p className="mb-2 text-muted-foreground">Kollokvium</p>
+        <div className="flex items-center justify-end gap-2">
+          {course.colloquium.length === 0 ? (
+            <span className="text-muted-foreground">-</span>
+          ) : (
+            course.colloquium.map((score, idx) => (
+              <Badge
+                key={idx}
+                variant={
+                  score === null
+                    ? "outline"
+                    : isFailedGrade(score)
+                      ? "destructive"
+                      : "secondary"
+                }
+                className="min-w-9 justify-center px-2.5 py-0.5 text-sm"
+              >
+                {formatGradeValue(score)}
+              </Badge>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="pb-2">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-muted-foreground">Sərbəst işlər</span>
+          <span className="text-muted-foreground">{assignmentRatio}</span>
+        </div>
+        {course.assignmentScores.length === 0 ? (
+          <span className="text-muted-foreground">-</span>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {course.assignmentScores.map((score, idx) => (
+              <Badge
+                key={idx}
+                variant={
+                  score === null
+                    ? "outline"
+                    : isFailedGrade(score)
+                      ? "destructive"
+                      : "secondary"
+                }
+                className="text-xs"
+              >
+                {formatGradeValue(score)}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ExamResult
+        examGrade={course.examGrade}
+        examGradeLetter={course.examGradeLetter}
+      />
+    </div>
+  );
+}
+
 export function normalizeCourseList(raw: any): GradeCourse[] {
   if (!raw) return [];
 
@@ -175,6 +324,10 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
 
     const colloquium = normalizeColloquiumGrades(
       getProp(item, "Colloquium", "colloquium", "Colloquiums", "colloquiums"),
+    );
+    const examGrade = toNullableNumber(getProp(item, "ExamGrade", "examGrade"));
+    const examGradeLetter = toNullableString(
+      getProp(item, "ExamGradeLetter", "examGradeLetter"),
     );
 
     const independentWorksRaw = toArray(
@@ -280,6 +433,8 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
       ),
       classType: "Lecture",
       colloquium,
+      examGrade,
+      examGradeLetter,
       seminarGrades,
       assignmentScores,
       assignmentsPassed,
@@ -365,96 +520,16 @@ export function GradesOverview({
                     <div className="-mt-4 space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span>Ümumi bal</span>
-                        <span>{formatOverallScore(course.scoreOutOf50)}</span>
+                        <OverallScoreResult course={course} />
                       </div>
                       <Progress value={course.percentage} />
                     </div>
 
                     <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-6 text-sm">
-                        <div>
-                          <p className="mb-2 text-muted-foreground">
-                            Seminar balları
-                          </p>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {course.seminarGrades.length > 0 ? (
-                              course.seminarGrades.map((grade, idx) => (
-                                <Badge
-                                  key={idx}
-                                  variant={
-                                    isFailedGrade(grade)
-                                      ? "destructive"
-                                      : "secondary"
-                                  }
-                                  className="px-2.5 py-0.5 text-sm"
-                                >
-                                  {formatGradeValue(grade)}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="mb-2 text-muted-foreground">
-                            Kollokvium
-                          </p>
-                          <div className="flex items-center justify-end gap-2">
-                            {course.colloquium.length === 0 ? (
-                              <span className="text-muted-foreground">-</span>
-                            ) : (
-                              course.colloquium.map((score, idx) => (
-                                <Badge
-                                  key={idx}
-                                  variant={
-                                    score === null
-                                      ? "outline"
-                                      : isFailedGrade(score)
-                                        ? "destructive"
-                                        : "secondary"
-                                  }
-                                  className="px-5 py-2.5 text-base"
-                                >
-                                  {formatGradeValue(score)}
-                                </Badge>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            Sərbəst işlər
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {assignmentRatio}
-                          </span>
-                        </div>
-                        {course.assignmentScores.length === 0 ? (
-                          <span className="text-muted-foreground">-</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {course.assignmentScores.map((score, idx) => (
-                              <Badge
-                                key={idx}
-                                variant={
-                                  score === null
-                                    ? "outline"
-                                    : isFailedGrade(score)
-                                      ? "destructive"
-                                      : "secondary"
-                                }
-                                className="text-xs"
-                              >
-                                {formatGradeValue(score)}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <AssessmentGrid
+                        course={course}
+                        assignmentRatio={assignmentRatio}
+                      />
 
                       <div>
                         <div className="mb-2 flex items-center gap-2">
@@ -479,7 +554,7 @@ export function GradesOverview({
                                 }
                                 className="text-xs"
                               >
-                                {session.attendance === "present" ? "p" : "a"}
+                                {session.attendance === "present" ? "i.e" : "q.b"}
                               </Badge>
                             ))
                           )}
@@ -600,96 +675,16 @@ export function Grades() {
                       <div className="-mt-4 space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span>Ümumi bal</span>
-                          <span>{formatOverallScore(course.scoreOutOf50)}</span>
+                          <OverallScoreResult course={course} />
                         </div>
                         <Progress value={course.percentage} />
                       </div>
 
                       <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-6 text-sm">
-                          <div>
-                            <p className="mb-2 text-muted-foreground">
-                              Seminar balları
-                            </p>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {course.seminarGrades.length > 0 ? (
-                                course.seminarGrades.map((grade, idx) => (
-                                  <Badge
-                                    key={idx}
-                                    variant={
-                                      isFailedGrade(grade)
-                                        ? "destructive"
-                                        : "secondary"
-                                    }
-                                    className="px-2.5 py-0.5 text-sm"
-                                  >
-                                    {formatGradeValue(grade)}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="mb-2 text-muted-foreground">
-                              Kollokvium
-                            </p>
-                            <div className="flex items-center justify-end gap-2">
-                              {course.colloquium.length === 0 ? (
-                                <span className="text-muted-foreground">-</span>
-                              ) : (
-                                course.colloquium.map((score, idx) => (
-                                  <Badge
-                                    key={idx}
-                                    variant={
-                                      score === null
-                                        ? "outline"
-                                        : isFailedGrade(score)
-                                          ? "destructive"
-                                          : "secondary"
-                                    }
-                                    className="px-5 py-2.5 text-base"
-                                  >
-                                    {formatGradeValue(score)}
-                                  </Badge>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="mb-2 flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">
-                              Sərbəst işlər
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                              {assignmentRatio}
-                            </span>
-                          </div>
-                          {course.assignmentScores.length === 0 ? (
-                            <span className="text-muted-foreground">-</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {course.assignmentScores.map((score, idx) => (
-                                <Badge
-                                  key={idx}
-                                  variant={
-                                    score === null
-                                      ? "outline"
-                                      : isFailedGrade(score)
-                                        ? "destructive"
-                                        : "secondary"
-                                  }
-                                  className="text-xs"
-                                >
-                                  {formatGradeValue(score)}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <AssessmentGrid
+                          course={course}
+                          assignmentRatio={assignmentRatio}
+                        />
 
                         <div>
                           <div className="mb-2 flex items-center gap-2">

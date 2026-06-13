@@ -78,10 +78,7 @@ export async function getTeacherSchedule(scope: string) {
 export async function getStudentGrades(scope: string) {
   const qs = new URLSearchParams();
   if (scope) qs.set("grade", scope);
-  const suffix = qs.toString();
-  const url = suffix
-    ? `/api/students/me/grades?${suffix}`
-    : "/api/students/me/grades";
+  const url = "/api/students/me/grades"
   return apiJson<any>(url);
 }
 

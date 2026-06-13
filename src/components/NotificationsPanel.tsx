@@ -292,7 +292,7 @@ export function NotificationsPanel({ roleLabel }: { roleLabel: string }) {
           {sendMode === "direct-user" && (
             <div className="space-y-3">
               <Label htmlFor={`${roleLabel}-to`} className="block">
-                To
+                Kimə
               </Label>
               <Popover open={recipientOpen} onOpenChange={setRecipientOpen}>
                 <PopoverTrigger asChild>
@@ -465,7 +465,7 @@ export function NotificationsPanel({ roleLabel }: { roleLabel: string }) {
 
           <div className="space-y-3">
             <Label htmlFor={`${roleLabel}-message`} className="block">
-              Message
+              Mesaj
             </Label>
             <Textarea
               id={`${roleLabel}-message`}
