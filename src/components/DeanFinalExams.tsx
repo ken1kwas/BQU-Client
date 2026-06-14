@@ -416,7 +416,6 @@ export function DeanFinalExams({ mode }: Props) {
   const renderFinalExamRow = (exam: FinalExam) => (
     <TableRow key={exam.id}>
       <TableCell className="font-medium">
-        <div>{exam.title}</div>
         {exam.studentName ? (
           <div className="text-xs text-muted-foreground">
             {exam.studentName}
@@ -1097,7 +1096,7 @@ export function DeanFinalExams({ mode }: Props) {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-2">
-              <Label htmlFor="final-update-student-id">Student</Label>
+              <Label htmlFor="final-update-student-id">Tələbə</Label>
               <Select
                 value={updateStudentId}
                 onValueChange={setUpdateStudentId}
@@ -1122,7 +1121,7 @@ export function DeanFinalExams({ mode }: Props) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="final-update-subject-id">Subject</Label>
+              <Label htmlFor="final-update-subject-id">Fənn</Label>
               <Select
                 value={updateTaughtSubjectId}
                 onValueChange={setUpdateTaughtSubjectId}
@@ -1155,7 +1154,7 @@ export function DeanFinalExams({ mode }: Props) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="final-update-group-code">Group</Label>
+              <Label htmlFor="final-update-group-code">Qrup</Label>
               <Input
                 id="final-update-group-code"
                 value={updateGroupCode || "-"}
@@ -1173,7 +1172,7 @@ export function DeanFinalExams({ mode }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="final-update-grade">Grade</Label>
+              <Label htmlFor="final-update-grade">Qiymət</Label>
               <Input
                 id="final-update-grade"
                 type="number"
@@ -1361,7 +1360,7 @@ export function DeanFinalExams({ mode }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>İmtahan</TableHead>
+                <TableHead>Tələbə</TableHead>
                 <TableHead>Fənn kodu</TableHead>
                 <TableHead>Qrup</TableHead>
                 <TableHead>Semestr</TableHead>
