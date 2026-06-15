@@ -105,28 +105,57 @@ function normalizeStudentOption(student: any): StudentOption {
 }
 
 function normalizeSubjectOption(subject: any): SubjectOption {
-  const code = pickString(subject?.code, subject?.subjectCode);
-  const title = pickString(subject?.title, subject?.subjectName, subject?.name);
+  const code = pickString(
+    subject?.code,
+    subject?.Code,
+    subject?.subjectCode,
+    subject?.SubjectCode,
+  );
+  const title = pickString(
+    subject?.title,
+    subject?.Title,
+    subject?.subjectName,
+    subject?.SubjectName,
+    subject?.name,
+    subject?.Name,
+  );
   const groupCode = pickString(
     subject?.groupCode,
+    subject?.GroupCode,
     subject?.group?.groupCode,
     subject?.group?.code,
     subject?.groupName,
+    subject?.GroupName,
+  );
+  const taughtSubjectId = pickString(
+    subject?.taughtSubjectId,
+    subject?.TaughtSubjectId,
+    subject?.id,
+    subject?.Id,
+  );
+  const subjectId = pickString(
+    subject?.subjectId,
+    subject?.SubjectId,
+    subject?.subject?.id,
+    subject?.subject?.Id,
   );
 
   const baseLabel = [code, title].filter(Boolean).join(" - ") || code || title;
   const label = groupCode ? `${baseLabel} (${groupCode})` : baseLabel;
 
   return {
-    id: pickString(
-      subject?.subjectId,
-      subject?.SubjectId,
-      subject?.id,
-      subject?.Id,
-      subject?.taughtSubjectId,
-    ),
+    id: subjectId || taughtSubjectId,
+    subjectId,
+    taughtSubjectId,
+    code,
+    title,
+    groupCode,
     label: label || "Unnamed subject",
   };
+}
+
+function getTaughtSubjectOptionId(subject: SubjectOption): string {
+  return subject.taughtSubjectId || subject.id;
 }
 
 function normalizeGroupOption(group: any): GroupOption {
@@ -215,14 +244,17 @@ function mapFinalExamFromApi(exam: any): FinalExam {
       exam?.TaughtSubjectId,
       exam?.taughtSubject?.id,
       exam?.taughtSubject?.Id,
+      exam?.taughtSubject?.taughtSubjectId,
+      exam?.taughtSubject?.TaughtSubjectId,
+    ),
+    subjectId: pickString(
       exam?.subjectId,
       exam?.SubjectId,
       exam?.subject?.id,
       exam?.subject?.Id,
-      exam?.finalExamSubjectId,
-      exam?.FinalExamSubjectId,
+      exam?.taughtSubject?.subjectId,
+      exam?.taughtSubject?.SubjectId,
     ),
-    subjectId: pickString(exam?.subjectId, exam?.SubjectId, exam?.subject?.id),
     title: String(title),
     studentName:
       exam?.studentName ??
@@ -393,6 +425,7 @@ export function DeanFinalExams({ mode }: Props) {
   const [updateExamId, setUpdateExamId] = useState("");
   const [updateStudentId, setUpdateStudentId] = useState("");
   const [updateTaughtSubjectId, setUpdateTaughtSubjectId] = useState("");
+  const [updateSubjectId, setUpdateSubjectId] = useState("");
   const [updateExamCourseCode, setUpdateExamCourseCode] = useState("");
   const [updateExamTitle, setUpdateExamTitle] = useState("");
   const [updateGroupCode, setUpdateGroupCode] = useState("");
@@ -607,11 +640,26 @@ export function DeanFinalExams({ mode }: Props) {
     const title = updateExamTitle.trim().toLowerCase();
     const groupCode = updateGroupCode.trim().toLowerCase();
 
+    const exactBySubjectAndGroup = updateSubjectId
+      ? subjectOptions.find(
+          (subject) =>
+            subject.subjectId === updateSubjectId &&
+            (!groupCode || subject.groupCode?.toLowerCase() === groupCode),
+        )
+      : undefined;
+
+    const exactBySubject =
+      !exactBySubjectAndGroup && updateSubjectId
+        ? subjectOptions.find((subject) => subject.subjectId === updateSubjectId)
+        : undefined;
+
     const exactByCodeAndGroup =
-      courseCode && groupCode
+      !exactBySubjectAndGroup && !exactBySubject && courseCode && groupCode
         ? subjectOptions.find((subject) => {
-            const label = subject.label.toLowerCase();
-            return label.includes(courseCode) && label.includes(groupCode);
+            return (
+              subject.code?.toLowerCase() === courseCode &&
+              subject.groupCode?.toLowerCase() === groupCode
+            );
           })
         : undefined;
 
@@ -629,9 +677,14 @@ export function DeanFinalExams({ mode }: Props) {
           )
         : undefined;
 
-    const resolved = exactByCodeAndGroup ?? byCode ?? byTitle;
-    if (resolved?.id) {
-      setUpdateTaughtSubjectId(resolved.id);
+    const resolved =
+      exactBySubjectAndGroup ??
+      exactBySubject ??
+      exactByCodeAndGroup ??
+      byCode ??
+      byTitle;
+    if (resolved) {
+      setUpdateTaughtSubjectId(getTaughtSubjectOptionId(resolved));
     }
   }, [
     isUpdateDialogOpen,
@@ -640,6 +693,7 @@ export function DeanFinalExams({ mode }: Props) {
     updateExamCourseCode,
     updateExamTitle,
     updateGroupCode,
+    updateSubjectId,
   ]);
 
   const openAddDateDialog = (
@@ -664,7 +718,8 @@ export function DeanFinalExams({ mode }: Props) {
   const openUpdateExamDialog = (exam: FinalExam) => {
     setUpdateExamId(exam.id);
     setUpdateStudentId(exam.studentId ?? "");
-    setUpdateTaughtSubjectId(exam.taughtSubjectId ?? exam.subjectId ?? "");
+    setUpdateTaughtSubjectId(exam.taughtSubjectId ?? "");
+    setUpdateSubjectId(exam.subjectId ?? "");
     setUpdateExamCourseCode(exam.courseCode ?? "");
     setUpdateExamTitle(exam.title ?? "");
     setUpdateGroupCode(exam.groupCode ?? "");
@@ -1139,14 +1194,19 @@ export function DeanFinalExams({ mode }: Props) {
                 <SelectContent>
                   {updateTaughtSubjectId &&
                   !subjectOptions.some(
-                    (subject) => subject.id === updateTaughtSubjectId,
+                    (subject) =>
+                      getTaughtSubjectOptionId(subject) ===
+                      updateTaughtSubjectId,
                   ) ? (
                     <SelectItem value={updateTaughtSubjectId}>
                       {updateSubjectFallbackLabel}
                     </SelectItem>
                   ) : null}
                   {subjectOptions.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.id}>
+                    <SelectItem
+                      key={getTaughtSubjectOptionId(subject)}
+                      value={getTaughtSubjectOptionId(subject)}
+                    >
                       {subject.label}
                     </SelectItem>
                   ))}
@@ -1337,7 +1397,10 @@ export function DeanFinalExams({ mode }: Props) {
               </SelectTrigger>
               <SelectContent>
                 {subjectOptions.map((subject) => (
-                  <SelectItem key={`set-date-subject-${subject.id}`} value={subject.id}>
+                  <SelectItem
+                    key={`set-date-subject-${getTaughtSubjectOptionId(subject)}`}
+                    value={getTaughtSubjectOptionId(subject)}
+                  >
                     {subject.label}
                   </SelectItem>
                 ))}

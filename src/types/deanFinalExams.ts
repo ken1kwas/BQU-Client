@@ -23,6 +23,11 @@ export type StudentOption = {
 
 export type SubjectOption = {
   id: string;
+  subjectId?: string;
+  taughtSubjectId?: string;
+  code?: string;
+  title?: string;
+  groupCode?: string;
   label: string;
 };
 
