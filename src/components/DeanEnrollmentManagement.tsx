@@ -110,6 +110,20 @@ function normalizeStudentOption(student: any): StudentOption {
       student?.userId,
       student?.studentId,
     ),
+    groupId: pickString(
+      student?.groupId,
+      student?.GroupId,
+      student?.group?.id,
+      student?.group?.Id,
+    ),
+    groupCode: pickString(
+      student?.groupCode,
+      student?.GroupCode,
+      student?.group?.groupCode,
+      student?.group?.code,
+      student?.groupName,
+      student?.GroupName,
+    ),
     label: buildStudentLabel(student),
   };
 }
@@ -123,16 +137,50 @@ function normalizeTaughtSubjectOption(item: any): TaughtSubjectOption {
   );
   const groupCode = pickString(
     item?.groupCode,
+    item?.GroupCode,
     item?.group?.groupCode,
     item?.group?.code,
     item?.groupName,
+    item?.GroupName,
+  );
+  const groupId = pickString(
+    item?.groupId,
+    item?.GroupId,
+    item?.group?.id,
+    item?.group?.Id,
   );
 
   return {
     id: pickString(item?.id, item?.Id, item?.taughtSubjectId),
+    groupId,
+    groupCode,
     label: groupCode ? `${subjectName} (${groupCode})` : subjectName,
     subjectName: subjectName || "Adsız fənn",
   };
+}
+
+function normalizeFilterValue(value?: string): string {
+  return value?.trim().toLocaleLowerCase("az") ?? "";
+}
+
+function filterTaughtSubjectsByStudentGroup(
+  taughtSubjects: TaughtSubjectOption[],
+  student?: StudentOption,
+): TaughtSubjectOption[] {
+  const groupId = normalizeFilterValue(student?.groupId);
+  const groupCode = normalizeFilterValue(student?.groupCode);
+
+  if (!groupId && !groupCode) return taughtSubjects;
+
+  return taughtSubjects.filter((subject) => {
+    const subjectGroupId = normalizeFilterValue(subject.groupId);
+    const subjectGroupCode = normalizeFilterValue(subject.groupCode);
+
+    return (
+      (groupId && subjectGroupId === groupId) ||
+      (groupCode && subjectGroupCode === groupCode)
+    );
+  });
 }
 
 const EMPTY_FORM: EnrollmentFormState = {
@@ -165,6 +213,11 @@ export function DeanEnrollmentManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editor, setEditor] = useState<EnrollmentEditor>({ mode: "create" });
   const [form, setForm] = useState<EnrollmentFormState>(EMPTY_FORM);
+  const selectedStudent = students.find((student) => student.id === form.studentId);
+  const selectableTaughtSubjects =
+    editor.mode === "edit" || !selectedStudent
+      ? taughtSubjects
+      : filterTaughtSubjectsByStudentGroup(taughtSubjects, selectedStudent);
 
   const loadData = async (showRefreshingState = false) => {
     if (showRefreshingState) {
@@ -413,9 +466,18 @@ export function DeanEnrollmentManagement() {
                           setForm((current) => ({
                             ...current,
                             studentId: value,
+                            taughtSubjectId:
+                              editor.mode === "create"
+                                ? ""
+                                : current.taughtSubjectId,
                           }))
                         }
-                        disabled={editor.mode === "edit" || saving}
+                        disabled={
+                          editor.mode === "edit" ||
+                          saving ||
+                          !selectedStudent ||
+                          selectableTaughtSubjects.length === 0
+                        }
                       >
                         <SelectTrigger id="enrollment-student">
                           <SelectValue placeholder="Tələbə seçin" />
@@ -466,7 +528,7 @@ export function DeanEnrollmentManagement() {
                           <SelectValue placeholder="Fənn və qrupunu seçin" />
                         </SelectTrigger>
                         <SelectContent>
-                          {taughtSubjects.map((subject) => (
+                          {selectableTaughtSubjects.map((subject) => (
                             <SelectItem key={subject.id} value={subject.id}>
                               {subject.label}
                             </SelectItem>

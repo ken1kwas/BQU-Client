@@ -100,6 +100,20 @@ function normalizeStudentOption(student: any): StudentOption {
       student?.userId,
       student?.studentId,
     ),
+    groupId: pickString(
+      student?.groupId,
+      student?.GroupId,
+      student?.group?.id,
+      student?.group?.Id,
+    ),
+    groupCode: pickString(
+      student?.groupCode,
+      student?.GroupCode,
+      student?.group?.groupCode,
+      student?.group?.code,
+      student?.groupName,
+      student?.GroupName,
+    ),
     label: buildStudentLabel(student),
   };
 }
@@ -127,6 +141,12 @@ function normalizeSubjectOption(subject: any): SubjectOption {
     subject?.groupName,
     subject?.GroupName,
   );
+  const groupId = pickString(
+    subject?.groupId,
+    subject?.GroupId,
+    subject?.group?.id,
+    subject?.group?.Id,
+  );
   const taughtSubjectId = pickString(
     subject?.taughtSubjectId,
     subject?.TaughtSubjectId,
@@ -147,6 +167,7 @@ function normalizeSubjectOption(subject: any): SubjectOption {
     id: subjectId || taughtSubjectId,
     subjectId,
     taughtSubjectId,
+    groupId,
     code,
     title,
     groupCode,
@@ -156,6 +177,30 @@ function normalizeSubjectOption(subject: any): SubjectOption {
 
 function getTaughtSubjectOptionId(subject: SubjectOption): string {
   return subject.taughtSubjectId || subject.id;
+}
+
+function normalizeFilterValue(value?: string): string {
+  return value?.trim().toLocaleLowerCase("az") ?? "";
+}
+
+function filterSubjectOptionsByGroup(
+  subjects: SubjectOption[],
+  context?: { id?: string; code?: string; groupId?: string; groupCode?: string },
+): SubjectOption[] {
+  const groupId = normalizeFilterValue(context?.groupId || context?.id);
+  const groupCode = normalizeFilterValue(context?.groupCode || context?.code);
+
+  if (!groupId && !groupCode) return subjects;
+
+  return subjects.filter((subject) => {
+    const subjectGroupId = normalizeFilterValue(subject.groupId);
+    const subjectGroupCode = normalizeFilterValue(subject.groupCode);
+
+    return (
+      (groupId && subjectGroupId === groupId) ||
+      (groupCode && subjectGroupCode === groupCode)
+    );
+  });
 }
 
 function normalizeGroupOption(group: any): GroupOption {
@@ -169,7 +214,9 @@ function normalizeGroupOption(group: any): GroupOption {
 
   return {
     id,
+    groupId: id,
     code: code || groupName,
+    groupCode: code || groupName,
     label,
   };
 }
@@ -445,6 +492,32 @@ export function DeanFinalExams({ mode }: Props) {
   const confirmableExams = finalExams.filter(
     (exam) => !exam.gradesConfirmed && canConfirmFinalExam(exam),
   );
+  const selectedGroupFilter =
+    selectedGroupFilterId && selectedGroupFilterId !== "all"
+      ? groupOptions.find((group) => group.id === selectedGroupFilterId)
+      : undefined;
+  const effectiveSetDateGroupId =
+    setDateGroupId ||
+    (selectedGroupFilterId !== "all" ? selectedGroupFilterId : "");
+  const selectedSetDateGroup = setDateGroupId
+    ? groupOptions.find((group) => group.id === setDateGroupId)
+    : selectedGroupFilter;
+  const selectedCreateStudent = studentOptions.find(
+    (student) => student.id === createFinalExamStudentId,
+  );
+  const selectedUpdateStudent = studentOptions.find(
+    (student) => student.id === updateStudentId,
+  );
+  const setDateSubjectOptions = selectedSetDateGroup
+    ? filterSubjectOptionsByGroup(subjectOptions, selectedSetDateGroup)
+    : [];
+  const createSubjectOptions = selectedCreateStudent
+    ? filterSubjectOptionsByGroup(subjectOptions, selectedCreateStudent)
+    : [];
+  const updateSubjectOptions = filterSubjectOptionsByGroup(subjectOptions, {
+    groupId: selectedUpdateStudent?.groupId,
+    groupCode: selectedUpdateStudent?.groupCode || updateGroupCode,
+  });
 
   const renderFinalExamRow = (exam: FinalExam) => (
     <TableRow key={exam.id}>
@@ -632,6 +705,24 @@ export function DeanFinalExams({ mode }: Props) {
   }, [mode]);
 
   useEffect(() => {
+    if (!setDateSubjectId) return;
+    if (
+      !setDateSubjectOptions.some(
+        (subject) => getTaughtSubjectOptionId(subject) === setDateSubjectId,
+      )
+    ) {
+      setSetDateSubjectId("");
+    }
+  }, [setDateSubjectId, setDateSubjectOptions]);
+
+  useEffect(() => {
+    if (!createFinalExamSubjectId) return;
+    if (!createSubjectOptions.some((subject) => subject.id === createFinalExamSubjectId)) {
+      setCreateFinalExamSubjectId("");
+    }
+  }, [createFinalExamSubjectId, createSubjectOptions]);
+
+  useEffect(() => {
     if (!isUpdateDialogOpen) return;
     if (updateTaughtSubjectId) return;
     if (subjectOptions.length === 0) return;
@@ -641,7 +732,7 @@ export function DeanFinalExams({ mode }: Props) {
     const groupCode = updateGroupCode.trim().toLowerCase();
 
     const exactBySubjectAndGroup = updateSubjectId
-      ? subjectOptions.find(
+      ? updateSubjectOptions.find(
           (subject) =>
             subject.subjectId === updateSubjectId &&
             (!groupCode || subject.groupCode?.toLowerCase() === groupCode),
@@ -650,12 +741,12 @@ export function DeanFinalExams({ mode }: Props) {
 
     const exactBySubject =
       !exactBySubjectAndGroup && updateSubjectId
-        ? subjectOptions.find((subject) => subject.subjectId === updateSubjectId)
+        ? updateSubjectOptions.find((subject) => subject.subjectId === updateSubjectId)
         : undefined;
 
     const exactByCodeAndGroup =
       !exactBySubjectAndGroup && !exactBySubject && courseCode && groupCode
-        ? subjectOptions.find((subject) => {
+        ? updateSubjectOptions.find((subject) => {
             return (
               subject.code?.toLowerCase() === courseCode &&
               subject.groupCode?.toLowerCase() === groupCode
@@ -665,14 +756,14 @@ export function DeanFinalExams({ mode }: Props) {
 
     const byCode =
       !exactByCodeAndGroup && courseCode
-        ? subjectOptions.find((subject) =>
+        ? updateSubjectOptions.find((subject) =>
             subject.label.toLowerCase().includes(courseCode),
           )
         : undefined;
 
     const byTitle =
       !exactByCodeAndGroup && !byCode && title
-        ? subjectOptions.find((subject) =>
+        ? updateSubjectOptions.find((subject) =>
             subject.label.toLowerCase().includes(title),
           )
         : undefined;
@@ -688,7 +779,7 @@ export function DeanFinalExams({ mode }: Props) {
     }
   }, [
     isUpdateDialogOpen,
-    subjectOptions,
+    updateSubjectOptions,
     updateTaughtSubjectId,
     updateExamCourseCode,
     updateExamTitle,
@@ -798,7 +889,7 @@ export function DeanFinalExams({ mode }: Props) {
 
   const handleSetGroupDate = async () => {
     try {
-      if (!setDateGroupId) {
+      if (!effectiveSetDateGroupId) {
         toast.error("Group is required");
         return;
       }
@@ -813,7 +904,7 @@ export function DeanFinalExams({ mode }: Props) {
 
       setIsSettingGroupDate(true);
       await setGroupExamDate(
-        setDateGroupId,
+        effectiveSetDateGroupId,
         setDateSubjectId,
         new Date(setDateInput).toISOString(),
       );
@@ -929,7 +1020,10 @@ export function DeanFinalExams({ mode }: Props) {
             <Label htmlFor="final-create-student-id">Telebə</Label>
             <Select
               value={createFinalExamStudentId}
-              onValueChange={setCreateFinalExamStudentId}
+              onValueChange={(value) => {
+                setCreateFinalExamStudentId(value);
+                setCreateFinalExamSubjectId("");
+              }}
               disabled={createOptionsLoading || studentOptions.length === 0}
             >
               <SelectTrigger id="final-create-student-id">
@@ -960,28 +1054,36 @@ export function DeanFinalExams({ mode }: Props) {
             <Select
               value={createFinalExamSubjectId}
               onValueChange={setCreateFinalExamSubjectId}
-              disabled={createOptionsLoading || subjectOptions.length === 0}
+              disabled={
+                createOptionsLoading ||
+                !selectedCreateStudent ||
+                createSubjectOptions.length === 0
+              }
             >
               <SelectTrigger id="final-create-subject-id">
                 <SelectValue
                   placeholder={
                     createOptionsLoading
                       ? "Loading subjects..."
+                      : !selectedCreateStudent
+                        ? "Select a student first"
                       : "Select a subject"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                {subjectOptions.map((subject) => (
+                {createSubjectOptions.map((subject) => (
                   <SelectItem key={subject.id} value={subject.id}>
                     {subject.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {!createOptionsLoading && subjectOptions.length === 0 ? (
+            {!createOptionsLoading &&
+            selectedCreateStudent &&
+            createSubjectOptions.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No subjects available
+                No subjects available for this student's group
               </p>
             ) : null}
           </div>
@@ -1154,7 +1256,11 @@ export function DeanFinalExams({ mode }: Props) {
               <Label htmlFor="final-update-student-id">Tələbə</Label>
               <Select
                 value={updateStudentId}
-                onValueChange={setUpdateStudentId}
+                onValueChange={(value) => {
+                  setUpdateStudentId(value);
+                  setUpdateSubjectId("");
+                  setUpdateTaughtSubjectId("");
+                }}
                 disabled={createOptionsLoading || studentOptions.length === 0}
               >
                 <SelectTrigger id="final-update-student-id">
@@ -1180,7 +1286,10 @@ export function DeanFinalExams({ mode }: Props) {
               <Select
                 value={updateTaughtSubjectId}
                 onValueChange={setUpdateTaughtSubjectId}
-                disabled={createOptionsLoading || subjectOptions.length === 0}
+                disabled={
+                  createOptionsLoading ||
+                  (!updateTaughtSubjectId && updateSubjectOptions.length === 0)
+                }
               >
                 <SelectTrigger id="final-update-subject-id">
                   <SelectValue
@@ -1193,7 +1302,7 @@ export function DeanFinalExams({ mode }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {updateTaughtSubjectId &&
-                  !subjectOptions.some(
+                  !updateSubjectOptions.some(
                     (subject) =>
                       getTaughtSubjectOptionId(subject) ===
                       updateTaughtSubjectId,
@@ -1202,7 +1311,7 @@ export function DeanFinalExams({ mode }: Props) {
                       {updateSubjectFallbackLabel}
                     </SelectItem>
                   ) : null}
-                  {subjectOptions.map((subject) => (
+                  {updateSubjectOptions.map((subject) => (
                     <SelectItem
                       key={getTaughtSubjectOptionId(subject)}
                       value={getTaughtSubjectOptionId(subject)}
@@ -1328,6 +1437,8 @@ export function DeanFinalExams({ mode }: Props) {
                 value={selectedGroupFilterId}
                 onValueChange={(value) => {
                   setSelectedGroupFilterId(value);
+                  setSetDateGroupId(value === "all" ? "" : value);
+                  setSetDateSubjectId("");
                   setFinalsPage(1);
                 }}
               >
@@ -1358,7 +1469,7 @@ export function DeanFinalExams({ mode }: Props) {
         <CardContent>
           <div className="mb-4 grid gap-2 md:grid-cols-[1fr_1fr_180px_auto]">
             <Select
-              value={setDateGroupId}
+              value={effectiveSetDateGroupId}
               onValueChange={(value) => {
                 setSetDateGroupId(value);
                 setSetDateSubjectId("");
@@ -1384,19 +1495,25 @@ export function DeanFinalExams({ mode }: Props) {
             <Select
               value={setDateSubjectId}
               onValueChange={setSetDateSubjectId}
-              disabled={isGroupExamSubjectOptionsLoading}
+              disabled={
+                isGroupExamSubjectOptionsLoading ||
+                !effectiveSetDateGroupId ||
+                setDateSubjectOptions.length === 0
+              }
             >
               <SelectTrigger>
                 <SelectValue
                   placeholder={
                     isGroupExamSubjectOptionsLoading
                       ? "Fənnlər yüklənir..."
+                      : !effectiveSetDateGroupId
+                        ? "Əvvəl qrup seçin"
                       : "Fənn seçin"
                   }
                 />
               </SelectTrigger>
               <SelectContent>
-                {subjectOptions.map((subject) => (
+                {setDateSubjectOptions.map((subject) => (
                   <SelectItem
                     key={`set-date-subject-${getTaughtSubjectOptionId(subject)}`}
                     value={getTaughtSubjectOptionId(subject)}
@@ -1414,7 +1531,10 @@ export function DeanFinalExams({ mode }: Props) {
             <Button
               onClick={handleSetGroupDate}
               disabled={
-                !setDateGroupId || !setDateSubjectId || !setDateInput || isSettingGroupDate
+                !effectiveSetDateGroupId ||
+                !setDateSubjectId ||
+                !setDateInput ||
+                isSettingGroupDate
               }
             >
               Qrupa final tarixi təyin et

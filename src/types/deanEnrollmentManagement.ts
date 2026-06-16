@@ -2,11 +2,15 @@ import type { StudentSubjectEnrollmentDto } from "./studentSubjectEnrollment";
 
 export type StudentOption = {
   id: string;
+  groupId?: string;
+  groupCode?: string;
   label: string;
 };
 
 export type TaughtSubjectOption = {
   id: string;
+  groupId?: string;
+  groupCode?: string;
   label: string;
   subjectName: string;
 };

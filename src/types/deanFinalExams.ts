@@ -18,6 +18,8 @@ export type FinalExam = {
 
 export type StudentOption = {
   id: string;
+  groupId?: string;
+  groupCode?: string;
   label: string;
 };
 
@@ -25,6 +27,7 @@ export type SubjectOption = {
   id: string;
   subjectId?: string;
   taughtSubjectId?: string;
+  groupId?: string;
   code?: string;
   title?: string;
   groupCode?: string;
@@ -33,7 +36,9 @@ export type SubjectOption = {
 
 export type GroupOption = {
   id: string;
+  groupId?: string;
   code: string;
+  groupCode?: string;
   label: string;
 };
 
