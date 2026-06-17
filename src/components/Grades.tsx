@@ -166,31 +166,47 @@ function normalizeColloquiumGrades(value: any): (number | null)[] {
 }
 
 function ExamResult({
+  gradeBeforeExam,
   examGrade,
   examGradeLetter,
-}: Pick<GradeCourse, "examGrade" | "examGradeLetter">) {
+}: Pick<GradeCourse, "gradeBeforeExam" | "examGrade" | "examGradeLetter">) {
   return (
-    <div className="col-span-2 mt-3 flex w-full items-center justify-between border-t pt-4">
+    <div className="col-span-2 mt-3 flex w-full flex-wrap items-center justify-between gap-3 border-t pt-4">
       <p className="text-left text-muted-foreground">İmtahan nəticəsi</p>
-      <div className="flex items-center justify-end gap-2">
-        <Badge
-          variant={
-            examGrade === null
-              ? "outline"
-              : isFailedGrade(examGrade)
-                ? "destructive"
-                : "secondary"
-          }
-          className="min-w-9 justify-center px-2.5 py-0.5 text-sm"
-        >
-          {formatGradeValue(examGrade)}
-        </Badge>
-        <Badge
-          variant={examGradeLetter === null ? "outline" : "secondary"}
-          className="min-w-9 justify-center px-2.5 py-0.5 text-sm"
-        >
-          {examGradeLetter ?? "-"}
-        </Badge>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">İmtahana qədər</span>
+          <Badge
+            variant={gradeBeforeExam === null ? "outline" : "secondary"}
+            className="min-w-9 justify-center px-2.5 py-0.5 text-sm"
+          >
+            {formatGradeValue(gradeBeforeExam)}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">İmtahan</span>
+          <Badge
+            variant={
+              examGrade === null
+                ? "outline"
+                : isFailedGrade(examGrade)
+                  ? "destructive"
+                  : "secondary"
+            }
+            className="min-w-9 justify-center px-2.5 py-0.5 text-sm"
+          >
+            {formatGradeValue(examGrade)}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Hərf</span>
+          <Badge
+            variant={examGradeLetter === null ? "outline" : "secondary"}
+            className="min-w-9 justify-center px-2.5 py-0.5 text-sm"
+          >
+            {examGradeLetter ?? "-"}
+          </Badge>
+        </div>
       </div>
     </div>
   );
@@ -278,6 +294,7 @@ function AssessmentGrid({
       </div>
 
       <ExamResult
+        gradeBeforeExam={course.gradeBeforeExam}
         examGrade={course.examGrade}
         examGradeLetter={course.examGradeLetter}
       />
@@ -328,6 +345,9 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
     const examGrade = toNullableNumber(getProp(item, "ExamGrade", "examGrade"));
     const examGradeLetter = toNullableString(
       getProp(item, "ExamGradeLetter", "examGradeLetter"),
+    );
+    const gradeBeforeExam = toNullableNumber(
+      getProp(item, "GradeBeforeExam", "gradeBeforeExam"),
     );
 
     const independentWorksRaw = toArray(
@@ -433,6 +453,7 @@ export function normalizeCourseList(raw: any): GradeCourse[] {
       ),
       classType: "Lecture",
       colloquium,
+      gradeBeforeExam,
       examGrade,
       examGradeLetter,
       seminarGrades,
