@@ -282,6 +282,15 @@ function mapFinalExamFromApi(exam: any): FinalExam {
       : typeof gradeRaw === "string" && gradeRaw.trim() !== ""
         ? Number(gradeRaw)
         : undefined;
+  const gradeBeforeExamRaw =
+    exam?.gradeBeforeExam ?? exam?.GradeBeforeExam ?? exam?.beforeExamGrade;
+  const gradeBeforeExam =
+    typeof gradeBeforeExamRaw === "number"
+      ? gradeBeforeExamRaw
+      : typeof gradeBeforeExamRaw === "string" &&
+          gradeBeforeExamRaw.trim() !== ""
+        ? Number(gradeBeforeExamRaw)
+        : undefined;
 
   return {
     id: String(id),
@@ -326,6 +335,9 @@ function mapFinalExamFromApi(exam: any): FinalExam {
       typeof (exam?.semester ?? exam?.Semester) === "number"
         ? Number(exam?.semester ?? exam?.Semester)
         : undefined,
+    gradeBeforeExam: Number.isFinite(gradeBeforeExam)
+      ? gradeBeforeExam
+      : undefined,
     date: typeof date === "string" ? date : undefined,
     grade: Number.isFinite(numericGrade) ? numericGrade : undefined,
     gradesConfirmed: Boolean(gradesConfirmedRaw),
@@ -350,6 +362,11 @@ function formatExamGradeForDisplay(grade?: number): string {
   if (grade == null) return "-";
   if (grade === -1) return "Qiymet verilməyib";
   return String(grade);
+}
+
+function formatGradeBeforeExam(value?: number): string {
+  if (value == null) return "-";
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 function toDateTimeLocalValue(value?: string): string {
@@ -530,7 +547,7 @@ export function DeanFinalExams({ mode }: Props) {
       </TableCell>
       <TableCell>{exam.courseCode || "-"}</TableCell>
       <TableCell>{exam.groupCode || "-"}</TableCell>
-      <TableCell>{exam.semester ?? "-"}</TableCell>
+      <TableCell>{formatGradeBeforeExam(exam.gradeBeforeExam)}</TableCell>
       <TableCell>{formatExamDateForDisplay(exam.date)}</TableCell>
       <TableCell>{formatExamGradeForDisplay(exam.grade)}</TableCell>
       <TableCell>
@@ -1546,7 +1563,7 @@ export function DeanFinalExams({ mode }: Props) {
                 <TableHead>Tələbə</TableHead>
                 <TableHead>Fənn kodu</TableHead>
                 <TableHead>Qrup</TableHead>
-                <TableHead>Semestr</TableHead>
+                <TableHead>İmtahana qədər</TableHead>
                 <TableHead>Tarix</TableHead>
                 <TableHead>Qiymet</TableHead>
                 <TableHead>İcazə statusu</TableHead>

@@ -10,6 +10,7 @@ export type FinalExam = {
   courseCode?: string;
   groupCode?: string;
   semester?: number;
+  gradeBeforeExam?: number;
   date?: string;
   grade?: number;
   gradesConfirmed?: boolean;
