@@ -36,17 +36,7 @@ function normalizeStringArray(value: unknown): string[] {
 
 function normalizeFormat(value: unknown): LibraryBookFormat {
   const normalized = String(value ?? "").toLowerCase();
-  if (
-    normalized === "pdf" ||
-    normalized === "epub" ||
-    normalized === "doc" ||
-    normalized === "docx" ||
-    normalized === "ppt" ||
-    normalized === "pptx"
-  ) {
-    return normalized;
-  }
-  return "other";
+  return normalized === "pdf" ? "pdf" : "other";
 }
 
 function normalizeStatus(value: unknown): LibraryBookStatus {

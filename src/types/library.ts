@@ -1,10 +1,5 @@
 export type LibraryBookFormat =
   | "pdf"
-  | "epub"
-  | "doc"
-  | "docx"
-  | "ppt"
-  | "pptx"
   | "other";
 
 export type LibraryBookStatus = "available" | "draft" | "archived";

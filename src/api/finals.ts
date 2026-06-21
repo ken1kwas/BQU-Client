@@ -21,6 +21,27 @@ export async function listFinalExams(options?: {
   return unwrapApiResult(raw);
 }
 
+export async function listFailedFinalExams(options?: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  groupId?: string;
+}) {
+  const search = options?.search ?? "";
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 10;
+  const query = new URLSearchParams({
+    search,
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  if (options?.groupId) {
+    query.set("groupId", options.groupId);
+  }
+  const raw = await apiJson<any>(`/api/finals/failed?${query.toString()}`);
+  return unwrapApiResult(raw);
+}
+
 export type FinalExamToConfirmDto = {
   id: string;
   groupCode: string;

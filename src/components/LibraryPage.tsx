@@ -137,16 +137,6 @@ function mimeTypeForBook(book: LibraryBook, fallback: string): string {
   switch (book.format) {
     case "pdf":
       return "application/pdf";
-    case "epub":
-      return "application/epub+zip";
-    case "doc":
-      return "application/msword";
-    case "docx":
-      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    case "ppt":
-      return "application/vnd.ms-powerpoint";
-    case "pptx":
-      return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     default:
       return fallback || "application/octet-stream";
   }
@@ -950,7 +940,7 @@ export function LibraryPage({ userRole }: LibraryPageProps) {
                   <Input
                     id="book-file"
                     type="file"
-                    accept=".pdf,.epub,.doc,.docx,.ppt,.pptx"
+                    accept=".pdf,application/pdf"
                     onChange={(event) =>
                       setForm((prev) => ({
                         ...prev,
