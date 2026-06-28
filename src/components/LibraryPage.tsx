@@ -146,28 +146,6 @@ function canDownloadBook(book: LibraryBook): boolean {
   return book.format !== "pdf";
 }
 
-function readerUrlForBook(book: LibraryBook, objectUrl: string): string {
-  if (book.format !== "pdf") return objectUrl;
-  return objectUrl;
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
-
-function createReaderKey(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `library-pdf-${crypto.randomUUID()}`;
-  }
-
-  return `library-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 function statusLabel(status: LibraryBookStatus): string {
   switch (status) {
     case "draft":
@@ -492,28 +470,16 @@ export function LibraryPage({ userRole }: LibraryPageProps) {
       const readableBlob = new Blob([blob], {
         type: mimeTypeForBook(book, contentType),
       });
+      const url = URL.createObjectURL(readableBlob);
+
+      setReaderObjectUrl(url);
 
       if (isPdf && pdfViewerWindow) {
-        const key = createReaderKey();
-        const dataUrl = await blobToDataUrl(readableBlob);
-        localStorage.setItem(
-          key,
-          JSON.stringify({
-            title: book.title || "Kitabxana oxuyucusu",
-            dataUrl,
-          }),
-        );
-        const params = new URLSearchParams({
-          key,
-          title: book.title || "Kitabxana oxuyucusu",
-        });
-        pdfViewerWindow.location.href = `/pdf-reader?${params.toString()}`;
+        pdfViewerWindow.location.href = url;
         return;
       }
 
-      const url = URL.createObjectURL(readableBlob);
-      setReaderObjectUrl(url);
-      setReaderUrl(readerUrlForBook(book, url));
+      setReaderUrl(url);
 
       setReaderOpen(true);
     } catch (error: any) {
