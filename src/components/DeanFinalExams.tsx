@@ -32,6 +32,7 @@ import {
   bulkConfirmFinalExams,
   confirmFinalExamGrades,
   createFinalExam,
+  listFailedFinalExams,
   listGroups,
   listStudents,
   listFinalExams,
@@ -203,6 +204,72 @@ function filterSubjectOptionsByGroup(
   });
 }
 
+function studentMatchesSearch(student: StudentOption, search: string): boolean {
+  const cleanSearch = normalizeFilterValue(search);
+  if (!cleanSearch) return true;
+
+  return (
+    normalizeFilterValue(student.label).includes(cleanSearch) ||
+    normalizeFilterValue(student.groupCode).includes(cleanSearch) ||
+    normalizeFilterValue(student.id).includes(cleanSearch)
+  );
+}
+
+function studentMatchesGroup(
+  student: StudentOption,
+  group?: GroupOption,
+): boolean {
+  if (!group) return true;
+
+  const studentGroupId = normalizeFilterValue(student.groupId);
+  const studentGroupCode = normalizeFilterValue(student.groupCode);
+  const groupId = normalizeFilterValue(group.groupId || group.id);
+  const groupCode = normalizeFilterValue(group.groupCode || group.code);
+
+  return (
+    (groupId && studentGroupId === groupId) ||
+    (groupCode && studentGroupCode === groupCode)
+  );
+}
+
+function upsertOption<T extends { id: string }>(items: T[], next: T): T[] {
+  if (!next.id) return items;
+  if (items.some((item) => item.id === next.id)) return items;
+  return [...items, next];
+}
+
+function buildStudentOptionFromExam(exam: FinalExam): StudentOption {
+  return {
+    id: exam.studentId ?? "",
+    groupId: exam.groupId,
+    groupCode: exam.groupCode,
+    label: exam.studentName || exam.studentId || "Unnamed student",
+  };
+}
+
+function buildSubjectOptionFromExam(exam: FinalExam): SubjectOption {
+  const taughtSubjectId = exam.taughtSubjectId ?? "";
+  const subjectId = exam.subjectId ?? "";
+  const code = exam.courseCode ?? "";
+  const title = exam.title ?? "";
+  const label =
+    [code, title].filter(Boolean).join(" - ") ||
+    taughtSubjectId ||
+    subjectId ||
+    "Unnamed subject";
+
+  return {
+    id: taughtSubjectId || subjectId,
+    taughtSubjectId,
+    subjectId,
+    groupId: exam.groupId,
+    groupCode: exam.groupCode,
+    code,
+    title,
+    label: exam.groupCode ? `${label} (${exam.groupCode})` : label,
+  };
+}
+
 function normalizeGroupOption(group: any): GroupOption {
   const id = pickString(group?.id, group?.Id, group?.groupId, group?.groupID);
   const code = pickString(group?.groupCode, group?.code, group?.name);
@@ -236,12 +303,14 @@ function mapFinalExamFromApi(exam: any): FinalExam {
     exam?.Title ??
     exam?.name ??
     exam?.Name ??
-    exam?.subjectCode ??
-    exam?.SubjectCode ??
     exam?.subjectTitle ??
     exam?.SubjectTitle ??
+    exam?.subjectName ??
+    exam?.SubjectName ??
     exam?.taughtSubjectTitle ??
     exam?.TaughtSubjectTitle ??
+    exam?.subjectCode ??
+    exam?.SubjectCode ??
     "Untitled final exam";
 
   const date =
@@ -268,10 +337,12 @@ function mapFinalExamFromApi(exam: any): FinalExam {
   const gradeRaw =
     exam?.grade ??
     exam?.Grade ??
-    exam?.finalGrade ??
-    exam?.FinalGrade ??
     exam?.examGrade ??
-    exam?.ExamGrade;
+    exam?.ExamGrade ??
+    exam?.finalGrade ??
+    exam?.FinalGrade;
+
+  const finalGradeRaw = exam?.finalGrade ?? exam?.FinalGrade;
 
   const isAllowedRaw =
     exam?.isAllowed ?? exam?.IsAllowed ?? exam?.allowed ?? exam?.Allowed;
@@ -282,10 +353,31 @@ function mapFinalExamFromApi(exam: any): FinalExam {
       : typeof gradeRaw === "string" && gradeRaw.trim() !== ""
         ? Number(gradeRaw)
         : undefined;
+  const gradeBeforeExamRaw =
+    exam?.gradeBeforeExam ?? exam?.GradeBeforeExam ?? exam?.beforeExamGrade;
+  const gradeBeforeExam =
+    typeof gradeBeforeExamRaw === "number"
+      ? gradeBeforeExamRaw
+      : typeof gradeBeforeExamRaw === "string" &&
+          gradeBeforeExamRaw.trim() !== ""
+        ? Number(gradeBeforeExamRaw)
+        : undefined;
+  const finalGrade =
+    typeof finalGradeRaw === "number"
+      ? finalGradeRaw
+      : typeof finalGradeRaw === "string" && finalGradeRaw.trim() !== ""
+        ? Number(finalGradeRaw)
+        : undefined;
 
   return {
     id: String(id),
     studentId: pickString(exam?.studentId, exam?.StudentId),
+    groupId: pickString(
+      exam?.groupId,
+      exam?.GroupId,
+      exam?.group?.id,
+      exam?.group?.Id,
+    ),
     taughtSubjectId: pickString(
       exam?.taughtSubjectId,
       exam?.TaughtSubjectId,
@@ -326,6 +418,10 @@ function mapFinalExamFromApi(exam: any): FinalExam {
       typeof (exam?.semester ?? exam?.Semester) === "number"
         ? Number(exam?.semester ?? exam?.Semester)
         : undefined,
+    gradeBeforeExam: Number.isFinite(gradeBeforeExam)
+      ? gradeBeforeExam
+      : undefined,
+    finalGrade: Number.isFinite(finalGrade) ? finalGrade : undefined,
     date: typeof date === "string" ? date : undefined,
     grade: Number.isFinite(numericGrade) ? numericGrade : undefined,
     gradesConfirmed: Boolean(gradesConfirmedRaw),
@@ -350,6 +446,11 @@ function formatExamGradeForDisplay(grade?: number): string {
   if (grade == null) return "-";
   if (grade === -1) return "Qiymet verilməyib";
   return String(grade);
+}
+
+function formatGradeBeforeExam(value?: number): string {
+  if (value == null) return "-";
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 function toDateTimeLocalValue(value?: string): string {
@@ -485,6 +586,11 @@ export function DeanFinalExams({ mode }: Props) {
   const [createFinalExamStudentId, setCreateFinalExamStudentId] = useState("");
   const [createFinalExamSubjectId, setCreateFinalExamSubjectId] = useState("");
   const [createFinalExamDateInput, setCreateFinalExamDateInput] = useState("");
+  const [createStudentSearchInput, setCreateStudentSearchInput] = useState("");
+  const [createStudentGroupFilterId, setCreateStudentGroupFilterId] =
+    useState("all");
+  const [failedFinalExams, setFailedFinalExams] = useState<FinalExam[]>([]);
+  const [isFailedFinalsLoading, setIsFailedFinalsLoading] = useState(false);
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [createOptionsLoading, setCreateOptionsLoading] = useState(false);
@@ -495,6 +601,10 @@ export function DeanFinalExams({ mode }: Props) {
   const selectedGroupFilter =
     selectedGroupFilterId && selectedGroupFilterId !== "all"
       ? groupOptions.find((group) => group.id === selectedGroupFilterId)
+      : undefined;
+  const selectedCreateGroupFilter =
+    createStudentGroupFilterId && createStudentGroupFilterId !== "all"
+      ? groupOptions.find((group) => group.id === createStudentGroupFilterId)
       : undefined;
   const effectiveSetDateGroupId =
     setDateGroupId ||
@@ -514,6 +624,12 @@ export function DeanFinalExams({ mode }: Props) {
   const createSubjectOptions = selectedCreateStudent
     ? filterSubjectOptionsByGroup(subjectOptions, selectedCreateStudent)
     : [];
+  const createStudentOptions = studentOptions
+    .filter((student) =>
+      studentMatchesGroup(student, selectedCreateGroupFilter),
+    )
+    .filter((student) => studentMatchesSearch(student, createStudentSearchInput))
+    .sort((a, b) => a.label.localeCompare(b.label));
   const updateSubjectOptions = filterSubjectOptionsByGroup(subjectOptions, {
     groupId: selectedUpdateStudent?.groupId,
     groupCode: selectedUpdateStudent?.groupCode || updateGroupCode,
@@ -530,7 +646,7 @@ export function DeanFinalExams({ mode }: Props) {
       </TableCell>
       <TableCell>{exam.courseCode || "-"}</TableCell>
       <TableCell>{exam.groupCode || "-"}</TableCell>
-      <TableCell>{exam.semester ?? "-"}</TableCell>
+      <TableCell>{formatGradeBeforeExam(exam.gradeBeforeExam)}</TableCell>
       <TableCell>{formatExamDateForDisplay(exam.date)}</TableCell>
       <TableCell>{formatExamGradeForDisplay(exam.grade)}</TableCell>
       <TableCell>
@@ -650,6 +766,29 @@ export function DeanFinalExams({ mode }: Props) {
     }
   };
 
+  const loadFailedFinalExamsForCreate = async () => {
+    try {
+      setIsFailedFinalsLoading(true);
+      const failedResp = await listFailedFinalExams({
+        search: createStudentSearchInput.trim(),
+        groupId:
+          createStudentGroupFilterId && createStudentGroupFilterId !== "all"
+            ? createStudentGroupFilterId
+            : undefined,
+        page: 1,
+        pageSize: 25,
+      });
+      setFailedFinalExams(
+        extractFinalExamItems(failedResp).map(mapFinalExamFromApi),
+      );
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to load failed exams");
+      setFailedFinalExams([]);
+    } finally {
+      setIsFailedFinalsLoading(false);
+    }
+  };
+
   const loadGroupExamSubjectOptions = async () => {
     try {
       setIsGroupExamSubjectOptionsLoading(true);
@@ -696,7 +835,17 @@ export function DeanFinalExams({ mode }: Props) {
   useEffect(() => {
     if (mode !== "create") return;
     void loadStudentAndSubjectOptions();
+    void loadGroupOptions();
   }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "create") return;
+    const timeoutId = window.setTimeout(() => {
+      void loadFailedFinalExamsForCreate();
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [mode, createStudentSearchInput, createStudentGroupFilterId]);
 
   useEffect(() => {
     if (mode !== "list") return;
@@ -917,6 +1066,33 @@ export function DeanFinalExams({ mode }: Props) {
     }
   };
 
+  const handleSelectFailedFinalExam = (exam: FinalExam) => {
+    const studentId = exam.studentId?.trim();
+    const subjectId = (exam.taughtSubjectId || exam.subjectId || "").trim();
+
+    if (!studentId || !subjectId) {
+      toast.error("Failed exam data is missing student or subject");
+      return;
+    }
+
+    const studentOption = buildStudentOptionFromExam(exam);
+    const subjectOption = buildSubjectOptionFromExam(exam);
+
+    setStudentOptions((prev) => upsertOption(prev, studentOption));
+    setSubjectOptions((prev) => upsertOption(prev, subjectOption));
+    setCreateFinalExamStudentId(studentId);
+    setCreateFinalExamSubjectId(subjectId);
+
+    const matchingGroup = groupOptions.find((group) =>
+      studentMatchesGroup(studentOption, group),
+    );
+    if (matchingGroup) {
+      setCreateStudentGroupFilterId(matchingGroup.id);
+    }
+
+    toast.success("Failed exam selected");
+  };
+
   const handleUpdateFinalExam = async () => {
     try {
       if (!updateExamId) {
@@ -1016,6 +1192,49 @@ export function DeanFinalExams({ mode }: Props) {
           <CardTitle>Semester imtahan yarat</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-[1fr_260px]">
+            <div className="space-y-2">
+              <Label htmlFor="final-create-student-search">Tələbə axtar</Label>
+              <Input
+                id="final-create-student-search"
+                value={createStudentSearchInput}
+                onChange={(event) =>
+                  setCreateStudentSearchInput(event.target.value)
+                }
+                placeholder="Ad, soyad, istifadəçi adı"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="final-create-group-filter">Qrup</Label>
+              <Select
+                value={createStudentGroupFilterId}
+                onValueChange={(value) => {
+                  setCreateStudentGroupFilterId(value);
+                  setCreateFinalExamStudentId("");
+                  setCreateFinalExamSubjectId("");
+                }}
+                disabled={isGroupOptionsLoading}
+              >
+                <SelectTrigger id="final-create-group-filter">
+                  <SelectValue
+                    placeholder={
+                      isGroupOptionsLoading
+                        ? "Qruplar yüklənir..."
+                        : "Qrup seçin"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Bütün qruplar</SelectItem>
+                  {groupOptions.map((group) => (
+                    <SelectItem key={`create-group-${group.id}`} value={group.id}>
+                      {group.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="final-create-student-id">Telebə</Label>
             <Select
@@ -1024,7 +1243,7 @@ export function DeanFinalExams({ mode }: Props) {
                 setCreateFinalExamStudentId(value);
                 setCreateFinalExamSubjectId("");
               }}
-              disabled={createOptionsLoading || studentOptions.length === 0}
+              disabled={createOptionsLoading || createStudentOptions.length === 0}
             >
               <SelectTrigger id="final-create-student-id">
                 <SelectValue
@@ -1036,14 +1255,16 @@ export function DeanFinalExams({ mode }: Props) {
                 />
               </SelectTrigger>
               <SelectContent>
-                {studentOptions.map((student) => (
+                {createStudentOptions.map((student) => (
                   <SelectItem key={student.id} value={student.id}>
-                    {student.label}
+                    {[student.label, student.groupCode ? `(${student.groupCode})` : ""]
+                      .filter(Boolean)
+                      .join(" ")}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {!createOptionsLoading && studentOptions.length === 0 ? (
+            {!createOptionsLoading && createStudentOptions.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 No students available
               </p>
@@ -1095,6 +1316,83 @@ export function DeanFinalExams({ mode }: Props) {
               value={createFinalExamDateInput}
               onChange={(e) => setCreateFinalExamDateInput(e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Kəsilmiş imtahanlar</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={loadFailedFinalExamsForCreate}
+                disabled={isFailedFinalsLoading}
+              >
+                Təzələ
+              </Button>
+            </div>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tələbə</TableHead>
+                    <TableHead>Fənn</TableHead>
+                    <TableHead>Qrup</TableHead>
+                    <TableHead>İmtahana qədər</TableHead>
+                    <TableHead>İmtahan</TableHead>
+                    <TableHead className="text-right">Əməliyyat</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isFailedFinalsLoading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="text-center text-muted-foreground"
+                      >
+                        Yüklənir...
+                      </TableCell>
+                    </TableRow>
+                  ) : failedFinalExams.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="text-center text-muted-foreground"
+                      >
+                        Kəsilmiş imtahan tapılmadı
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    failedFinalExams.map((exam) => (
+                      <TableRow key={`failed-${exam.id}-${exam.studentId}`}>
+                        <TableCell className="font-medium">
+                          {exam.studentName || exam.studentId || "-"}
+                        </TableCell>
+                        <TableCell>
+                          {[exam.courseCode, exam.title].filter(Boolean).join(" - ")}
+                        </TableCell>
+                        <TableCell>{exam.groupCode || "-"}</TableCell>
+                        <TableCell>
+                          {formatGradeBeforeExam(exam.gradeBeforeExam)}
+                        </TableCell>
+                        <TableCell>
+                          {formatExamGradeForDisplay(exam.grade)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSelectFailedFinalExam(exam)}
+                          >
+                            Seç
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
           <div className="flex justify-end">
             <Button
@@ -1546,7 +1844,7 @@ export function DeanFinalExams({ mode }: Props) {
                 <TableHead>Tələbə</TableHead>
                 <TableHead>Fənn kodu</TableHead>
                 <TableHead>Qrup</TableHead>
-                <TableHead>Semestr</TableHead>
+                <TableHead>İmtahana qədər</TableHead>
                 <TableHead>Tarix</TableHead>
                 <TableHead>Qiymet</TableHead>
                 <TableHead>İcazə statusu</TableHead>

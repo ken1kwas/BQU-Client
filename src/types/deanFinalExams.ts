@@ -3,6 +3,7 @@ export type DeanFinalExamsMode = "list" | "confirm" | "create";
 export type FinalExam = {
   id: string;
   studentId?: string;
+  groupId?: string;
   taughtSubjectId?: string;
   subjectId?: string;
   title: string;
@@ -10,6 +11,8 @@ export type FinalExam = {
   courseCode?: string;
   groupCode?: string;
   semester?: number;
+  gradeBeforeExam?: number;
+  finalGrade?: number;
   date?: string;
   grade?: number;
   gradesConfirmed?: boolean;

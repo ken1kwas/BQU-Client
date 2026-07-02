@@ -273,13 +273,6 @@ async function downloadTranscript(path: string, fallbackFileName: string) {
   } satisfies DownloadedTranscriptFile;
 }
 
-export function getStudentTranscriptExcel() {
-  return downloadTranscript(
-    "/api/students/me/get-transcript-excel",
-    "transcript.xlsx",
-  );
-}
-
 export function getStudentTranscriptPdf() {
   return downloadTranscript(
     "/api/students/me/get-transcript-pdf",
